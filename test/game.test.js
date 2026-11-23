@@ -42,6 +42,7 @@ s = apply(s, 0, { type: 'attack', i: 0, m: 0 }); // Mic Spam, power 1, nobody to
 assert(s.players[1].bore === 1 && s.actions === 0, 'direct attack: power goes to Boredom');
 
 s.actions = 6;
+throws(() => apply(s, 0, { type: 'attack', i: 0, m: 0 }), 'one move per Character per turn'); s.players[0].field[0].acted = 0; // then let it go again for the checks below
 s = apply(s, 0, { type: 'attack', i: 0, m: 0 });
 assert(s.players[1].bore === 2, 'same Character can attack again while Actions remain');
 s = apply(s, 0, { type: 'play', i: 0 }); // Night Owl
@@ -72,6 +73,7 @@ assert(statsOf(s, 1, s.players[1].field[0]).bonus === 1, 'Brainrot: +1 power');
 s = apply(s, 1, { type: 'play', i: 0 }); // Laggy Larry: DEF 14 -> armour 1, Tough +1, Lurker +2 while B has 0 Creativity
 assert(statsOf(s, 1, s.players[1].field[1]).def === 4 && s.players[1].field[1].hp === 4, 'armour from DEF, Tough and Lurker; HP doubled');
 const handB2 = s.players[1].hand.length, goofA = s.players[0].goof, hpG = s.players[0].field[0].hp;
+s.players[1].field[0].acted = 0; // test shortcut: Reply Guy already used Well Actually this turn
 s = apply(s, 1, { type: 'attack', i: 0, m: 1 }); // Ratio: power 2 + 1 Brainrot
 assert(s.phase === 'defend' && s.actions === 0, 'attack waits for a blocker, cost 3 paid');
 throws(() => apply(s, 1, { type: 'end' }), 'cannot act while waiting for a blocker');
@@ -91,6 +93,7 @@ s = apply(s, 1, { type: 'defend', i: 1 }); // Larry: armour 2 now (B has Creativ
 assert(s.roll.dmg === 2 && s.players[1].field[1].hp === 2 && s.players[0].field[1].hp === 3, 'Tough armour; All-Nighter costs Night Owl 1 HP');
 s.players[0].field[1].hp = 1;
 const boreA = s.players[0].bore;
+s.players[0].field[1].acted = 0; // test shortcut: let Night Owl move again this turn
 s = apply(s, 0, { type: 'attack', i: 1, m: 1 });
 s = apply(s, 1, { type: 'defend', i: 0 }); // Reply Guy: B is back to 0 Creativity, so Lurker gives armour 2: 2 damage; Night Owl's self damage defeats it
 assert(s.roll.dmg === 2 && !s.players[0].field.some(f => f.id === 'c_night_owl') && s.players[0].bore === boreA, 'self damage can defeat the attacker; defeats alone give no Boredom');
@@ -183,6 +186,12 @@ sp.players[sa].field = [{ id: 't_big', hp: 5, t: 0 }]; sp.players[sd].field = [{
 const boreD = sp.players[sd].bore;
 sp = apply(sp, sa, { type: 'attack', i: 0, m: 0 }); sp = apply(sp, sd, { type: 'defend', i: 0 });
 assert(sp.players[sd].field.length === 0 && sp.players[sd].bore === boreD + 2, 'damage spills to the next Character (armour applies) and the rest becomes Boredom');
+// deck-out: drawing from an empty deck gives escalating Boredom
+let fo = newGame([STARTER, STARTER], ['A', 'B'], fixed(0.1)); const fa = fo.turn, fb = 1 - fa; fo.players[fb].deck = []; fo.players[fa].deck = [];
+const b0 = fo.players[fb].bore; fo = apply(fo, fa, { type: 'end' });
+assert(fo.players[fb].bore === b0 + 1, 'empty deck: +1 Boredom instead of a draw');
+fo = apply(fo, fb, { type: 'end' }); fo = apply(fo, fa, { type: 'end' });
+assert(fo.players[fb].bore === b0 + 3, 'then +2 the next time');
 let ce = newGame([STARTER, STARTER], ['A', 'B'], fixed(0.1)); const ep = ce.turn;
 ce.players[1 - ep].effects = [{ id: 'e_read' }, { id: 'b_brainrot', turns: 2 }]; ce.actions = 2;
 throws(() => apply(ce, ep, { type: 'cleanse', i: 1 }), 'only Evils can be cleansed');

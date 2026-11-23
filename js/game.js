@@ -50,6 +50,7 @@ function moveBlock(s, pi, f, m) {
   if ((mv.goof || 0) > s.players[pi].goof) return 'Not enough Creativity';
   if (!mv.ability && !canAttack(s, f)) return 'Can attack next turn';
   if (mv.once && f.once?.[m] === s.turnNo) return 'Used this turn';
+  if (f.acted === s.turnNo) return 'Already moved this turn';
   return '';
 }
 const canUseAny = (s, pi, f) => (CARD[f.id].moves || []).some((_, m) => !moveBlock(s, pi, f, m));
@@ -150,8 +151,10 @@ function apply(s0, p, a, rng = Math.random) {
       const f = at(me.field, a.i), c = CARD[f.id], mv = c.moves?.[a.m], self = { p, i: a.i };
       if (!mv) throw new Error('No such move.');
       if (mv.once && f.once?.[a.m] === s.turnNo) throw new Error(`${mv.name} is once per turn.`);
+      if (f.acted === s.turnNo) throw new Error(`${c.name} has already used a move this turn.`); // one move per Character per turn
       if (mv.goof) { if (me.goof < mv.goof) throw new Error(`${mv.name} needs ${mv.goof} Creativity.`); gain(p, 'goof', -mv.goof); }
       if (mv.once) f.once = { ...f.once, [a.m]: s.turnNo };
+      f.acted = s.turnNo;
       if (mv.ability) {
         spend(moveCost(s, p, mv));
         say(`${c.name} used ${mv.name}.`);
@@ -239,7 +242,8 @@ function apply(s0, p, a, rng = Math.random) {
       const saved = opp.bank || 0;
       s.actions = Math.min(MAX_ACTIONS, saved + 2) + modSum(s, 1 - p, 'actions');
       opp.bank = 0;
-      draw(1 - p);
+      if (opp.deck.length) draw(1 - p);
+      else { opp.fatigue = (opp.fatigue || 0) + 1; gain(1 - p, 'bore', opp.fatigue); say(`${opp.name} has no cards left to draw: +${opp.fatigue} Boredom.`); } // deck-out: escalating Boredom
       say(`${opp.name}'s turn${saved ? ` (${saved} Action${saved > 1 ? 's' : ''} saved, starts with ${s.actions})` : ''}.`);
       ev({ k: 'turn', p: 1 - p });
       for (const c of sources(s, 1 - p)) runOps(1 - p, c.onTurnStart, c);
