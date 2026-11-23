@@ -154,17 +154,18 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
 .card .tag .i { width: 5.6cqw; height: 5.6cqw; }
 .card .foot { display: flex; justify-content: space-between; padding: 0 1cqw; font-size: 3.8cqw; font-weight: 800; letter-spacing: .3cqw; text-transform: uppercase; color: var(--name); opacity: .7; }
 .card.back .frame { background: #070708 url(art/card-back.jpg) center bottom / contain no-repeat; box-shadow: inset 0 0 0 2.4cqw #f4f6fa, inset 0 0 0 2.9cqw rgba(40, 50, 80, .25), 0 2.5cqw 6cqw rgba(40, 48, 72, .28); }
-/* mini = on the board / in hand: name, art and stats only */
-.card.mini .text, .card.mini .foot, .card.mini .type { display: none; }
-.card.mini .frame { padding: 6cqw 6cqw 5cqw; gap: 3cqw; }
+/* mini = on the board / in hand: smaller art and bigger type so the text reads at a glance (clamped; zoom shows all) */
+.card.mini .foot, .card.mini .type { display: none; }
+.card.mini .frame { padding: 5.5cqw 5.5cqw 4.5cqw; gap: 2.5cqw; }
 .card.mini .head { min-height: 0; }
-.card.mini .name { font-size: 11cqw; }
-.card.mini .art { height: 50%; }
-.card.mini .stats { margin-top: auto; padding: 1.5cqw 1cqw; }
-.card.mini .st { font-size: 11cqw; gap: .5cqw; }
-.card.mini .st .i { width: 9cqw; height: 9cqw; }
-.card.mini .tag { margin-top: auto; font-size: 8.5cqw; }
-.card.mini .tag .i { width: 8cqw; height: 8cqw; }
+.card.mini .name { font-size: 9.5cqw; }
+.card.mini .art { height: 34%; }
+.card.mini .text { font-size: 7.4cqw; line-height: 1.2; padding: 2cqw 2.6cqw; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.card.mini .stats { margin-top: auto; padding: 1.2cqw 1cqw; }
+.card.mini .st { font-size: 10cqw; gap: .5cqw; }
+.card.mini .st .i { width: 8cqw; height: 8cqw; }
+.card.mini .tag { margin-top: auto; font-size: 7.5cqw; }
+.card.mini .tag .i { width: 7cqw; height: 7cqw; }
 .card.zoom { --cw: 250px; }
 .card.glow .frame, .card.sel .frame, .card.picked .frame { box-shadow: inset 0 0 0 2.4cqw #f4f6fa, 0 0 0 3px var(--glow), 0 0 20px var(--glow); }
 
@@ -192,9 +193,9 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
 .fx .i { width: 12px; height: 12px; }
 .fx.bit .i, .fx.bit b { color: #d88a00; }
 .fx.evil .i { color: #563597; }
-.field { display: flex; justify-content: center; align-items: center; gap: 8px; min-height: 116px; }
-.field .card { --cw: 78px; }
-.slot { width: 78px; aspect-ratio: 5 / 7; border-radius: 10px; box-shadow: var(--inset); opacity: .7; }
+.field { display: flex; justify-content: center; align-items: center; gap: 8px; min-height: 136px; }
+.field .card { --cw: 96px; }
+.slot { width: 96px; aspect-ratio: 5 / 7; border-radius: 10px; box-shadow: var(--inset); opacity: .7; }
 .mid { margin: auto 10px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px 8px 14px; border-radius: 999px; }
 .pile { position: relative; }
 .pile .card { --cw: 34px; }
@@ -291,7 +292,7 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
   .hero .row2 > * { width: 100%; flex: none; padding: 16px; font-size: 17px; }
 
   /* board: opponent on top, you below, HUDs left, effects right, hand along the bottom */
-  .board { display: grid; padding: 0 28px; grid-template-columns: 300px 1fr 300px; grid-template-rows: 46px 1fr auto 1fr 214px;
+  .board { display: grid; padding: 0 28px; grid-template-columns: 300px 1fr 300px; grid-template-rows: 46px 1fr auto 1fr auto;
     grid-template-areas: "oh oh oh" "ohud ofield ofx" "mid mid mid" "yhud yfield yfx" "hand hand hand"; }
   .board > .side { display: contents; }
   .opp-hand { grid-area: oh; height: auto; }
@@ -305,14 +306,14 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
   .effects { flex-direction: column; align-items: flex-end; }
   .fx { font-size: 13px; padding: 6px 14px 6px 10px; }
   .field { gap: 18px; }
-  .field .card { --cw: clamp(88px, 14vh, 140px); }
-  .slot { width: clamp(88px, 14vh, 140px); border-radius: 14px; }
+  .field .card { --cw: clamp(100px, 16vh, 160px); }
+  .slot { width: clamp(100px, 16vh, 160px); border-radius: 14px; }
   .hud { padding: 10px 20px 10px 10px; }
   .hud .avatar { width: 52px; height: 52px; }
   .who b { font-size: 16px; }
   .mid { grid-area: mid; justify-self: center; width: min(640px, 100%); margin: 6px 0; }
-  .hand { grid-area: hand; height: auto; padding-bottom: 18px; }
-  .hand .card { --cw: clamp(92px, 15vh, 140px); margin: 0 -6px; }
+  .hand { grid-area: hand; height: auto; padding: 10px 0 24px; }
+  .hand .card { --cw: clamp(100px, 16vh, 160px); margin: 0 -6px; }
   .toast { top: 86px; font-size: 13px; }
 
   /* overlays become centered dialogs */
