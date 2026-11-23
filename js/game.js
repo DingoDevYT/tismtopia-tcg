@@ -33,10 +33,13 @@ function deckProblems(d) {
 const sources = (s, pi) => { const p = s.players[pi]; return [CARD[p.captain], ...p.field.map(f => CARD[f.id]), ...p.effects.map(e => CARD[e.id])]; };
 const modSum = (s, pi, key) => sources(s, pi).reduce((n, c) =>
   n + (c.mod?.[key] && !(c.mod.if === 'noGoof' && s.players[pi].goof) ? c.mod[key] : 0), 0);
-const statsOf = (s, pi, f) => ({ atk: CARD[f.id].atk + modSum(s, pi, 'atk'), def: CARD[f.id].def + modSum(s, pi, 'def') });
-const attackCost = (s, pi) => 1 + modSum(s, 1 - pi, 'oppAttackCost');
+// A Character's live numbers: DEF with modifiers, and `bonus` power added to each of its attacks.
+const statsOf = (s, pi, f) => ({ def: CARD[f.id].def + modSum(s, pi, 'def'), bonus: modSum(s, pi, 'atk') });
+const moveCost = (s, pi, mv) => mv.cost + (mv.ability ? 0 : modSum(s, 1 - pi, 'oppAttackCost'));
 const playCost = (s, pi, c) => 1 + (c.type === 'evil' ? modSum(s, 1 - pi, 'oppEvilCost') : 0);
 const canAttack = (s, f) => !(CARD[f.id].sick && f.t === s.turnNo);
+// Can this Character use any move right now with the Actions left?
+const canUseAny = (s, pi, f) => (CARD[f.id].moves || []).some(mv => moveCost(s, pi, mv) <= s.actions && (mv.ability || canAttack(s, f)));
 
 function newGame(decks, names, rng = Math.random) {
   const players = [0, 1].map(i => {
@@ -78,15 +81,30 @@ function apply(s0, p, a, rng = Math.random) {
     if (d) ev({ k: 'meter', p: pi, key, n: d });
     return d;
   };
-  const runOps = (pi, ops, c) => {
-    for (const [what, whom, n] of ops || []) {
-      const ti = whom === 'opp' ? 1 - pi : pi, t = s.players[ti];
-      if (what === 'goof' || what === 'bore') { const d = gain(ti, what, n); say(`${c.name}: ${t.name} ${d >= 0 ? '+' : ''}${d} ${METERS[what]}.`); }
-      else if (what === 'draw') { for (let k = 0; k < n; k++) draw(ti); say(`${c.name}: ${t.name} draws ${n}.`); }
-      else if (what === 'actions' && s.turn === ti) { s.actions = Math.max(0, s.actions + n); say(`${c.name}: ${n > 0 ? '+' : ''}${n} Action${Math.abs(n) > 1 ? 's' : ''}.`); }
+  // ctx: { self, target } as { p, i } field positions, for 'hp' steps inside moves
+  const runOps = (pi, ops, c, ctx = {}) => {
+    for (const [what, a1, a2] of ops || []) {
+      if (what === 'flip') {
+        const heads = rng() < 0.5;
+        ev({ k: 'coin', p: pi, heads });
+        say(`${c.name}: coin flip, ${heads ? 'heads' : 'tails'}.`);
+        runOps(pi, heads ? a1 : a2, c, ctx);
+        continue;
+      }
+      if (what === 'hp') {
+        const pos = a1 === 'self' ? ctx.self : ctx.target, f = pos && s.players[pos.p].field[pos.i];
+        if (!f || f.hp <= 0) continue;
+        for (let k = 0; k < a2; k++) hurt(pos.p, pos.i);
+        say(`${c.name}: ${CARD[f.id].name} -${a2} HP.`);
+        continue;
+      }
+      const ti = a1 === 'opp' ? 1 - pi : pi, t = s.players[ti];
+      if (what === 'goof' || what === 'bore') { const d = gain(ti, what, a2); say(`${c.name}: ${t.name} ${d >= 0 ? '+' : ''}${d} ${METERS[what]}.`); }
+      else if (what === 'draw') { for (let k = 0; k < a2; k++) draw(ti); say(`${c.name}: ${t.name} draws ${a2}.`); }
+      else if (what === 'actions' && s.turn === ti) { s.actions = Math.max(0, s.actions + a2); say(`${c.name}: ${a2 > 0 ? '+' : ''}${a2} Action${Math.abs(a2) > 1 ? 's' : ''}.`); }
     }
   };
-  const hurt = (pi, i) => { const f = s.players[pi].field[i]; f.hp--; ev({ k: 'hit', p: pi, i, ko: f.hp <= 0 }); };
+  const hurt = (pi, i) => { const f = s.players[pi].field[i]; if (f.hp <= 0) return; f.hp--; ev({ k: 'hit', p: pi, i, ko: f.hp <= 0 }); };
   const cull = pl => { pl.field = pl.field.filter(f => f.hp > 0 || (say(`${CARD[f.id].name} was defeated.`), false)); };
 
   if (s.phase === 'over') throw new Error('The game is over.');
@@ -105,42 +123,56 @@ function apply(s0, p, a, rng = Math.random) {
       runOps(p, c.onPlay, c);
       break;
     }
-    case 'attack': {
-      const f = at(me.field, a.i), c = CARD[f.id];
-      if (!canAttack(s, f)) throw new Error(`${c.name} can't attack the turn it's played.`);
-      spend(attackCost(s, p));
-      if (opp.field.length) { s.phase = 'defend'; s.pending = { i: a.i }; say(`${c.name} attacks! ${opp.name} picks a defender.`); }
-      else {
-        const n = statsOf(s, p, f).atk;
-        ev({ k: 'attack', p, i: a.i, direct: true });
-        gain(1 - p, 'bore', n);
-        say(`${c.name} attacks directly: ${opp.name} +${n} Boredom.`);
+    case 'attack': { // use one of a Character's moves: a.i = field position, a.m = move index
+      const f = at(me.field, a.i), c = CARD[f.id], mv = c.moves?.[a.m], self = { p, i: a.i };
+      if (!mv) throw new Error('No such move.');
+      if (mv.ability) {
+        spend(moveCost(s, p, mv));
+        say(`${c.name} used ${mv.name}.`);
+        ev({ k: 'move', p, i: a.i, name: mv.name });
+        runOps(p, mv.ops, c, { self });
+        break;
       }
+      if (!canAttack(s, f)) throw new Error(`${c.name} can't attack the turn it's played.`);
+      spend(moveCost(s, p, mv));
+      if (opp.field.length) { s.phase = 'defend'; s.pending = { i: a.i, m: a.m }; say(`${c.name} uses ${mv.name}! ${opp.name} picks a defender.`); }
+      else {
+        const power = mv.power + statsOf(s, p, f).bonus;
+        ev({ k: 'attack', p, i: a.i, direct: true, move: mv.name });
+        gain(1 - p, 'bore', power);
+        say(`${c.name} uses ${mv.name} directly: ${opp.name} +${power} Boredom.`);
+        runOps(p, mv.onHit, c, { self });
+      }
+      cull(me);
       break;
     }
     case 'defend': {
       if (s.phase !== 'defend' || s.turn === p) throw new Error('Nothing to defend.');
       const ai = 1 - p, af = at(opp.field, s.pending.i), df = at(me.field, a.i);
-      const ac = CARD[af.id], dc = CARD[df.id], A = statsOf(s, ai, af), D = statsOf(s, p, df);
+      const ac = CARD[af.id], dc = CARD[df.id], mv = ac.moves[s.pending.m];
+      const power = mv.power + statsOf(s, ai, af).bonus, def = statsOf(s, p, df).def;
       const roll = () => 1 + Math.floor(rng() * 20);
-      const rolls = dc.disadv ? [roll(), roll()] : [roll()], die = Math.min(...rolls), total = die + A.atk, hit = total >= D.def;
-      ev({ k: 'attack', p: ai, i: s.pending.i, target: { p, i: a.i }, roll: { die, rolls, atk: A.atk, def: D.def, total, hit } });
-      if (hit) { hurt(p, a.i); gain(p, 'bore', A.atk); } else hurt(ai, s.pending.i);
-      s.roll = { seq: s.seq + 1, die, rolls, atk: A.atk, def: D.def, total, hit, a: af.id, d: df.id, aHp: af.hp, dHp: df.hp, by: ai };
-      say(`Rolled ${rolls.length > 1 ? `${rolls.join(' & ')}, kept ${die}` : die} + ${A.atk} = ${total} vs ${D.def} DEF: ` + (hit
-        ? `breaks through! ${dc.name} -1 HP, ${me.name} +${A.atk} Boredom.`
+      const rolls = dc.disadv ? [roll(), roll()] : [roll()], die = Math.min(...rolls), total = die + power, hit = total >= def;
+      ev({ k: 'attack', p: ai, i: s.pending.i, target: { p, i: a.i }, move: mv.name, roll: { die, rolls, atk: power, def, total, hit } });
+      if (hit) { hurt(p, a.i); gain(p, 'bore', power); } else hurt(ai, s.pending.i);
+      s.roll = { seq: s.seq + 1, die, rolls, atk: power, def, total, hit, a: af.id, d: df.id, aHp: af.hp, dHp: df.hp, by: ai };
+      say(`${mv.name}: rolled ${rolls.length > 1 ? `${rolls.join(' & ')}, kept ${die}` : die} + ${power} = ${total} vs ${def} DEF: ` + (hit
+        ? `breaks through! ${dc.name} -1 HP, ${me.name} +${power} Boredom.`
         : `blocked! ${ac.name} -1 HP.`));
-      if (hit) runOps(ai, ac.onBreak, ac);
+      if (hit) {
+        runOps(ai, mv.onHit, ac, { self: { p: ai, i: s.pending.i }, target: { p, i: a.i } });
+        runOps(ai, ac.onBreak, ac);
+      }
       cull(opp); cull(me);
       s.phase = 'play'; s.pending = null;
       break;
     }
-    case 'ability': {
-      const cap = a.i === -1, c = cap ? CARD[me.captain] : CARD[at(me.field, a.i).id];
-      if (!c.ability) throw new Error(`${c.name} has no ability to use.`);
-      if (cap && c.once && s.capUsed) throw new Error(`${c.name}'s ability is once per turn.`);
+    case 'ability': { // Captain ability; Character abilities are moves
+      const c = CARD[me.captain];
+      if (a.i !== -1 || !c.ability) throw new Error(`${c.name} has no ability to use.`);
+      if (c.once && s.capUsed) throw new Error(`${c.name}'s ability is once per turn.`);
       spend(1);
-      if (cap) s.capUsed = true;
+      s.capUsed = true;
       say(`${me.name} used ${c.name}'s ability.`);
       ev({ k: 'cast', p, id: c.id });
       runOps(p, c.ability, c);

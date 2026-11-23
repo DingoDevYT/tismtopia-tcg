@@ -35,19 +35,27 @@ const ICON = Object.fromEntries(Object.entries({
   rules: G('<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 19V5M8 7h7M8 11h5"/>'),
 }).map(([k, d]) => [k, `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`]));
 
-// c = card data (null = face-down). o: { cls, hp, atk, def (current values, shown green when buffed), turns, style, attrs }
+// A Character move, Pokemon style: Action pips, name, power (or "Ability"), effect text underneath.
+const renderMove = (mv, bonus = 0) => `<div class="move"><div class="mv-top"><span class="mv-cost">${ICON.action.repeat(mv.cost)}</span><b>${mv.name}</b>${mv.ability
+  ? '<span class="mv-tag">Ability</span>' : `<span class="mv-pow${bonus > 0 ? ' buff' : ''}">${mv.power + bonus}</span>`}</div>${mv.text ? `<div class="mv-text">${mv.text}</div>` : ''}</div>`;
+
+// c = card data (null = face-down). o: { cls, hp, def, bonus (live values; buffs show green), turns, style, attrs }
 function renderCard(c, o = {}) {
   const cls = o.cls ? ' ' + o.cls : '', style = (o.style ? ` style="${o.style}"` : '') + (o.attrs ? ' ' + o.attrs : '');
   if (!c) return `<div class="card back${cls}"${style}><div class="frame"></div></div>`;
-  const kind = kindOf(c), hp = o.hp ?? c.hp, turns = o.turns ?? c.dur, atk = o.atk ?? c.atk, def = o.def ?? c.def;
+  const kind = kindOf(c), hp = o.hp ?? c.hp, turns = o.turns ?? c.dur, def = o.def ?? c.def;
   const art = c.art ? `<img src="${c.art}" alt="">` : `<span class="ph">${ICON[c.type]}</span>`;
-  const foot = c.type === 'character'
-    ? `<div class="stats"><span class="st atk${atk > c.atk ? ' buff' : ''}">${ICON.atk}<b>${atk}</b></span><span class="st def${def > c.def ? ' buff' : ''}">${ICON.def}<b>${def}</b></span><span class="st hp${hp < c.hp ? ' hurt' : ''}">${ICON.hp}<b>${hp}</b></span></div>`
+  const isChar = c.type === 'character';
+  const body = isChar
+    ? `${c.text ? `<div class="text passive">${c.text}</div>` : ''}<div class="moves">${c.moves.map(mv => renderMove(mv, o.bonus)).join('')}</div>`
+    : `<div class="text">${c.text}</div>`;
+  const foot = isChar
+    ? `<div class="stats"><span class="st def${def > c.def ? ' buff' : ''}">${ICON.def}<i>DEF</i><b>${def}</b></span><span class="st hp${hp < c.hp ? ' hurt' : ''}">${ICON.hp}<i>HP</i><b>${hp}</b></span></div>`
     : `<div class="tag">${c.type === 'bit' ? `${ICON.time}${turns} turn${turns > 1 ? 's' : ''}` : c.type === 'evil' ? `${ICON.forever}Forever` : `${ICON.captain}${c.style}`}</div>`;
   return `<div class="card k-${kind}${cls}"${style} data-id="${c.id}"><div class="frame">
     <div class="head"><span class="name">${c.name}</span><span class="type">${ICON[kind]}</span></div>
     <div class="art">${art}</div>
-    <div class="text">${c.text}</div>
+    ${body}
     ${foot}
     <div class="foot"><span>${LABEL[kind]}</span><span>TISM ${c.no}</span></div>
   </div></div>`;
@@ -55,28 +63,28 @@ function renderCard(c, o = {}) {
 
 const renderAvatar = (c, cls = '') => `<span class="avatar${cls}">${c.art ? `<img src="${c.art}" alt="">` : ICON.captain}</span>`;
 const coins = n => `<div class="coins" title="Points ${n}/5">${Array.from({ length: 5 }, (_, i) => `<span class="${i < n ? 'on' : ''}">${ICON.point}</span>`).join('')}</div>`;
-const meter = (k, v) => `<div class="meter ${k}" title="${k === 'goof' ? 'Goofiness' : 'Boredom'} ${v}/5">${ICON[k]}${Array.from({ length: 5 }, (_, i) => `<i class="${i < v ? 'on' : ''}"></i>`).join('')}</div>`;
+const meter = (k, v) => `<div class="meter ${k}"><span>${ICON[k]}${k === 'goof' ? 'Goofiness' : 'Boredom'}</span><b>${v}/5</b>
+  <div class="mbar">${Array.from({ length: 5 }, (_, i) => `<i class="${i < v ? 'on' : ''}"></i>`).join('')}</div></div>`;
 
 // Clickable bits carry data-act="card" + who/zone/i; the app reads them with one delegated click handler.
 const pick = (who, zone, i) => `data-act="card" data-who="${who}" data-zone="${zone}" data-i="${i}" tabindex="0" role="button"`;
 
-function renderHud(p) {
-  const cap = CARD[p.captain];
-  return `<div class="hud neu" data-act="sheet" data-s="adjust" tabindex="0" role="button" aria-label="Adjust meters">${renderAvatar(cap)}
-    <div class="who"><b>${esc(p.name)}</b><small>${cap.name}</small></div>
-    <div class="meters">${coins(p.points)}${meter('goof', p.goof)}${meter('bore', p.bore)}</div></div>`;
+// Player area: their Captain card (tap: read it / use its ability) and a meter panel (tap: log and manual tools).
+function renderHud(p, who = 'me') {
+  return `<div class="hud">${renderCard(CARD[p.captain], { cls: 'cap', attrs: pick(who, 'cap', 0) })}
+    <div class="meters neu" data-act="sheet" data-s="adjust" tabindex="0" role="button" aria-label="${esc(p.name)}: meters, log and manual tools">
+      <div class="m-top"><b>${esc(p.name)}</b>${coins(p.points)}</div>${meter('goof', p.goof)}${meter('bore', p.bore)}</div></div>`;
 }
 
-// stat(f) -> { atk, def } with modifiers applied (game.js statsOf); omitted in the mockups.
+// stat(f) -> { def, bonus } with modifiers applied (game.js statsOf); omitted in the mockups.
 function renderField(p, glow = [], who = 'me', stat) {
   const cards = p.field.map((f, i) => renderCard(CARD[f.id], { hp: f.hp, ...stat?.(f), cls: 'mini' + (glow.includes(i) ? ' glow' : ''), attrs: pick(who, 'field', i) })).join('');
   return `<div class="field">${cards}${'<div class="slot"></div>'.repeat(Math.max(0, 3 - p.field.length))}</div>`;
 }
 
-const renderFx = (p, who = 'me') => `<div class="effects">${p.effects.map((e, i) => {
-  const c = CARD[e.id];
-  return `<button class="fx ${c.type}" ${pick(who, 'fx', i)}>${c.type === 'bit' ? `${ICON.time}<b>${e.turns}</b>` : ICON.forever}${c.name}</button>`;
-}).join('')}</div>`;
+// Active Bits/Evils: a pool of small readable cards (desktop); on phones an "Effects" button opens them in a sheet.
+const renderFx = (p, who = 'me') => `<div class="effects">${p.effects.length ? `<button class="fx-open" data-act="sheet" data-s="fx:${who}">${ICON.bit}Effects<b>${p.effects.length}</b></button>` : ''}
+  <div class="fx-pool">${p.effects.map((e, i) => renderCard(CARD[e.id], { cls: 'mini fxc', turns: e.turns, attrs: pick(who, 'fx', i) })).join('')}</div></div>`;
 
 function renderHand(ids, sel) {
   const mid = (ids.length - 1) / 2;
@@ -91,14 +99,14 @@ function renderBoard(s, me, o = {}) {
   const stat = pi => (typeof statsOf === 'function' ? f => statsOf(s, pi, f) : undefined);
   return `<div class="board">
     <div class="opp-hand">${renderCard(null).repeat(opp.hand.length)}</div>
-    <div class="side">${renderHud(opp)}${renderFx(opp, 'opp')}${renderField(opp, [], 'opp', stat(1 - me))}</div>
+    <div class="side">${renderHud(opp, 'opp')}${renderFx(opp, 'opp')}${renderField(opp, [], 'opp', stat(1 - me))}</div>
     <div class="mid neu">
       <div class="pile">${renderCard(null)}<span>${you.deck.length}</span></div>
       <div class="turn"><b>${s.turn === me ? 'Your turn' : `${esc(opp.name)}'s turn`}</b>
         <div class="pips">${Array.from({ length: Math.max(2, s.actions) }, (_, i) => `<i class="${i < s.actions ? 'on' : ''}">${ICON.action}</i>`).join('')}</div></div>
       <button class="btn end" data-act="end"${live ? '' : ' disabled'}>End Turn</button>
     </div>
-    <div class="side">${renderField(you, o.glow, 'me', stat(me))}${renderFx(you)}${renderHud(you)}</div>
+    <div class="side">${renderField(you, o.glow, 'me', stat(me))}${renderFx(you)}${renderHud(you, 'me')}</div>
     ${renderHand(you.hand, o.sel)}
   </div>`;
 }

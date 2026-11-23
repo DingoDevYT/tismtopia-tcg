@@ -49,7 +49,7 @@ function viewHome() {
   return `<div class="topbar"><button class="profile neu" data-act="rename-me" aria-label="Change your name">${renderAvatar(CARD[deck().captain] || CAPTAINS[0])}<b>${esc(myName)}</b></button></div>
   <div class="logo"><b>Tismtopia</b><span>TRADING CARD GAME</span></div>
   <section class="hero neu">
-    <div class="fan">${CAPTAINS.slice(0, 3).map((c, i) => renderCard(c, { style: `--r:${(i - 1) * 9}deg;--y:${Math.abs(i - 1) * 14}px` })).join('')}</div>
+    <div class="fan">${['c_vc_goblin', 'm_sticker', 'b_brainrot'].map((id, i) => renderCard(CARD[id], { style: `--r:${(i - 1) * 9}deg;--y:${Math.abs(i - 1) * 14}px` })).join('')}</div>
     <div class="row2"><button class="btn primary" data-act="go" data-to="lobby" data-host="1">Host Battle</button><button class="btn" data-act="go" data-to="lobby">Join Battle</button></div>
   </section>
   <div class="tiles">
@@ -65,9 +65,9 @@ function viewDeck() {
   return `${header(esc(d.name))}
   <div class="panel neu" style="padding:10px 12px"><div class="row2">${deckSelect(true)}
     <button class="btn sm" style="flex:none" data-act="rename-deck">Rename</button><button class="btn sm" style="flex:none" data-act="delete-deck">Delete</button></div></div>
-  <div class="captain-slot neu">${cap ? renderCard(cap, { cls: 'mini', attrs: tappable('zoom', `data-id="${cap.id}"`) }) : '<div class="slot" style="width:84px"></div>'}
-    <div><small>Captain</small><b>${cap ? cap.name : 'None yet'}</b><p>${cap ? cap.text : 'Your Captain leads your strategy.'}</p>
-    <button class="btn sm" data-act="sheet" data-s="captain">${cap ? 'Change captain' : 'Pick a captain'}</button></div></div>
+  <div class="captain-slot neu">${cap ? renderCard(cap, { attrs: tappable('zoom', `data-id="${cap.id}"`) }) : '<div class="slot"></div>'}
+    <div><small>Captain</small><b>${cap ? cap.name : 'None yet'}</b><p>${cap ? `${cap.style} playstyle` : 'Your Captain leads your strategy.'}</p>
+    <button class="btn sm" data-act="sheet" data-s="captain">${cap ? 'Change' : 'Pick a captain'}</button></div></div>
   <div class="checks">${probs.length ? probs.slice(0, 3).map(p => `<span class="bad">${esc(p)}</span>`).join('') : `<span>${ICON.check}Ready to battle</span>`}</div>
   <div class="grid g4">${Object.entries(d.cards).map(([id, n]) => `<div class="cell">${renderCard(CARD[id], { cls: 'mini', attrs: tappable('zoom', `data-id="${id}"`) })}<span class="count">×${n}</span></div>`).join('')
     || '<p class="muted center" style="grid-column:1/-1">No cards yet. Tap Add cards.</p>'}</div>
@@ -110,7 +110,7 @@ const viewRules = () => `${header('How to Play')}
 function viewGame() {
   const g = game, mine = g.players[me], live = g.turn === me && g.phase === 'play';
   if (g.phase === 'over') return viewOver();
-  const glow = live && g.actions >= attackCost(g, me) ? mine.field.flatMap((f, i) => (canAttack(g, f) ? [i] : [])) : [];
+  const glow = live ? mine.field.flatMap((f, i) => (canUseAny(g, me, f) ? [i] : [])) : [];
   let html = renderBoard(g, me, { glow, sel: ui.zoom?.zone === 'hand' ? ui.zoom.i : undefined });
   if (g.phase === 'defend' && g.turn !== me) html += defendSheet();
   else html += overlay();
@@ -123,17 +123,17 @@ function viewGame() {
 const MY = '.side:nth-child(4)';
 const TUT = [
   { text: 'Welcome to Tismtopia! Be the first to score 5 Points. This quick battle shows you how.', next: true },
-  { text: 'This is you. Gold coins are Points. The orange bar is Goofiness: fill it to 5 to score. The grey bar is Boredom: if yours hits 5, your opponent scores.', sel: `${MY} .hud`, next: true },
+  { text: 'This is you: your Captain card and your meters. Gold coins are Points. Goofiness (orange): fill it to 5 to score. Boredom (grey): if yours hits 5, your opponent scores.', sel: `${MY} .hud`, next: true },
   { text: 'Every turn you get 2 Actions. Playing a card, attacking and using an ability cost 1 each.', sel: '.pips', next: true },
   { text: 'Tap VC Goblin in your hand, then tap Play.', sel: () => (ui.zoom ? '.dim [data-a*=\'"play"\']' : '.hand .card[data-id="c_vc_goblin"]'), done: g => g.players[0].field.length > 0 },
   { text: 'VC Goblin says "When played: +1 Goofiness", so your orange bar just went up. Card text runs by itself.', sel: `${MY} .meter.goof`, next: true },
-  { text: 'Now tap VC Goblin on the field and Attack. Your opponent has no Characters to block, so the hit goes straight to their Boredom.',
+  { text: 'Characters attack with moves, each costing Actions. Tap VC Goblin on the field and use Mic Spam (1 Action). Nobody is blocking, so its power goes straight to their Boredom.',
     sel: () => (ui.zoom ? '.dim [data-a*=\'"attack"\']' : `${MY} .field .card`), done: g => g.players[1].bore > 0 },
   { text: "Their Boredom went up by VC Goblin's ATK. You're out of Actions, so tap End Turn.", sel: '[data-act=end]', done: g => g.turn === 1 },
   { text: "The bot's turn. When it attacks, you pick a defender. It rolls a d20 and adds its ATK: if that reaches your defender's DEF, the attack breaks through.",
     sel: () => (game.phase !== 'defend' ? null : ui.defPick != null ? '.sheet [data-a*=\'"defend"\']' : '.sheet .field .card'), done: g => !!g.roll || (g.turn === 0 && g.turnNo > 2) },
   { text: 'Breaking through costs the defender 1 HP and adds Boredom equal to the ATK. A blocked attack costs the attacker 1 HP instead.', next: true },
-  { text: 'Bits are instant and last a few turns. Evils stay until removed. Tap your bar any time for the log, manual fixes, or to leave.', next: true },
+  { text: 'Bits are instant and last a few turns. Evils stay until removed. Tap your Captain to use its ability, or your meters for the log, manual fixes, or to leave.', next: true },
   { text: "That's the basics! Finish this battle against the bot, then build your own deck.", next: 'Got it' },
 ];
 
@@ -174,15 +174,18 @@ function botMove() {
   if (g.phase === 'defend' && g.turn === 0) a = { type: 'defend', i: best(all, i => statsOf(g, 1, B.field[i]).def * 10 + B.field[i].hp) };
   else if (g.turn === 1 && g.phase === 'play') {
     const hc = B.hand.findIndex(id => CARD[id].type === 'character'), canPlay = hc >= 0 && B.field.length < 3;
-    const ready = all.filter(i => canAttack(g, B.field[i]));
+    // Every move it can afford right now; attacks score by power per Action, abilities are a fallback.
+    const moves = all.flatMap(i => CARD[B.field[i].id].moves.map((mv, m) => ({ i, m, mv, c: moveCost(g, 1, mv) })))
+      .filter(x => x.c <= n && (x.mv.ability || canAttack(g, B.field[x.i])));
+    const attacks = moves.filter(x => !x.mv.ability), abil = moves.find(x => x.mv.ability);
     const spell = B.hand.findIndex(id => CARD[id].type !== 'character' && playCost(g, 1, CARD[id]) <= n);
-    const cap = CARD[B.captain], abil = all.find(i => CARD[B.field[i].id].ability);
+    const cap = CARD[B.captain];
     if (n >= 2 && canPlay) a = { type: 'play', i: hc };
-    else if (ready.length && n >= attackCost(g, 1)) a = { type: 'attack', i: best(ready, i => statsOf(g, 1, B.field[i]).atk * 10 + B.field[i].hp) };
+    else if (attacks.length) { const x = attacks[best(attacks.map((_, k) => k), k => attacks[k].mv.power / attacks[k].c + attacks[k].mv.power * 0.1)]; a = { type: 'attack', i: x.i, m: x.m }; }
     else if (spell >= 0) a = { type: 'play', i: spell };
     else if (n && canPlay) a = { type: 'play', i: hc };
     else if (n && cap.ability && !(cap.once && g.capUsed)) a = { type: 'ability', i: -1 };
-    else if (n && abil !== undefined) a = { type: 'ability', i: abil };
+    else if (abil) a = { type: 'attack', i: abil.i, m: abil.m };
     else a = { type: 'end' };
   }
   if (a && !act(1, a) && a.type !== 'end') act(1, { type: 'end' });
@@ -206,9 +209,15 @@ function viewOver() {
 // Zoomed card, captain picker or adjust sheet on top of the current view.
 function overlay() {
   if (ui.sheet === 'captain') return sheet(`<h2>Choose your Captain</h2>
-    <div class="grid g2">${CAPTAINS.map(c => renderCard(c, { cls: c.id === deck().captain ? 'picked' : '', attrs: tappable('captain', `data-id="${c.id}"`) })).join('')}</div>
+    <div class="grid caps">${CAPTAINS.map(c => renderCard(c, { cls: c.id === deck().captain ? 'picked' : '', attrs: tappable('captain', `data-id="${c.id}"`) })).join('')}</div>
     <button class="btn wide" data-act="close">Close</button>`);
   if (ui.sheet === 'adjust' && game) return adjustSheet();
+  if (ui.sheet?.startsWith('fx:') && game) { // phone: a side's active Bits/Evils, full size
+    const who = ui.sheet.slice(3), t = game.players[who === 'me' ? me : 1 - me];
+    return sheet(`<h2>${who === 'me' ? 'Your' : `${esc(t.name)}'s`} effects</h2>
+      <div class="grid fxs">${t.effects.map((e, i) => renderCard(CARD[e.id], { turns: e.turns, attrs: pick(who, 'fx', i) })).join('')}</div>
+      <button class="btn wide" data-act="close">Close</button>`);
+  }
   if (!ui.zoom) return '';
   if (ui.zoom.id) return `<div class="dim" data-act="close">${renderCard(CARD[ui.zoom.id], { cls: 'zoom' })}<button class="btn sm" data-act="close">Close</button></div>`;
   return zoomGame(ui.zoom);
@@ -216,6 +225,11 @@ function overlay() {
 
 function zoomGame(z) {
   const w = z.who === 'me' ? me : 1 - me, t = game.players[w];
+  if (z.zone === 'cap') {
+    const c = CARD[t.captain], can = w === me && game.turn === me && game.phase === 'play' && c.ability && !(c.once && game.capUsed);
+    return `<div class="dim" data-act="close">${renderCard(c, { cls: 'zoom' })}<div class="row2">${can ? btn({ type: 'ability', i: -1 }, `${ICON.bit}Use ability ${cost(1)}`, 'primary') : ''}
+      <button class="btn" data-act="sheet" data-s="adjust">Meters, log &amp; tools</button></div><button class="btn sm" data-act="close">Close</button></div>`;
+  }
   const item = { hand: t.hand, field: t.field, fx: t.effects }[z.zone]?.[z.i];
   if (item === undefined) { ui.zoom = null; return ''; }
   const c = CARD[item.id ?? item], live = game.turn === me && game.phase === 'play', mine = w === me;
@@ -223,8 +237,13 @@ function zoomGame(z) {
   let rows = '';
   if (z.zone === 'hand') rows = `<div class="row2">${live ? btn({ type: 'play', i: z.i }, `Play ${cost(playCost(game, me, c))}`, 'primary') : ''}${remove}</div>`;
   if (z.zone === 'field') {
-    const acts = [canAttack(game, item) ? btn({ type: 'attack', i: z.i }, `${ICON.atk}Attack ${cost(attackCost(game, me))}`, 'primary') : '<button class="btn" disabled>Can attack next turn</button>',
-      c.ability ? btn({ type: 'ability', i: z.i }, `${ICON.bit}Ability ${cost(1)}`) : ''];
+    // One button per move; greyed out when it can't be used right now.
+    const bonus = statsOf(game, w, item).bonus;
+    const acts = c.moves.map((mv, m) => {
+      const n = moveCost(game, me, mv), why = n > game.actions ? 'Not enough Actions' : !mv.ability && !canAttack(game, item) ? 'Can attack next turn' : '';
+      const label = `<span class="mb-name">${mv.name}</span>${mv.ability ? '' : `<span class="mb-pow">${mv.power + bonus}</span>`}${cost(n)}`;
+      return why ? `<button class="btn move-btn" disabled title="${why}">${label}</button>` : btn({ type: 'attack', i: z.i, m }, label, `move-btn${m === 0 ? ' primary' : ''}`);
+    });
     rows = (mine && live ? `<div class="row2">${acts.join('')}</div>` : '')
       + `<div class="row2">${stepper(`HP ${item.hp}`, { type: 'hp', who: w, i: z.i, d: -1 }, { type: 'hp', who: w, i: z.i, d: 1 })}${remove}</div>`;
   }
@@ -249,10 +268,11 @@ function adjustSheet() {
 
 function defendSheet() {
   const g = game, af = g.players[g.turn].field[g.pending.i], ac = CARD[af.id], A = statsOf(g, g.turn, af), mine = g.players[me].field, pickI = ui.defPick;
-  return sheet(`<div class="attacker neu">${renderCard(ac, { cls: 'mini', hp: af.hp, ...A })}<div><small>Incoming attack</small><br><b>${ac.name}</b> attacks with <b>${A.atk} ATK</b></div></div>
+  const mv = ac.moves[g.pending.m], power = mv.power + A.bonus;
+  return sheet(`<div class="attacker neu">${renderCard(ac, { cls: 'mini', hp: af.hp, ...A })}<div><small>Incoming attack</small><br><b>${ac.name}</b> uses <b>${mv.name}</b> (power ${power})${mv.text ? `<br><small>${mv.text}</small>` : ''}</div></div>
     <h2>Pick a defender</h2>
     <div class="field">${mine.map((f, i) => renderCard(CARD[f.id], { cls: 'mini' + (i === pickI ? ' picked' : ''), hp: f.hp, ...statsOf(g, me, f), attrs: tappable('defpick', `data-i="${i}"`) })).join('')}</div>
-    <p class="muted center" style="margin:10px 0 12px">They roll d20 + ${A.atk}. It breaks through if that reaches your defender's DEF.</p>
+    <p class="muted center" style="margin:10px 0 12px">They roll d20 + ${power}. It breaks through if that reaches your defender's DEF.</p>
     ${mine[pickI] ? btn({ type: 'defend', i: pickI }, `Defend with ${CARD[mine[pickI].id].name}`, 'primary wide') : '<button class="btn wide" disabled>Tap a Character</button>'}`, false);
 }
 
@@ -302,6 +322,11 @@ function splash(id) {
   const d = Object.assign(document.createElement('div'), { className: 'splash', innerHTML: renderCard(CARD[id]) });
   fxLayer.append(d); setTimeout(() => d.remove(), 1400);
 }
+// A move's coin flip: a small coin spins mid-board, then shows Heads/Tails. Queued so multiple flips play in turn.
+const coinToss = heads => { bannerQ = bannerQ.then(async () => {
+  const d = Object.assign(document.createElement('div'), { className: `toss ${heads ? 'heads' : 'tails'}`, innerHTML: `<div class="coin">${heads ? ICON.main : ICON.point}</div><b>${heads ? 'Heads!' : 'Tails'}</b>` });
+  fxLayer.append(d); await sleep(1100); setTimeout(() => d.remove(), 400);
+}); };
 function coinFlip(s) {
   const d = Object.assign(document.createElement('div'), { className: 'coinflip',
     innerHTML: `<div class="coin">${ICON.main}</div><b>${s.turn === me ? 'You go first!' : `${esc(s.players[s.turn].name)} goes first`}</b>` });
@@ -397,8 +422,9 @@ async function preAnimate(ev) {
 function postAnimate(ev, prev, s) {
   const nudges = new Map();
   for (const e of ev) {
-    if (e.k === 'play') flash(e.zone === 'field' ? fieldEl(e.p, e.i) : $app.querySelector(`.fx[data-who="${whoOf(e.p)}"][data-i="${e.i}"]`), e.zone === 'field' ? 'slam' : 'pop', 700);
+    if (e.k === 'play') flash(e.zone === 'field' ? fieldEl(e.p, e.i) : $app.querySelector(`.fxc[data-who="${whoOf(e.p)}"][data-i="${e.i}"]`), e.zone === 'field' ? 'slam' : 'pop', 700);
     if (e.k === 'cast') splash(e.id);
+    if (e.k === 'coin') coinToss(e.heads);
     if (e.k === 'meter') {
       const h = hudEl(e.p), n = nudges.get(h) || 0;
       nudges.set(h, n + 24);
@@ -536,7 +562,7 @@ const ACTS = {
   'rename-me'() { const n = prompt('Your name', myName)?.trim(); if (n) { myName = n.slice(0, 20); store.set('name', myName); } },
   filter(d) { ui.filter = d.f; },
   zoom(d) { ui.zoom = { id: d.id }; },
-  card(d) { ui.zoom = { who: d.who, zone: d.zone, i: Number(d.i) }; },
+  card(d) { ui.zoom = { who: d.who, zone: d.zone, i: Number(d.i) }; ui.sheet = null; },
   sheet(d) { ui.sheet = d.s; ui.zoom = null; },
   close() { ui.zoom = ui.sheet = null; },
   step(d) {

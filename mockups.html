@@ -90,7 +90,7 @@ $('frames').innerHTML = [
     <div class="topbar"><div class="profile neu">${renderAvatar(cap)}<b>Juno</b></div></div>
     <div class="logo"><b>Tismtopia</b><span>TRADING CARD GAME</span></div>
     <section class="hero neu">
-      <div class="fan">${['cap_lurker', 'cap_gremlin', 'cap_clown'].map((id, i) => renderCard(CARD[id], { style: `--r:${(i - 1) * 9}deg;--y:${Math.abs(i - 1) * 14}px` })).join('')}</div>
+      <div class="fan">${['c_vc_goblin', 'm_sticker', 'b_brainrot'].map((id, i) => renderCard(CARD[id], { style: `--r:${(i - 1) * 9}deg;--y:${Math.abs(i - 1) * 14}px` })).join('')}</div>
       <div class="row2"><button class="btn primary">Host Battle</button><button class="btn">Join Battle</button></div>
     </section>
     <div class="tiles"><a class="tile neu">${ICON.cards}<b>Deck Builder</b><small>3 decks</small></a><a class="tile neu">${ICON.rules}<b>How to Play</b><small>Rules</small></a></div>
@@ -107,7 +107,7 @@ $('frames').innerHTML = [
   frame('3 · Deck builder: deck & checks', deckList, true),
 
   frame('4 · Captain picker', deckList + sheet(`<h2>Choose your Captain</h2>
-    <div class="grid g2">${CAPTAINS.map(c => renderCard(c, { cls: c === cap ? 'picked' : '' })).join('')}</div>
+    <div class="grid caps">${CAPTAINS.map(c => renderCard(c, { cls: c === cap ? 'picked' : '' })).join('')}</div>
     <button class="btn primary wide">Lead with ${cap.name}</button>`)),
 
   frame('5 · Battle lobby', `${header('Battle')}
