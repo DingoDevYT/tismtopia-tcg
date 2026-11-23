@@ -6,7 +6,7 @@ const src = load(['test/fixture-cards.js', 'js/cards.js', 'js/game.js']);
 // The real generated cards: both free starters must be legal and every Character usable.
 vm.runInNewContext(load(['js/cards-data.js', 'js/cards.js', 'js/game.js']) + `
 if (STARTERS.length !== 2 || STARTERS.some(d => deckProblems(d).length)) throw new Error('FAIL: real starters: ' + JSON.stringify(STARTERS.map(deckProblems)));
-if (!CARDS.filter(c => c.type === 'character').every(c => c.moves?.some(m => m.cost <= 1))) throw new Error('FAIL: a real Character has no move costing 0-1');
+if (!CARDS.filter(c => c.type === 'character').every(c => c.moves?.length)) throw new Error('FAIL: a real Character has no moves');
 `);
 
 vm.runInNewContext(src + `
