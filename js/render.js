@@ -88,7 +88,7 @@ const renderFx = (p, who = 'me') => `<div class="effects">${p.effects.length ? `
 
 function renderHand(ids, sel) {
   const mid = (ids.length - 1) / 2;
-  return `<div class="hand">${ids.map((id, i) => renderCard(CARD[id], {
+  return `<div class="hand" style="--n:${ids.length}">${ids.map((id, i) => renderCard(CARD[id], {
     cls: 'mini' + (i === sel ? ' sel' : ''), style: `--r:${(i - mid) * 5}deg;--y:${Math.abs(i - mid) * 5}px`, attrs: pick('me', 'hand', i),
   })).join('')}</div>`;
 }

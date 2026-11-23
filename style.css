@@ -264,7 +264,7 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
 .pips i.on { color: #fff; background: linear-gradient(160deg, #ffd34e, #f2a21a); box-shadow: 0 0 10px rgba(255, 196, 40, .8); }
 .btn.end { box-shadow: var(--raise-sm), 0 0 0 2px var(--glow); }
 .hand { display: flex; justify-content: center; align-items: flex-end; height: 132px; padding-bottom: 12px; flex: none; }
-.hand .card { --cw: 80px; margin: 0 -12px; transform: translateY(var(--y, 0)) rotate(var(--r, 0)); transform-origin: 50% 110%; transition: transform .15s; }
+.hand .card { --cw: 80px; margin: 0 calc(-12px - max(0px, (var(--n, 5) - 5) * 7px)); /* bigger hands overlap more */ transform: translateY(var(--y, 0)) rotate(var(--r, 0)); transform-origin: 50% 110%; transition: transform .15s; }
 .hand .card.sel { transform: translateY(-26px) scale(1.06); z-index: 2; }
 .toast { position: absolute; top: 32%; left: 50%; transform: translateX(-50%); z-index: 5; padding: 8px 16px; border-radius: 999px; font-size: 12px; font-weight: 500; white-space: nowrap; }
 .toast b { font-weight: 800; }
@@ -457,8 +457,9 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
 
   /* board: opponent on top, you below, HUDs left, effects right, hand along the bottom */
   /* Player areas sit in the left column; yours also uses the empty space beside your hand */
-  .board { display: grid; padding: 0 28px; grid-template-columns: clamp(230px, 21vw, 310px) 1fr clamp(200px, 18vw, 300px); grid-template-rows: 46px 1fr auto 1fr auto;
-    grid-template-areas: "ohud oh ofx" "ohud ofield ofx" "ohud mid mid" "yhud yfield yfx" "yhud hand hand"; }
+  /* equal side columns keep the middle column (field, deck/turn band, hand) centred on screen */
+  .board { --side: clamp(230px, 21vw, 310px); display: grid; padding: 0 28px; grid-template-columns: var(--side) 1fr var(--side); grid-template-rows: 46px 1fr auto 1fr auto;
+    grid-template-areas: "ohud oh ofx" "ohud ofield ofx" "ohud mid ." "yhud yfield yfx" "yhud hand yfx"; }
   .board > .side { display: contents; }
   .opp-hand { grid-area: oh; height: auto; }
   .opp-hand .card { --cw: 64px; margin: -52px -8px 0; }
@@ -494,7 +495,7 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
   .captain-slot .card, .captain-slot .slot { --cw: 260px; width: 260px; }
   .mid { grid-area: mid; justify-self: center; width: min(640px, 100%); margin: 6px 0; }
   .hand { grid-area: hand; height: auto; padding: 10px 0 24px; }
-  .hand .card { --cw: clamp(100px, 16vh, 160px); margin: 0 -6px; }
+  .hand .card { --cw: clamp(100px, 16vh, 160px); margin: 0 calc(-6px - max(0px, (var(--n, 5) - 5) * 14px)); }
   .toast { top: 86px; font-size: 13px; }
 
   /* overlays become centered dialogs */
