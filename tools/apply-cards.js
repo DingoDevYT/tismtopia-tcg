@@ -4,6 +4,7 @@
 const fs = require('fs'), path = require('path'), os = require('os');
 const root = path.join(__dirname, '..');
 const ART = process.env.TISM_ART || path.join(os.homedir(), 'Downloads', 'arte TismTopia');
+const DMG_BONUS = 1; // balance knob: every attack move does this much more than its drafted power, so armour doesn't cancel small hits
 const META = ['source', 'note', 'owner', 'folder', 'error', 'check', 'changes', 'evidence', 'artIssues', 'extraArt', 'baseId', 'suggestedArt', 'from', 'no', 'art', 'crop'];
 
 const dec = JSON.parse(fs.readFileSync(path.join(root, 'review', 'decisions.json'), 'utf8'));
@@ -27,6 +28,7 @@ for (const d of drafts) {
   c.name = c.name.replace(/[,\s]+$/, '');
   const hitWord = t => t && t.replace(/[Bb]reak-through/g, m => (m[0] === 'B' ? 'Hit' : 'hit')).replace(/breaks through/g, 'lands a hit');
   c.text = hitWord(c.text); for (const m of c.moves || []) m.text = hitWord(m.text);
+  for (const m of c.moves || []) if (!m.ability && m.power != null) m.power += DMG_BONUS;
   if (c.disadv && c.text) c.text = c.text.replace(/Attacks against .*? roll twice and keep the lower\./, 'Tough: +1 armour.');
   owner[c.id] = r?.owner || d.owner || '';
   const a = r?.art || {}, src = a.path ? path.join(ART, a.path) : a.file ? path.join(ART, r?.folder || d.folder, a.file) : null;
