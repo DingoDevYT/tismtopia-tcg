@@ -53,7 +53,7 @@ function viewPacks() {
     <p class="wheel-name">${cur.name}</p>
     <div class="wheel-dots">${PACKS.map((_, i) => `<i class="${i === idx ? 'on' : ''}"></i>`).join('')}</div>
     <button class="btn primary wheel-open" data-act="pick-pack" data-p="${cur.id}">Open</button>
-  </div>`;
+  </div>${tabbar('packs')}`;
 }
 
 // Edge colour of a card in the stack: foil and rares glint so you can peek before revealing.
@@ -188,7 +188,7 @@ function viewCollection() {
     return `<div class="cell coll-cell${n ? '' : ' locked'}">${renderCard(n && f === 'full' ? { ...c, crop: null } : c, { cls: n ? FINISH_CLS[f] : '', attrs: tappable('view-card', `data-id="${c.id}"`) })}
       <div class="coll-meta"><span class="rar r-${c.rarity || 'C'}">${c.rarity || 'C'}</span><span>${n ? '×' + n : 'Not owned'}</span>
       <button class="fav${favs.has(c.id) ? ' on' : ''}" data-act="fav" data-id="${c.id}" aria-label="${favs.has(c.id) ? 'Unfavourite' : 'Favourite'} ${esc(c.name)}">★</button></div></div>`; }).join('') || '<p class="muted center">No cards match.</p>'}</div>
-  ${overlay()}${viewer()}`;
+  ${tabbar('collection')}${overlay()}${viewer()}`;
 }
 Object.assign(ACTS, {
   'coll-set'(d) { ui.coll[d.k] = d.v; },
