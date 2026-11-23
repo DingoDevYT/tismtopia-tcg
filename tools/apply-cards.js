@@ -4,7 +4,7 @@
 const fs = require('fs'), path = require('path'), os = require('os');
 const root = path.join(__dirname, '..');
 const ART = process.env.TISM_ART || path.join(os.homedir(), 'Downloads', 'arte TismTopia');
-const ROLE_ADJ = { Tank: { hp: 3, def: 2 }, Bruiser: { hp: 1 }, 'Glass Cannon': { hp: -1, def: -2 }, Fodder: { hp: -1, def: -2 }, Engine: { def: -1 } };
+const ROLE_ADJ = { Tank: { hp: 2, def: 1 }, Bruiser: { hp: 1 }, 'Glass Cannon': { def: -2 }, Fodder: { hp: -1, def: -2 }, Engine: { def: -1 } };
 const DMG_BONUS = 1; // balance knob: every attack move does this much more than its drafted power, so armour doesn't cancel small hits
 const META = ['source', 'note', 'owner', 'folder', 'error', 'check', 'changes', 'evidence', 'artIssues', 'extraArt', 'baseId', 'suggestedArt', 'from', 'no', 'art', 'crop'];
 
