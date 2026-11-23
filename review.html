@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tismtopia · Card Review</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  /* Local tool: run `py tools/review_server.py`, then open http://localhost:8130/review.html */
+  body.rv { height: 100dvh; display: grid; grid-template-rows: auto 1fr; overflow: hidden; }
+  .rv header { display: flex; align-items: center; gap: 14px; padding: 12px 20px; background: var(--surface); box-shadow: 0 4px 14px rgba(196, 203, 217, .6); z-index: 2; }
+  .rv header h1 { font-size: 18px; margin-right: auto; }
+  .rv header .chip { cursor: pointer; }
+  .counts { display: flex; gap: 10px; font-size: 13px; color: var(--muted); }
+  .counts b { color: var(--ink); }
+  #saved { font-size: 12px; color: var(--muted); min-width: 90px; text-align: right; }
+  .rv main { display: grid; grid-template-columns: 250px minmax(360px, 1fr) 400px; min-height: 0; }
+  #queue { overflow-y: auto; padding: 12px; display: grid; gap: 6px; align-content: start; border-right: 1px solid var(--sd); }
+  #queue button { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 12px; text-align: left; font-size: 13px; }
+  #queue button.on { background: var(--surface); box-shadow: var(--raise-sm); }
+  #queue small { margin-left: auto; font-size: 11px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; background: var(--sd); }
+  .dot.accepted { background: var(--good); } .dot.denied { background: var(--accent); } .dot.regen { background: var(--gold); }
+  #stage { overflow-y: auto; padding: 20px; display: grid; justify-items: center; align-content: start; gap: 14px; }
+  #preview .card { --cw: 330px; }
+  #preview .card.k-captain { --cw: 460px; }
+  #preview .art { cursor: grab; touch-action: none; }
+  #preview .art.dragging { cursor: grabbing; }
+  .crop-bar { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); }
+  .crop-bar input { width: 180px; }
+  #based { max-width: 520px; font-size: 13px; font-weight: 500; color: var(--muted); text-align: center; }
+  #thumbs { width: 100%; display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+  #thumbs button { aspect-ratio: 1; border-radius: 12px; overflow: hidden; box-shadow: var(--raise-sm); background: var(--surface); padding: 0; }
+  #thumbs button.on { box-shadow: 0 0 0 3px var(--glow); }
+  #thumbs img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  #form { overflow-y: auto; padding: 16px 18px 24px; border-left: 1px solid var(--sd); display: grid; gap: 10px; align-content: start; }
+  #form label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
+  #form input, #form select, #form textarea { font: inherit; font-size: 14px; font-weight: 600; color: var(--ink); padding: 8px 10px; border-radius: 10px; border: 0; background: var(--bg); box-shadow: var(--inset); outline: none; }
+  #form textarea { resize: vertical; min-height: 54px; }
+  #form .row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .mv { padding: 10px; border-radius: 14px; background: var(--surface); box-shadow: var(--raise-sm); display: grid; gap: 6px; }
+  .mv .row { grid-template-columns: 2fr 1fr 1fr !important; }
+  details summary { cursor: pointer; font-size: 13px; color: var(--muted); }
+  #json { width: 100%; min-height: 180px; font-family: ui-monospace, monospace !important; font-size: 12px !important; }
+  .decide { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; position: sticky; bottom: -24px; padding: 10px 0; background: var(--bg); }
+  .btn.ok { background: var(--good); color: #fff; }
+  .btn.no { background: var(--accent); color: #fff; }
+  .btn.re { background: var(--gold); color: #3a2a00; }
+  .err { color: var(--accent); font-size: 13px; }
+  .keys { font-size: 11px; color: var(--muted); text-align: center; }
+</style>
+</head>
+<body class="rv">
+<header>
+  <h1>Card review</h1>
+  <span class="counts" id="counts"></span>
+  <span class="chip on" data-f="pending">Pending</span><span class="chip" data-f="all">All</span><span class="chip" data-f="accepted">Accepted</span><span class="chip" data-f="regen">Regen</span><span class="chip" data-f="denied">Denied</span>
+  <button class="btn sm" id="reload">Reload drafts</button>
+  <span id="saved"></span>
+</header>
+<main>
+  <aside id="queue"></aside>
+  <section id="stage">
+    <div id="preview"></div>
+    <div class="crop-bar">Drag the art to move it · <label>Zoom <input type="range" id="zoom" min="1" max="4" step="0.05"></label><button class="btn sm" id="resetCrop">Reset crop</button></div>
+    <p id="based"></p>
+    <div id="thumbs"></div>
+  </section>
+  <section id="form"></section>
+</main>
+<script src="js/cards.js"></script>
+<script src="js/render.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+let drafts = [], decisions = {}, filter = 'pending', currentId = null, work = null;
+const artCache = {};
+const statusOf = id => decisions[id]?.status || 'pending';
+const shown = () => drafts.filter(d => filter === 'all' || statusOf(d.id) === filter);
+const artUrl = (folder, file) => `/arte/${encodeURIComponent(folder)}/${file.split('/').map(encodeURIComponent).join('/')}`;
+// Draft text comes from a bot reading chat notes: escape every string before it reaches innerHTML.
+const safe = v => typeof v === 'string' ? esc(v) : Array.isArray(v) ? v.map(safe) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, safe(x)])) : v;
+const META = ['source', 'note', 'owner', 'folder', 'error'];
+const cardOf = d => Object.fromEntries(Object.entries(d).filter(([k]) => !META.includes(k)));
+
+async function getJSON(url) { const r = await fetch(url, { cache: 'no-store' }); if (!r.ok) throw new Error(`${url}: ${r.status}`); return r.json(); }
+async function art(folder) { return (artCache[folder] ??= getJSON(`/api/art?folder=${encodeURIComponent(folder)}`).catch(() => [])); }
+
+async function boot() {
+  [drafts, decisions] = await Promise.all([getJSON('/api/drafts'), getJSON('/api/review')]);
+  if (!drafts.some(d => d.id === currentId)) currentId = shown()[0]?.id ?? drafts[0]?.id ?? null;
+  open(currentId);
+}
+
+function open(id) {
+  currentId = id;
+  const d = drafts.find(x => x.id === id);
+  if (!d) { work = null; return draw(); }
+  const dec = decisions[id];
+  work = { d, card: structuredClone(dec?.card || cardOf(d)), art: structuredClone(dec?.art || { file: null, x: 50, y: 50, zoom: 1 }), note: dec?.note || '' };
+  art(d.folder).then(files => { if (work?.d === d && !work.art.file && files.length) { work.art.file = files[0]; draw(); } });
+  draw(true);
+}
+
+function drawQueue() {
+  const list = shown();
+  $('#queue').innerHTML = list.map(d => `<button class="${d.id === currentId ? 'on' : ''}" data-id="${esc(d.id)}"><span class="dot ${statusOf(d.id)}"></span>${esc(d.name || d.id)}<small>${esc((d.owner || '').split(' ').pop())}</small></button>`).join('') || '<p class="muted">Nothing here.</p>';
+  const c = s => drafts.filter(d => statusOf(d.id) === s).length;
+  $('#counts').innerHTML = `<span><b>${drafts.length}</b> drafts</span><span><b>${c('pending')}</b> pending</span><span><b>${c('accepted')}</b> accepted</span><span><b>${c('regen')}</b> regen</span><span><b>${c('denied')}</b> denied</span>`;
+}
+
+function drawPreview() {
+  if (!work) return ($('#preview').innerHTML = '<p class="muted">No drafts yet. Click Reload drafts once the bots finish.</p>');
+  if (work.d.error) return ($('#preview').innerHTML = `<p class="err">${esc(work.d.error)}</p>`);
+  try {
+    const c = safe(work.card);
+    $('#preview').innerHTML = renderCard({ ...c, no: 'NEW', art: work.art.file ? artUrl(work.d.folder, work.art.file) : null, crop: work.art });
+  } catch (e) { $('#preview').innerHTML = `<p class="err">Can't draw this card: ${esc(e.message)}. Fix it in the JSON below.</p>`; }
+  $('#zoom').value = work.art.zoom;
+  hookCrop();
+}
+
+async function drawThumbs() {
+  if (!work) return ($('#thumbs').innerHTML = '');
+  const files = await art(work.d.folder);
+  $('#based').textContent = `${work.d.folder}${work.d.note ? ` · ${work.d.note}` : ''} · ${files.length} image${files.length === 1 ? '' : 's'}`;
+  $('#thumbs').innerHTML = files.map(f => `<button class="${f === work.art.file ? 'on' : ''}" data-file="${esc(f)}" title="${esc(f)}"><img loading="lazy" src="${artUrl(work.d.folder, f)}" alt=""></button>`).join('') || '<p class="muted">No images in this folder.</p>';
+}
+
+const field = (label, key, type = 'text', extra = '') => `<label>${label}<input data-k="${key}" type="${type}" value="${esc(work.card[key] ?? '')}" ${extra}></label>`;
+function drawForm() {
+  if (!work || work.d.error) return ($('#form').innerHTML = '');
+  const c = work.card, isChar = c.type === 'character';
+  $('#form').innerHTML = `
+    <label>Type<select data-k="type"><option value="character"${isChar ? ' selected' : ''}>Character</option><option value="captain"${isChar ? '' : ' selected'}>Captain</option></select></label>
+    ${field('Name', 'name', 'text', 'maxlength="24"')}
+    ${isChar ? `<div class="row">${field('DEF', 'def', 'number', 'min="8" max="16"')}${field('HP', 'hp', 'number', 'min="2" max="5"')}<label>Main Character<select data-k="main"><option value="">No</option><option value="1"${c.main ? ' selected' : ''}>Yes</option></select></label></div>`
+      : field('Style', 'style', 'text', 'maxlength="16"')}
+    <label>${isChar ? 'Passive text (optional)' : 'Ability text'}<textarea data-k="text" maxlength="140">${esc(c.text ?? '')}</textarea></label>
+    ${isChar ? (c.moves || []).map((m, i) => `<div class="mv"><div class="row">
+        <label>Move ${i + 1}<input data-m="${i}" data-mk="name" value="${esc(m.name ?? '')}" maxlength="24"></label>
+        <label>Cost<input data-m="${i}" data-mk="cost" type="number" min="0" max="3" value="${m.cost ?? 1}"></label>
+        <label>${m.ability ? 'Ability' : 'Power'}<input data-m="${i}" data-mk="power" type="number" min="0" max="5" value="${m.ability ? '' : m.power ?? 1}"${m.ability ? ' disabled' : ''}></label></div>
+        <label>Effect text<textarea data-m="${i}" data-mk="text" maxlength="140">${esc(m.text ?? '')}</textarea></label></div>`).join('') : ''}
+    <details><summary>Advanced: full card JSON (effects, mods)</summary><textarea id="json">${esc(JSON.stringify(c, null, 1))}</textarea><button class="btn sm" id="applyJson">Apply JSON</button> <span class="err" id="jsonErr"></span></details>
+    <label>Note for regenerate (what should change?)<textarea id="note" placeholder="e.g. make her a tank, and the second move should flip coins">${esc(work.note)}</textarea></label>
+    <div class="decide"><button class="btn ok" data-decide="accepted">Accept</button><button class="btn no" data-decide="denied">Deny</button><button class="btn re" data-decide="regen">Regenerate</button></div>
+    <p class="keys">Keys: A accept · D deny · R regenerate · ← → previous / next</p>`;
+}
+
+function draw(all) { drawQueue(); drawPreview(); if (all) { drawThumbs(); drawForm(); } }
+
+// Crop by dragging the art window and zooming with the wheel or slider.
+function hookCrop() {
+  const a = $('#preview .art');
+  if (!a || !work.art.file) return;
+  let start = null;
+  a.onpointerdown = e => { start = { x: e.clientX, y: e.clientY, cx: work.art.x, cy: work.art.y }; try { a.setPointerCapture(e.pointerId); } catch { /* synthetic event */ } a.classList.add('dragging'); };
+  a.onpointermove = e => {
+    if (!start) return;
+    const r = a.getBoundingClientRect(), k = 100 / work.art.zoom;
+    work.art.x = Math.min(100, Math.max(0, start.cx - ((e.clientX - start.x) / r.width) * k));
+    work.art.y = Math.min(100, Math.max(0, start.cy - ((e.clientY - start.y) / r.height) * k));
+    const img = a.querySelector('img');
+    img.style.objectPosition = `${work.art.x}% ${work.art.y}%`; img.style.transformOrigin = `${work.art.x}% ${work.art.y}%`;
+  };
+  a.onpointerup = () => { start = null; a.classList.remove('dragging'); drawPreview(); };
+  a.onwheel = e => { e.preventDefault(); work.art.zoom = Math.min(4, Math.max(1, +(work.art.zoom - Math.sign(e.deltaY) * 0.1).toFixed(2))); drawPreview(); };
+}
+
+async function save() {
+  $('#saved').textContent = 'Saving…';
+  try {
+    const r = await fetch('/api/review', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(decisions) });
+    if (!r.ok) throw new Error(r.status);
+    $('#saved').textContent = `Saved ${new Date().toLocaleTimeString()}`;
+  } catch (e) { $('#saved').textContent = `Save failed (${e.message}). Is the server running?`; }
+}
+
+function decide(status) {
+  if (!work || work.d.error) return;
+  decisions[work.d.id] = { status, card: work.card, art: work.art, folder: work.d.folder, owner: work.d.owner, note: $('#note')?.value.trim() || '', at: new Date().toISOString() };
+  save();
+  const list = shown(), next = list.find(d => d.id !== work.d.id && statusOf(d.id) === 'pending') || list[list.findIndex(d => d.id === work.d.id) + 1] || list[0];
+  open(next?.id ?? work.d.id);
+}
+function step(dir) { const list = shown(), i = list.findIndex(d => d.id === currentId); const n = list[(i + dir + list.length) % list.length]; if (n) open(n.id); }
+
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-id],[data-file],[data-decide],[data-f],#reload,#resetCrop,#applyJson');
+  if (!t) return;
+  if (t.dataset.id) open(t.dataset.id);
+  else if (t.dataset.file) { Object.assign(work.art, { file: t.dataset.file, x: 50, y: 50, zoom: 1 }); drawPreview(); drawThumbs(); }
+  else if (t.dataset.decide) decide(t.dataset.decide);
+  else if (t.dataset.f) { filter = t.dataset.f; document.querySelectorAll('[data-f]').forEach(c => c.classList.toggle('on', c === t)); const l = shown(); if (!l.some(d => d.id === currentId)) open(l[0]?.id); else drawQueue(); }
+  else if (t.id === 'reload') boot();
+  else if (t.id === 'resetCrop') { Object.assign(work.art, { x: 50, y: 50, zoom: 1 }); drawPreview(); }
+  else if (t.id === 'applyJson') {
+    try { work.card = JSON.parse($('#json').value); $('#jsonErr').textContent = ''; draw(true); } catch (err) { $('#jsonErr').textContent = err.message; }
+  }
+});
+document.addEventListener('input', e => {
+  const t = e.target;
+  if (t.id === 'zoom') { work.art.zoom = +t.value; return drawPreview(); }
+  if (!work || !(t.dataset.k || t.dataset.mk)) return;
+  const num = t.type === 'number';
+  const val = num ? (t.value === '' ? undefined : +t.value) : t.value;
+  if (t.dataset.k === 'main') work.card.main = !!t.value || undefined;
+  else if (t.dataset.k) work.card[t.dataset.k] = val;
+  else work.card.moves[+t.dataset.m][t.dataset.mk] = val;
+  if (t.dataset.k === 'type') { if (val === 'captain') { work.card.style ||= 'Tempo'; } else { work.card.def ||= 12; work.card.hp ||= 3; work.card.moves ||= [{ name: 'Move', cost: 1, power: 1 }, { name: 'Big Move', cost: 2, power: 3 }]; } drawForm(); }
+  const j = $('#json'); if (j) j.value = JSON.stringify(work.card, null, 1);
+  drawPreview();
+});
+document.addEventListener('keydown', e => {
+  if (e.target.closest('input, textarea, select')) return;
+  const k = e.key.toLowerCase();
+  if (k === 'a') decide('accepted'); else if (k === 'd') decide('denied'); else if (k === 'r') decide('regen');
+  else if (e.key === 'ArrowRight') step(1); else if (e.key === 'ArrowLeft') step(-1);
+});
+boot().catch(e => { $('#preview').innerHTML = `<p class="err">Couldn't reach the review server (${esc(e.message)}). Run: py tools/review_server.py</p>`; });
+</script>
+</body>
+</html>

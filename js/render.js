@@ -35,6 +35,14 @@ const ICON = Object.fromEntries(Object.entries({
   rules: G('<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 19V5M8 7h7M8 11h5"/>'),
 }).map(([k, d]) => [k, `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`]));
 
+// Art crop is a focus point (x, y in %) plus zoom (>= 1), applied with CSS so the original image stays untouched.
+const cropStyle = cr => {
+  if (!cr) return '';
+  const num = (v, d, lo, hi) => Math.min(hi, Math.max(lo, Number.isFinite(+v) ? +v : d)); // 0 is a valid edge, so no `|| default`
+  const x = num(cr.x, 50, 0, 100), y = num(cr.y, 50, 0, 100), z = num(cr.zoom, 1, 1, 4);
+  return ` style="object-position:${x}% ${y}%;transform:scale(${z});transform-origin:${x}% ${y}%"`;
+};
+
 // A Character move, Pokemon style: Action pips, name, power (or "Ability"), effect text underneath.
 const renderMove = (mv, bonus = 0) => `<div class="move"><div class="mv-top"><span class="mv-cost">${mv.cost ? ICON.action.repeat(mv.cost) : '<em>Free</em>'}</span><b>${mv.name}</b>${mv.ability
   ? '<span class="mv-tag">Ability</span>' : `<span class="mv-pow${bonus > 0 ? ' buff' : ''}">${mv.power + bonus}</span>`}</div>${mv.text ? `<div class="mv-text">${mv.text}</div>` : ''}</div>`;
@@ -44,7 +52,7 @@ function renderCard(c, o = {}) {
   const cls = o.cls ? ' ' + o.cls : '', style = (o.style ? ` style="${o.style}"` : '') + (o.attrs ? ' ' + o.attrs : '');
   if (!c) return `<div class="card back${cls}"${style}><div class="frame"></div></div>`;
   const kind = kindOf(c), hp = o.hp ?? c.hp, turns = o.turns ?? c.dur, def = o.def ?? c.def;
-  const art = c.art ? `<img src="${c.art}" alt="">` : `<span class="ph">${ICON[c.type]}</span>`;
+  const art = c.art ? `<img src="${c.art}" alt=""${cropStyle(c.crop)}>` : `<span class="ph">${ICON[c.type]}</span>`;
   // Characters read like Pokemon cards: HP top right, DEF as a shield on the art, moves on one panel.
   const isChar = c.type === 'character';
   const hpTag = isChar ? `<span class="hp${hp < c.hp ? ' hurt' : ''}"><i>HP</i>${hp}</span>` : '';
