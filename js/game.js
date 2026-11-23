@@ -112,7 +112,7 @@ function apply(s0, p, a, rng = Math.random) {
       if (opp.field.length) { s.phase = 'defend'; s.pending = { i: a.i }; say(`${c.name} attacks! ${opp.name} picks a defender.`); }
       else {
         const n = statsOf(s, p, f).atk;
-        ev({ k: 'attack', p, i: a.i });
+        ev({ k: 'attack', p, i: a.i, direct: true });
         gain(1 - p, 'bore', n);
         say(`${c.name} attacks directly: ${opp.name} +${n} Boredom.`);
       }
@@ -124,7 +124,7 @@ function apply(s0, p, a, rng = Math.random) {
       const ac = CARD[af.id], dc = CARD[df.id], A = statsOf(s, ai, af), D = statsOf(s, p, df);
       const roll = () => 1 + Math.floor(rng() * 20);
       const rolls = dc.disadv ? [roll(), roll()] : [roll()], die = Math.min(...rolls), total = die + A.atk, hit = total >= D.def;
-      ev({ k: 'attack', p: ai, i: s.pending.i });
+      ev({ k: 'attack', p: ai, i: s.pending.i, target: { p, i: a.i }, roll: { die, rolls, atk: A.atk, def: D.def, total, hit } });
       if (hit) { hurt(p, a.i); gain(p, 'bore', A.atk); } else hurt(ai, s.pending.i);
       s.roll = { seq: s.seq + 1, die, rolls, atk: A.atk, def: D.def, total, hit, a: af.id, d: df.id, aHp: af.hp, dHp: df.hp, by: ai };
       say(`Rolled ${rolls.length > 1 ? `${rolls.join(' & ')}, kept ${die}` : die} + ${A.atk} = ${total} vs ${D.def} DEF: ` + (hit

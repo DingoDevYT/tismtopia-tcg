@@ -9,7 +9,7 @@ const uid = () => Math.random().toString(36).slice(2, 10);
 let decks = store.get('decks', null);
 if (!Array.isArray(decks) || !decks.length) decks = [{ id: uid(), ...structuredClone(STARTER) }];
 let myName = store.get('name', 'Player');
-const ui = { view: 'home', deckId: store.get('deck', decks[0].id), filter: 'all', zoom: null, sheet: null, defPick: null, toast: '', code: '', status: '', joinCode: '', seenRoll: 0, tut: null };
+const ui = { view: 'home', deckId: store.get('deck', decks[0].id), filter: 'all', zoom: null, sheet: null, defPick: null, toast: '', code: '', status: '', joinCode: '', tut: null };
 // `state` is the authoritative game (rules run on it); `game` is what's on screen, which trails it while animations play.
 let peer = null, conn = null, isHost = false, me = 0, state = null, game = null, guest = null, toastTimer, bot = false, botTimer;
 
@@ -113,7 +113,6 @@ function viewGame() {
   const glow = live && g.actions >= attackCost(g, me) ? mine.field.flatMap((f, i) => (canAttack(g, f) ? [i] : [])) : [];
   let html = renderBoard(g, me, { glow, sel: ui.zoom?.zone === 'hand' ? ui.zoom.i : undefined });
   if (g.phase === 'defend' && g.turn !== me) html += defendSheet();
-  else if (g.roll && g.roll.seq > ui.seenRoll) html += rollOverlay();
   else html += overlay();
   const wait = g.phase === 'defend' && g.turn === me;
   const banner = wait ? `Waiting for ${g.players[1 - me].name} to pick a defender…` : ui.toast;
@@ -133,7 +132,7 @@ const TUT = [
   { text: "Their Boredom went up by VC Goblin's ATK. You're out of Actions, so tap End Turn.", sel: '[data-act=end]', done: g => g.turn === 1 },
   { text: "The bot's turn. When it attacks, you pick a defender. It rolls a d20 and adds its ATK: if that reaches your defender's DEF, the attack breaks through.",
     sel: () => (game.phase !== 'defend' ? null : ui.defPick != null ? '.sheet [data-a*=\'"defend"\']' : '.sheet .field .card'), done: g => !!g.roll || (g.turn === 0 && g.turnNo > 2) },
-  { text: 'Breaking through costs the defender 1 HP and adds Boredom equal to the ATK. A blocked attack costs the attacker 1 HP instead. Tap Continue.', sel: '[data-act=seen-roll]', done: g => !(g.roll && g.roll.seq > ui.seenRoll) },
+  { text: 'Breaking through costs the defender 1 HP and adds Boredom equal to the ATK. A blocked attack costs the attacker 1 HP instead.', next: true },
   { text: 'Bits are instant and last a few turns. Evils stay until removed. Tap your bar any time for the log, manual fixes, or to leave.', next: true },
   { text: "That's the basics! Finish this battle against the bot, then build your own deck.", next: 'Got it' },
 ];
@@ -169,7 +168,7 @@ const botSoon = () => { clearTimeout(botTimer); botTimer = setTimeout(botMove, 1
 function botMove() {
   const g = state;
   if (!bot || !g || g.phase === 'over') return;
-  if (g.roll && g.roll.seq > ui.seenRoll) return botSoon(); // let the human read the roll first
+  if (game !== g) return botSoon(); // wait until the screen has caught up with the last move
   const B = g.players[1], n = g.actions, all = B.field.map((_, i) => i);
   let a = null;
   if (g.phase === 'defend' && g.turn === 0) a = { type: 'defend', i: best(all, i => statsOf(g, 1, B.field[i]).def * 10 + B.field[i].hp) };
@@ -257,17 +256,6 @@ function defendSheet() {
     ${mine[pickI] ? btn({ type: 'defend', i: pickI }, `Defend with ${CARD[mine[pickI].id].name}`, 'primary wide') : '<button class="btn wide" disabled>Tap a Character</button>'}`, false);
 }
 
-function rollOverlay() {
-  const r = game.roll, A = CARD[r.a], D = CARD[r.d], defender = game.players[1 - r.by];
-  return `<div class="dim">
-    <div class="duel">${renderCard(A, { cls: 'mini', hp: Math.max(0, r.aHp) })}<span class="vs">VS</span>${renderCard(D, { cls: 'mini', hp: Math.max(0, r.dHp) })}</div>
-    <div class="d20">${r.die}</div>
-    <div class="math neu">${r.rolls?.length > 1 ? `<small>rolled ${r.rolls.join(' & ')}, kept the lower</small><br>` : ''}${r.die} + <b>${r.atk} ATK</b> = <b>${r.total}</b> vs <b>${r.def} DEF</b></div>
-    <div class="result neu"><b${r.hit ? '' : ' class="miss"'}>${r.hit ? 'Breaks through!' : 'Blocked!'}</b>
-      <small>${r.hit ? `${D.name} −1 ${ICON.hp} · ${esc(defender.name)} +${r.atk} ${ICON.bore}` : `${A.name} −1 ${ICON.hp}`}</small></div>
-    <button class="btn primary" data-act="seen-roll">Continue</button></div>`;
-}
-
 function render() {
   const scrolls = [...$app.querySelectorAll('.grid, .scroll, .sheet')].map(el => el.scrollTop);
   const focus = document.activeElement?.id;
@@ -280,12 +268,12 @@ function render() {
   if (sel) $app.querySelector(typeof sel === 'function' ? sel() : sel)?.classList.add('coach-target');
   if (focus) document.getElementById(focus)?.focus();
   // Entry animations only when an overlay first appears, not on every re-render.
-  const key = [ui.view, JSON.stringify(ui.zoom), ui.sheet, game?.phase === 'defend' && game.turn !== me, game?.roll?.seq > ui.seenRoll && game.roll.seq].join('|');
+  const key = [ui.view, JSON.stringify(ui.zoom), ui.sheet, game?.phase === 'defend' && game.turn !== me].join('|');
   if (key !== lastOverlay) { lastOverlay = key; $app.querySelectorAll('.dim, .sheet, .card.zoom').forEach(el => el.classList.add('enter')); }
 }
 let lastOverlay = '';
 
-// ---------------- animations: `pre` plays on the old board (lunges, hits, KOs), `post` on the new one ----------------
+// ---------------- animations: `pre` plays on the old board (attacks, hits, KOs), `post` on the new one ----------------
 const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const fxLayer = document.body.appendChild(Object.assign(document.createElement('div'), { id: 'fx' }));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -319,26 +307,91 @@ function coinFlip(s) {
     innerHTML: `<div class="coin">${ICON.main}</div><b>${s.turn === me ? 'You go first!' : `${esc(s.players[s.turn].name)} goes first`}</b>` });
   fxLayer.append(d); setTimeout(() => d.remove(), 2300);
 }
-function tumble() {
-  const d = $app.querySelector('.d20');
-  if (!d) return;
-  const final = d.textContent;
-  d.classList.add('rolling');
-  let k = 0;
-  const t = setInterval(() => {
-    d.textContent = 1 + Math.floor(Math.random() * 20);
-    if (++k > 11) { clearInterval(t); d.textContent = final; d.classList.remove('rolling'); flash(d, 'land', 500); }
-  }, 60);
+// A layer pinned over a board element (shield, die), sized to it so its contents can use cqw.
+function overlayOn(el, html, cls) {
+  const r = el.getBoundingClientRect(), o = document.createElement('div');
+  o.className = `fx-on ${cls}`; o.innerHTML = html;
+  Object.assign(o.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
+  fxLayer.append(o);
+  return o;
 }
 
-function preAnimate(ev) {
-  for (const e of ev) {
-    if (e.k === 'attack') flash(fieldEl(e.p, e.i), e.p === me ? 'lunge-up' : 'lunge-down', 520);
-    if (e.k === 'hit') {
-      const el = fieldEl(e.p, e.i);
-      setTimeout(() => { flash(el, e.ko ? 'ko' : 'hurt', 700); floatText(el, e.ko ? 'KO!' : '−1 HP', 'dmg'); }, 230);
-    }
+// Spin a die through random faces, settling on each roll in turn (two rolls when the defender forces a reroll).
+async function spin(die, rolls) {
+  for (const n of rolls) {
+    die.classList.add('rolling');
+    for (let k = 0; k < 9; k++) { die.textContent = 1 + Math.floor(Math.random() * 20); await sleep(55); }
+    die.textContent = n; die.classList.remove('rolling'); flash(die, 'land', 450);
+    await sleep(rolls.length > 1 ? 380 : 120);
   }
+}
+
+// The attacker leaps at a target element and back; resolves at the moment of impact.
+function jump(el, target) {
+  if (!el || !target) return sleep(0);
+  const a = el.getBoundingClientRect(), b = target.getBoundingClientRect();
+  el.style.setProperty('--dx', `${b.left + b.width / 2 - (a.left + a.width / 2)}px`);
+  el.style.setProperty('--dy', `${b.top + b.height / 2 - (a.top + a.height / 2)}px`);
+  flash(el, 'jump', 620);
+  return sleep(270);
+}
+
+// Thanos-snap: tiles of a clone drift off and fade, sweeping left to right.
+function disintegrate(el) {
+  if (!el) return;
+  const r = el.getBoundingClientRect(), clone = el.cloneNode(true), cols = 6, rows = 8;
+  clone.className = clone.className.replace(/\b(hurt|glow|jump|sel)\b/g, '');
+  clone.style.cssText = `--cw:${r.width}px;margin:0;transform:none;translate:none;scale:none`;
+  const wrap = Object.assign(document.createElement('div'), { className: 'dust' });
+  Object.assign(wrap.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
+  for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+    const t = document.createElement('div');
+    t.className = 'dust-bit';
+    t.style.cssText = `clip-path:inset(${(y * 100) / rows}% ${100 - ((x + 1) * 100) / cols}% ${100 - ((y + 1) * 100) / rows}% ${(x * 100) / cols}%);`
+      + `--tx:${30 + Math.random() * 70}px;--ty:${-30 - Math.random() * 70}px;--rz:${Math.random() * 60 - 30}deg;--d:${((x / cols) * 0.45 + Math.random() * 0.2).toFixed(2)}s`;
+    t.append(clone.cloneNode(true));
+    wrap.append(t);
+  }
+  el.style.visibility = 'hidden';
+  fxLayer.append(wrap);
+  setTimeout(() => wrap.remove(), 1900);
+}
+
+async function attackAnim(e, ev) {
+  const atkEl = fieldEl(e.p, e.i);
+  if (!atkEl) return;
+  if (e.direct) { await jump(atkEl, hudEl(1 - e.p)); await sleep(350); return; }
+  const defEl = fieldEl(e.target.p, e.target.i), r = e.roll;
+  if (!defEl) return;
+  const shield = overlayOn(defEl, `<div class="shield">${ICON.def}<b>${r.def}</b></div>`, 'shield-on');
+  await sleep(380);
+  const roll = overlayOn(atkEl, '<div class="d20">?</div><div class="die-sum"></div>', 'die-on');
+  await spin(roll.querySelector('.d20'), r.rolls);
+  const sum = roll.querySelector('.die-sum');
+  sum.textContent = `${r.rolls.length > 1 ? `kept ${r.die} ` : ''}+${r.atk} = ${r.total}`;
+  sum.classList.add('show');
+  await sleep(650);
+  roll.remove();
+  await jump(atkEl, defEl);
+  if (r.hit) { shield.classList.add('shatter'); flash(defEl, 'hurt', 600); floatText(defEl, '−1 HP', 'dmg'); }
+  else { shield.classList.add('block'); flash(atkEl, 'hurt', 600); floatText(defEl, 'Blocked!', 'blocked'); setTimeout(() => floatText(atkEl, '−1 HP', 'dmg'), 200); }
+  await sleep(520);
+  shield.remove();
+  const kos = ev.filter(x => x.k === 'hit' && x.ko);
+  kos.forEach(k => disintegrate(fieldEl(k.p, k.i)));
+  if (kos.length) await sleep(1300);
+}
+
+async function preAnimate(ev) {
+  $app.querySelectorAll('.dim, .sheet, .toast.wait').forEach(el => el.remove()); // e.g. the defend picker
+  const atk = ev.find(e => e.k === 'attack');
+  if (atk) return attackAnim(atk, ev);
+  const hits = ev.filter(e => e.k === 'hit'); // manual HP changes
+  for (const e of hits) {
+    const el = fieldEl(e.p, e.i);
+    if (e.ko) disintegrate(el); else { flash(el, 'hurt', 600); floatText(el, '−1 HP', 'dmg'); }
+  }
+  await sleep(hits.some(e => e.ko) ? 1300 : 450);
 }
 
 function postAnimate(ev, prev, s) {
@@ -357,7 +410,6 @@ function postAnimate(ev, prev, s) {
     if (e.k === 'turn') banner(e.p === me ? 'Your turn' : `${esc(s.players[e.p].name)}'s turn`, 'turn');
   }
   if (s.phase === 'over' && prev.phase !== 'over') flash($app.querySelector('.big'), 'enter', 1000);
-  if (s.roll && s.roll.seq !== prev.roll?.seq) tumble();
 }
 
 // Inspecting a card tilts it toward the pointer with a moving shine.
@@ -455,8 +507,8 @@ function setGame(s) {
 
 async function present(prev, s) {
   const ev = prev && s.seq > prev.seq ? s.events || [] : [];
-  if (!prev) { ui.zoom = ui.sheet = null; ui.seenRoll = 0; } // a fresh deal
-  if (!calm && ui.view === 'game' && game && ev.some(e => e.k === 'attack' || e.k === 'hit')) { preAnimate(ev); await sleep(560); }
+  if (!prev) ui.zoom = ui.sheet = null; // a fresh deal
+  if (!calm && ui.view === 'game' && game && ev.some(e => e.k === 'attack' || e.k === 'hit')) await preAnimate(ev);
   game = s; ui.view = 'game'; ui.code = ''; ui.status = ''; ui.defPick = null;
   toast(s.log[s.log.length - 1]);
   if (calm) return;
@@ -526,7 +578,6 @@ const ACTS = {
   },
   end() { ui.zoom = ui.sheet = null; doAction({ type: 'end' }); },
   defpick(d) { ui.defPick = Number(d.i); },
-  'seen-roll'() { ui.seenRoll = game.roll.seq; },
   rematch() { if (bot) startBot(false); else if (isHost) startGame(); else conn?.send({ t: 'rematch' }); },
   leave() { leave(); },
   'leave-battle'() { if (confirm('Leave this battle?')) leave(); },
