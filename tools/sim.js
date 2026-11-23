@@ -112,6 +112,44 @@ function randomDeck(items = Math.floor(rng() * 11)) {
   return d;
 }
 
+// ROUNDROBIN=<decks.json> node tools/sim.js <games per pairing> <seed>: every deck vs every deck, seats alternated.
+if (process.env.ROUNDROBIN) {
+  const D = JSON.parse(fs.readFileSync(process.env.ROUNDROBIN, 'utf8')), n = D.length;
+  const wins = Array(n).fill(0), games = Array(n).fill(0), pair = D.map(() => Array(n).fill(0));
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) { let wi = 0, g = 0;
+    for (let k = 0; k < N; k++) { const seat = k % 2, r = play(seat ? [D[j], D[i]] : [D[i], D[j]], [POL.greedy, POL.greedy]); if (r.winner < 0) continue; g++; if (r.winner === seat) wi++; }
+    pair[i][j] = wi / Math.max(1, g); pair[j][i] = 1 - pair[i][j]; wins[i] += wi; wins[j] += g - wi; games[i] += g; games[j] += g; }
+  process.stdout.write(JSON.stringify({ wins, games, pair })); process.exit(0);
+}
+
+// DECKOPT=1 node tools/sim.js <games per deck per generation> <seed> [knockout] [HP scale]: evolves decks with a genetic search
+// (greedy bots, random-deck and starter opponents), prints the best decks and the generation history as JSON.
+if (process.env.DECKOPT) {
+  const POP = +(process.env.POP || 16), GENS = +(process.env.GENS || 10), ELITE = 4, M = N;
+  const pool = CARDS.map(c => c.id);
+  const total = d => Object.values(d.cards).reduce((a, b) => a + b, 0);
+  const clone = d => ({ captain: d.captain, cards: { ...d.cards } });
+  function addRandom(d) { for (let t = 0; t < 200; t++) { const id = pick(pool); if ((d.cards[id] || 0) < 3) { d.cards[id] = (d.cards[id] || 0) + 1; return; } } }
+  function removeRandom(d) { const ids = Object.keys(d.cards); const id = pick(ids); if (--d.cards[id] <= 0) delete d.cards[id]; }
+  function mutate(d) { const c = clone(d), k = 1 + Math.floor(rng() * 3); for (let i = 0; i < k; i++) { removeRandom(c); addRandom(c); } if (rng() < 0.15) c.captain = pick(CAPTAINS).id; return c; }
+  function cross(a, b) { const c = { captain: rng() < 0.5 ? a.captain : b.captain, cards: {} };
+    for (const [id, n] of Object.entries(a.cards)) for (let i = 0; i < n; i++) if (rng() < 0.5 && (c.cards[id] || 0) < 3) c.cards[id] = (c.cards[id] || 0) + 1;
+    const rest = Object.entries(b.cards).flatMap(([id, n]) => Array(n).fill(id)); while (total(c) < DECK_SIZE && rest.length) { const id = rest.splice(Math.floor(rng() * rest.length), 1)[0]; if ((c.cards[id] || 0) < 3) c.cards[id] = (c.cards[id] || 0) + 1; }
+    while (total(c) < DECK_SIZE) addRandom(c); return c; }
+  const opponents = pop => [...pop, ...STARTERS, randomDeck(), randomDeck()];
+  function fitness(d, opps) { let w = 0, g = 0; for (let k = 0; k < M; k++) { const o = opps[Math.floor(rng() * opps.length)], seat = k % 2, r = play(seat ? [o, d] : [d, o], [POL.greedy, POL.greedy]); if (r.winner >= 0) { g++; w += r.winner === seat; } } return g ? w / g : 0; }
+  let pop = [...STARTERS.map(clone), ...Array.from({ length: POP - STARTERS.length }, () => randomDeck())];
+  const history = [];
+  for (let gen = 0; gen < GENS; gen++) {
+    const opps = opponents(pop), scored = pop.map(d => ({ d, f: fitness(d, opps) })).sort((x, y) => y.f - x.f);
+    history.push({ gen, best: scored[0].f, mean: scored.reduce((a, x) => a + x.f, 0) / scored.length });
+    const elite = scored.slice(0, ELITE).map(x => x.d);
+    pop = [...elite]; while (pop.length < POP) { const pa = pick(elite), pb = pick(scored.slice(0, POP / 2)).d; pop.push(mutate(rng() < 0.5 ? cross(pa, pb) : pa)); }
+    if (gen === GENS - 1) { process.stdout.write(JSON.stringify({ history, top: scored.slice(0, 5).map(x => ({ fitness: x.f, deck: x.d })) })); }
+  }
+  process.exit(0);
+}
+
 // CARDS=1 node tools/sim.js <games> <seed> [knockout] [HP scale]: random-deck greedy games, per-card stats as JSON (combine with tools/simcards.js).
 if (process.env.CARDS) {
   const out = { games: 0, turns: 0, firstWins: 0, cards: {} };
