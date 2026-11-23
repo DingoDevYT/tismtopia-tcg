@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tismtopia TCG · Mockups</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  body.mock { background: #2b2f3f; padding: 32px 16px 64px; }
+  .mock > h1 { color: #fff; text-align: center; font-size: 26px; font-weight: 900; }
+  .mock > p { color: #aab0c4; text-align: center; margin: 6px auto 28px; font-size: 14px; max-width: 640px; }
+  .mock > h2 { color: #fff; margin: 36px 0 18px; }
+  .cardsheet { max-width: 1180px; margin: 0 auto; padding: 28px; background: var(--bg); border-radius: 28px; display: flex; flex-wrap: wrap; gap: 28px; justify-content: center; align-items: flex-end; }
+  .cardsheet figure { display: grid; gap: 10px; justify-items: center; font-size: 13px; color: var(--muted); }
+  .cardsheet .card { --cw: 180px; }
+  .cardsheet .card.mini { --cw: 90px; }
+  .frames { display: flex; flex-wrap: wrap; gap: 40px 28px; justify-content: center; }
+  .phone { display: grid; gap: 12px; justify-items: center; }
+  .phone .screen { width: 390px; height: 844px; border-radius: 38px; box-shadow: 0 20px 50px rgba(0, 0, 0, .45), 0 0 0 8px #1a1d28; }
+  .phone figcaption { color: #dde1ee; font-size: 14px; }
+</style>
+</head>
+<body class="mock">
+<h1>Tismtopia TCG · UI mockups</h1>
+<p>Every screen in the playtest slice, phone-first (on desktop the same layout sits centered). Built from the real <code>style.css</code> and card renderer, so the game reuses all of it. Card names and effects are placeholders.</p>
+<h2>Card designs</h2>
+<section class="cardsheet" id="cards"></section>
+<h2>Screens</h2>
+<div class="frames" id="frames"></div>
+
+<script src="js/cards.js"></script>
+<script src="js/render.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const frame = (cap, html) => `<figure class="phone"><div class="screen">${html}</div><figcaption>${cap}</figcaption></figure>`;
+const tabbar = on => `<nav class="tabbar">${['home', 'cards', 'battle', 'rules'].map(k => `<a class="${k === on ? 'on' : ''}" aria-label="${k}">${ICON[k]}</a>`).join('')}</nav>`;
+const header = t => `<h1 class="title">${t}</h1><div class="rainbow"></div>`;
+const sheet = html => `<div class="dim"></div><div class="sheet"><div class="grab"></div>${html}</div>`;
+const stepper = v => `<div class="stepper neu"><button>−</button><span>${v}</span><button>+</button></div>`;
+
+const DECK = { c_vc_goblin: 3, c_reply_guy: 3, c_lagger: 2, c_night_owl: 2, m_sticker: 1, b_ping: 3, b_brainrot: 2, b_voice_crack: 2, e_slowmode: 1, e_read: 1 };
+const S = {
+  turn: 0, actions: 1,
+  players: [
+    { name: 'Juno', captain: 'cap_gremlin', points: 2, goof: 3, bore: 1, deck: Array(9), hand: ['c_reply_guy', 'b_ping', 'm_sticker', 'e_slowmode', 'b_voice_crack'],
+      field: [{ id: 'c_vc_goblin', hp: 3 }, { id: 'c_night_owl', hp: 1 }], effects: [{ id: 'b_brainrot', turns: 1 }] },
+    { name: 'Pip', captain: 'cap_lurker', points: 1, goof: 1, bore: 4, deck: Array(10), hand: ['c_lagger', 'b_voice_crack', 'e_slowmode', 'c_night_owl'],
+      field: [{ id: 'c_lagger', hp: 2 }, { id: 'c_reply_guy', hp: 4 }, { id: 'c_vc_goblin', hp: 2 }], effects: [{ id: 'e_read' }] },
+  ],
+};
+
+$('cards').innerHTML = [
+  ['Captain', renderCard(CARD.cap_gremlin)],
+  ['Character', renderCard(CARD.c_vc_goblin)],
+  ['Main Character · 1 per deck', renderCard(CARD.m_sticker)],
+  ['Bit · instant, lasts N turns', renderCard(CARD.b_brainrot)],
+  ['Evil · lasts forever', renderCard(CARD.e_slowmode)],
+  ['Card back', renderCard(null)],
+  ['On board / in hand', renderCard(CARD.c_lagger, { cls: 'mini' })],
+  ['Damaged', renderCard(CARD.c_night_owl, { cls: 'mini', hp: 1 })],
+].map(([cap, html]) => `<figure>${html}<figcaption>${cap}</figcaption></figure>`).join('');
+
+const cap = CARD.cap_gremlin;
+const deckList = `${header('Goof Troop')}
+  <div class="captain-slot neu">${renderCard(cap, { cls: 'mini' })}<div><small>Captain</small><b>${cap.name}</b><p>${cap.text}</p><button class="btn sm">Change captain</button></div></div>
+  <div class="checks"><span>✓ ${DECK_SIZE}/${DECK_SIZE} cards</span><span>✓ Max 3 copies</span><span>✓ Main Character ×1</span></div>
+  <div class="grid g4">${Object.entries(DECK).map(([id, n]) => `<div class="cell">${renderCard(CARD[id], { cls: 'mini' })}<span class="count">×${n}</span></div>`).join('')}</div>
+  <div class="bar"><button class="btn sm">Copy code</button><button class="btn sm">Import</button><button class="btn primary sm" style="margin-left:auto">Save deck</button></div>`;
+
+const RULES = [
+  ['Goal', 'First to 5 Points wins. Both players start at 0 Points, 0 Goofiness and 0 Boredom.'],
+  ['Scoring', 'Your Goofiness hits 5: you get 1 Point and it resets. Your opponent\'s Boredom hits 5: you get 1 Point and theirs resets. Meters cap at 5; extra is lost.'],
+  ['Your turn', 'Draw 1 card (the first player skips this on turn one). You get 2 Actions. Playing a card, attacking or using an ability costs 1 Action each. End your turn whenever.'],
+  ['Combat', 'Roll a d20 and add your Character\'s ATK. If it\'s at least the defender\'s DEF, the defender loses 1 HP and your opponent gains Boredom equal to your ATK. If not, your attacker loses 1 HP. No Characters to block? The ATK goes straight to Boredom.'],
+  ['Card types', 'Characters stay on the field to attack and defend. Bits are instant and last a set number of turns. Evils last forever unless removed.'],
+  ['Deck rules', `${DECK_SIZE} cards plus 1 Captain. Max 3 copies of a card, max 1 of each Main Character.`],
+];
+
+$('frames').innerHTML = [
+  frame('1 · Home', `
+    <div class="topbar"><div class="profile neu"><span class="avatar">⌨️</span><b>Juno</b></div></div>
+    <div class="logo">Tismtopia<span>TCG</span></div>
+    <section class="hero neu">
+      <div class="fan">${['cap_lurker', 'cap_gremlin', 'cap_clown'].map((id, i) => renderCard(CARD[id], { style: `--r:${(i - 1) * 9}deg;--y:${Math.abs(i - 1) * 14}px` })).join('')}</div>
+      <div class="row2"><button class="btn primary">Host Battle</button><button class="btn">Join Battle</button></div>
+    </section>
+    <div class="tiles"><a class="tile neu">${ICON.cards}<b>Deck Builder</b><small>3 decks</small></a><a class="tile neu">${ICON.rules}<b>How to Play</b><small>Rules</small></a></div>
+    ${tabbar('home')}`),
+
+  frame('2 · Deck builder: add cards', `${header('Build Deck')}
+    <div class="panel neu">
+      <div class="deckname neu-in"><b>Goof Troop</b><span class="muted">▾</span></div>
+      <div class="chips"><span class="chip on">All</span><span class="chip">Character</span><span class="chip">Bit</span><span class="chip">Evil</span><span class="chip">${ICON.search}</span></div>
+    </div>
+    <div class="grid">${CARDS.map(c => `<div class="cell">${renderCard(c)}${stepper(`${DECK[c.id] || 0}/${c.main ? 1 : 3}`)}</div>`).join('')}</div>
+    <div class="bar"><b>${DECK_SIZE}/${DECK_SIZE}</b><div class="progress"><i style="width:100%"></i></div><button class="btn primary sm">View deck</button></div>`),
+
+  frame('3 · Deck builder: deck & checks', deckList),
+
+  frame('4 · Captain picker', deckList + sheet(`<h2>Choose your Captain</h2>
+    <div class="grid g2">${CAPTAINS.map(c => renderCard(c, { cls: c === cap ? 'picked' : '' })).join('')}</div>
+    <button class="btn primary wide">Lead with ${cap.name}</button>`)),
+
+  frame('5 · Battle lobby', `${header('Battle')}
+    <div class="panel neu"><small class="lbl">Your deck</small>
+      <div class="deckpick">${renderCard(cap, { cls: 'mini' })}<div><b>Goof Troop</b><br><small>Captain: ${cap.name} · ${DECK_SIZE} cards</small></div><span>▾</span></div></div>
+    <div class="panel neu"><small class="lbl">Host a battle</small>
+      <div class="code neu-in">GOOF7Q</div>
+      <p class="muted center">Waiting for a friend to join <span class="spin"></span></p>
+      <button class="btn wide">Copy invite link</button></div>
+    <div class="or">or</div>
+    <div class="panel neu"><small class="lbl">Join a friend</small>
+      <input class="input" placeholder="ROOM CODE" aria-label="Room code">
+      <button class="btn primary wide">Join</button></div>
+    ${tabbar('battle')}`),
+
+  frame('6 · Board: your turn (glow = can attack)', renderBoard(S, 0, { glow: [0, 1] }) + `<div class="toast neu">Pip played 📭 Left on Read</div>`),
+
+  frame('7 · Tap a card: zoom & actions', renderBoard(S, 0) + `<div class="dim">
+    ${renderCard(CARD.c_vc_goblin, { cls: 'zoom' })}
+    <div class="row2"><button class="btn primary">⚔ Attack · 1⚡</button><button class="btn">✨ Ability · 1⚡</button></div>
+    <div class="row2">${stepper('HP 3')}<button class="btn sm">Close</button></div></div>`),
+
+  frame('8 · Attack roll', renderBoard(S, 0) + `<div class="dim">
+    <div class="duel">${renderCard(CARD.c_vc_goblin, { cls: 'mini' })}<span class="vs">VS</span>${renderCard(CARD.c_lagger, { cls: 'mini', hp: 2 })}</div>
+    <div class="d20">14</div>
+    <div class="math neu">14 + <b>2 ATK</b> = <b>16</b> ≥ <b>14 DEF</b></div>
+    <div class="result neu"><b>Breaks through!</b><small>Laggy Larry −1 HP · Pip +2 😴 Boredom</small></div>
+    <button class="btn primary">Continue</button></div>`),
+
+  frame('9 · Defending (opponent\'s view)', renderBoard(S, 1) + sheet(`
+    <div class="attacker neu">${renderCard(CARD.c_vc_goblin, { cls: 'mini' })}<div><small>Incoming attack</small><br><b>VC Goblin</b> attacks with <b>2 ATK</b></div></div>
+    <h2>Pick a defender</h2>
+    <div class="field">${S.players[1].field.map((f, i) => renderCard(CARD[f.id], { cls: 'mini' + (i === 0 ? ' picked' : ''), hp: f.hp })).join('')}</div>
+    <button class="btn primary wide" style="margin-top:14px">Defend with Laggy Larry</button>`)),
+
+  frame('10 · Manual adjust (apply card effects by hand)', renderBoard(S, 0) + sheet(`<h2>Adjust</h2>
+    <p class="muted center" style="margin-bottom:12px">Card effects are applied by hand. Every change shows in both players' log.</p>
+    ${S.players.map(p => `<div class="adj neu-in"><b>${p.name}</b>
+      <div class="adj-row"><span>😂 Goofiness</span>${stepper(p.goof)}</div>
+      <div class="adj-row"><span>😴 Boredom</span>${stepper(p.bore)}</div>
+      <div class="adj-row"><span>⭐ Points</span>${stepper(p.points)}</div></div>`).join('')}
+    <div class="row2"><button class="btn">Draw a card</button><button class="btn">+1 Action</button></div>`)),
+
+  frame('11 · Victory', `<div class="victory">
+    <div class="avatar xl">⌨️</div><small>vs. Pip (The Lurker)</small>
+    <h1 class="big">Victory!</h1><div class="rainbow"></div>
+    <div class="stats-list neu-in">
+      <div><span>Your points</span><div class="pts">${dots(5)}</div></div>
+      <div><span>Pip's points</span><div class="pts">${dots(3)}</div></div>
+      <div><span>Turns played</span><b>14</b></div>
+      <div><span>Boredom inflicted</span><b>17 😴</b></div>
+      <div><span>Goofiness built</span><b>11 😂</b></div>
+    </div>
+    <div class="row2"><button class="btn primary">Rematch</button><button class="btn">Home</button></div></div>`),
+
+  frame('12 · How to play', `${header('How to Play')}
+    <div class="scroll">${RULES.map(([h, t], i) => `<details class="acc neu"${i < 3 ? ' open' : ''}><summary>${h}</summary><p>${t}</p></details>`).join('')}</div>
+    ${tabbar('rules')}`),
+].join('');
+</script>
+</body>
+</html>
