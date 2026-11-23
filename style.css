@@ -578,3 +578,33 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
 .meter .mbar u { position: absolute; top: -3px; bottom: -3px; width: 3px; margin-left: -1.5px; border-radius: 2px; background: #3b2b78; box-shadow: 0 0 0 1px #fff; }
 @keyframes flow { to { background-position: -200% 0; } }
 @container app (min-width: 900px) { .meter .mbar { height: 14px; } }
+
+/* ---------- home: logo image and the rare-finish showcase ---------- */
+.logo img { display: block; width: min(320px, 78%); height: auto; margin: 0 auto -4px; }
+@property --rx { syntax: '<angle>'; inherits: true; initial-value: 0deg; }
+@property --ry { syntax: '<angle>'; inherits: true; initial-value: 0deg; }
+@property --mx { syntax: '<percentage>'; inherits: true; initial-value: 50%; }
+@property --my { syntax: '<percentage>'; inherits: true; initial-value: 30%; }
+.fan .card { transform: translateY(var(--y, 0)) rotate(var(--r, 0)) perspective(900px) rotateX(var(--rx)) rotateY(var(--ry)); transition: transform .12s ease-out;
+  animation: sway 7s ease-in-out var(--d, 0s) infinite alternate; }
+.fan .card.held { animation: none; z-index: 2; }
+@keyframes sway { 0% { --rx: 6deg; --ry: -12deg; --mx: 15%; --my: 20%; } 50% { --rx: -4deg; --ry: 4deg; --mx: 55%; --my: 60%; } 100% { --rx: 5deg; --ry: 13deg; --mx: 90%; --my: 30%; } }
+.fan .card .frame::before { content: ''; position: absolute; inset: 0; z-index: 3; pointer-events: none; border-radius: inherit;
+  background: radial-gradient(circle at var(--mx) var(--my), rgba(255, 255, 255, .55), transparent 50%); mix-blend-mode: soft-light; }
+
+/* Holo: rainbow foil over the whole card, sliding with the tilt. */
+.v-holo .frame::after { content: ''; position: absolute; inset: 0; z-index: 4; pointer-events: none; border-radius: inherit; mix-blend-mode: color-dodge; opacity: .5;
+  background: repeating-linear-gradient(115deg, #ff3c8e 0 5%, #ffcf3d 10%, #3dffa2 15%, #3dc7ff 20%, #b45cff 25%, #ff3c8e 30%) calc(var(--mx) * 2) calc(var(--my) * 2) / 300% 300%; }
+/* Reverse holo: the frame is foil, the art stays clean. */
+.v-rev .frame { background: repeating-linear-gradient(115deg, #ffb3d1 0 6%, #ffe9a3 12%, #b3ffd9 18%, #b3e9ff 24%, #dcc2ff 30%, #ffb3d1 36%) calc(var(--mx) * 2) calc(var(--my) * 2) / 300% 300%; }
+.v-rev .art { z-index: 5; }
+/* Full art: the illustration fills the card, text printed on it. */
+.v-full .frame { background: linear-gradient(135deg, #e9edf5, #9aa7c2, #f8fbff, #b7c1d8); }
+.v-full .art { position: absolute !important; inset: 2.2cqw; height: auto !important; aspect-ratio: auto !important; border-radius: 3.8cqw; box-shadow: none; z-index: 0; }
+.v-full .frame > :not(.art) { position: relative; z-index: 1; }
+.v-full .head, .v-full .text, .v-full .moves, .v-full .move { background: none !important; box-shadow: none; border: 0; }
+.v-full .name, .v-full .move b, .v-full .mv-pow, .v-full .mv-text, .v-full .text, .v-full .foot { color: #151a2c; text-shadow: 0 0 2px #fff, 0 0 3px #fff, 0 0 6px #fff; }
+.v-full .text.passive, .v-full .moves { flex: none; margin-top: auto; }
+.v-full .text.passive ~ .moves { margin-top: 0; }
+.v-full .defb { top: 15cqw; right: 3cqw; }
+@media (prefers-reduced-motion: reduce) { .fan .card { animation: none; } }

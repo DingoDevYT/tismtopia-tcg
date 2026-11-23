@@ -48,11 +48,17 @@ const tabbar = on => `<nav class="tabbar">${[['home', 'home'], ['cards', 'deck']
 const deckSelect = withNew => `<label class="deckname neu-in"><select data-change="pick-deck" aria-label="Deck">${decks.map(d =>
   `<option value="${d.id}"${d.id === deck().id ? ' selected' : ''}>${esc(d.name)}</option>`).join('')}${withNew ? '<option value="new">+ New deck</option>' : ''}</select>${ICON.chevron}</label>`;
 
+// Home showcase: three Characters with art in rare finishes (holo, full-art holo, reverse holo).
+const heroCards = () => {
+  const withArt = CARDS.filter(c => c.type === 'character' && c.art);
+  const pick = withArt.length >= 3 ? withArt : CARDS.filter(c => c.type === 'character');
+  return [[pick[1], 'v-holo'], [pick[0], 'v-full v-holo'], [pick[2], 'v-rev']].filter(([c]) => c);
+};
 function viewHome() {
   return `<div class="topbar"><button class="profile neu" data-act="rename-me" aria-label="Change your name">${renderAvatar(CARD[deck().captain] || CAPTAINS[0])}<b>${esc(myName)}</b></button></div>
-  <div class="logo"><b>Tismtopia</b><span>TRADING CARD GAME</span></div>
+  <div class="logo"><img src="art/logo.png" alt="Tismtopia"><span>TRADING CARD GAME</span></div>
   <section class="hero neu">
-    <div class="fan">${Object.keys(STARTER.cards).slice(0, 3).map((id, i) => renderCard(CARD[id], { style: `--r:${(i - 1) * 9}deg;--y:${Math.abs(i - 1) * 14}px` })).join('')}</div>
+    <div class="fan">${heroCards().map(([c, v], i) => renderCard(v.includes('v-full') ? { ...c, crop: null } : c, { cls: v, style: `--r:${(i - 1) * 9}deg;--y:${Math.abs(i - 1) * 14}px;--d:${-i * 1.7}s` })).join('')}</div>
     <div class="row2"><button class="btn primary" data-act="go" data-to="lobby" data-host="1">Host Battle</button><button class="btn" data-act="go" data-to="lobby">Join Battle</button></div>
   </section>
   <div class="tiles">
@@ -125,7 +131,7 @@ function viewGame() {
 // ---------------- tutorial: a guided bot battle; each step waits for `done(game)` or a Next tap ----------------
 const MY = '.side:nth-child(4)';
 // The tutorial Character: the first starter card with a 1-Action attack that can be used straight away.
-const TC = CARD[Object.keys(STARTER.cards).find(id => !CARD[id].sick && CARD[id].moves.some(m => m.cost === 1 && !m.ability))];
+const TC = CARD[Object.keys(STARTER.cards).find(id => CARD[id].type === 'character' && !CARD[id].sick && (CARD[id].cost ?? 1) <= 1 && CARD[id].moves.some(m => m.cost === 1 && !m.ability))];
 const TM = TC.moves.find(m => m.cost === 1 && !m.ability);
 const TUT = [
   { text: `Welcome to Tismtopia! Bore your opponent out: whoever reaches ${BORE_MAX} Boredom loses. This quick battle shows you how.`, next: true },
@@ -440,14 +446,15 @@ function postAnimate(ev, prev, s) {
 
 // Inspecting a card tilts it toward the pointer with a moving shine.
 document.addEventListener('pointermove', e => {
-  const c = e.target.closest?.('.card.zoom');
+  const c = e.target.closest?.('.card.zoom, .fan .card');
   if (!c || calm) return;
+  c.classList.add('held');
   const r = c.getBoundingClientRect(), x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
-  c.style.cssText += `--rx:${((0.5 - y) * 18).toFixed(1)}deg;--ry:${((x - 0.5) * 22).toFixed(1)}deg;--mx:${(x * 100).toFixed(0)}%;--my:${(y * 100).toFixed(0)}%`;
+  for (const [k, v] of [['--rx', `${((0.5 - y) * 18).toFixed(1)}deg`], ['--ry', `${((x - 0.5) * 22).toFixed(1)}deg`], ['--mx', `${(x * 100).toFixed(0)}%`], ['--my', `${(y * 100).toFixed(0)}%`]]) c.style.setProperty(k, v);
 });
 document.addEventListener('pointerout', e => {
-  const c = e.target.closest?.('.card.zoom');
-  if (c && !c.contains(e.relatedTarget)) c.style.cssText = '';
+  const c = e.target.closest?.('.card.zoom, .fan .card');
+  if (c && !c.contains(e.relatedTarget)) { c.classList.remove('held'); for (const k of ['--rx', '--ry', '--mx', '--my']) c.style.removeProperty(k); }
 });
 
 // ---------------- networking ----------------
