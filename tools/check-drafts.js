@@ -20,12 +20,13 @@ function steps(list, where, noHp) {
     if (!Array.isArray(st)) { errs.push(`${where}: each step must be an array`); continue; }
     const [what, a1, a2] = st;
     if (what === 'flip') { steps(a1, `${where} > flip heads`, noHp); if (a2 !== undefined) steps(a2, `${where} > flip tails`, noHp); continue; }
+    if (what === 'sac') { if (noHp) errs.push(`${where}: sac only works inside a Character's moves`); continue; }
     if (what === 'hp') {
       if (noHp) errs.push(`${where}: hp steps only work inside a Character's moves (Bits/Evils have no target)`);
       else if (!['target', 'self'].includes(a1) || !int(a2, 1, 3)) errs.push(`${where}: hp step must be ["hp","target"|"self",1-3]`);
       continue;
     }
-    if (!['goof', 'bore', 'draw', 'actions'].includes(what)) { errs.push(`${where}: unknown step "${what}" (allowed: goof, bore, draw, actions, hp, flip)`); continue; }
+    if (!['goof', 'bore', 'draw', 'actions'].includes(what)) { errs.push(`${where}: unknown step "${what}" (allowed: goof, bore, draw, actions, hp, sac, flip)`); continue; }
     if (!['me', 'opp'].includes(a1)) errs.push(`${where}: "${what}" needs "me" or "opp"`);
     if (!Number.isInteger(a2) || a2 === 0 || Math.abs(a2) > 4) errs.push(`${where}: "${what}" amount must be a whole number from -4 to 4, not 0`);
   }
@@ -35,7 +36,7 @@ function mod(m, where) {
   if (typeof m !== 'object' || Array.isArray(m)) return errs.push(`${where}: mod must be an object`);
   for (const [k, v] of Object.entries(m)) {
     if (!MOD_KEYS.includes(k)) errs.push(`${where}: unknown mod "${k}" (allowed: ${MOD_KEYS.join(', ')})`);
-    else if (k === 'if' ? v !== 'noGoof' : !int(v, 1, 3)) errs.push(`${where}: mod ${k} has a bad value`);
+    else if (k === 'if' ? !(v === 'noGoof' || str(v, 24)) : !int(v, 1, 3)) errs.push(`${where}: mod ${k} has a bad value`);
   }
 }
 
@@ -57,7 +58,7 @@ for (const [n, c] of cards.entries()) {
     for (const k of ['onPlay', 'onBreak', 'onTurnStart', 'onOppTurnStart']) steps(c[k], `${at} ${k}`);
     mod(c.mod, `${at} mod`);
     if (!Array.isArray(c.moves) || c.moves.length < 1 || c.moves.length > 3) { errs.push(`${at}: moves must be a list of 1-3 moves`); continue; }
-    if (!c.moves.some(m => m && m.cost <= 1)) errs.push(`${at}: needs at least one move costing 0 or 1`);
+    if (c.group !== undefined && !str(c.group, 24)) errs.push(`${at}: group must be a short name like "Butter"`);
     for (const [k, m] of c.moves.entries()) {
       const mw = `${at} move ${k + 1}`;
       if (!m || typeof m !== 'object') { errs.push(`${mw}: not an object`); continue; }
@@ -77,6 +78,7 @@ for (const [n, c] of cards.entries()) {
     if (!c.ability && !c.mod) errs.push(`${at}: captain needs an ability (with once) or a mod`);
   } else if (item) {
     if (!str(c.text, 140)) errs.push(`${at}: needs text describing the effect`);
+    if (c.cost !== undefined && !int(c.cost, 0, 3)) errs.push(`${at}: cost must be 0-3 Actions (default 1)`);
     if (c.type === 'bit' && !int(c.dur, 1, 3)) errs.push(`${at}: a Bit needs dur 1-3 (how many of your turns it lasts)`);
     if (c.type === 'evil' && c.dur !== undefined) errs.push(`${at}: Evils last forever, so no dur`);
     for (const k of ['onPlay', 'onTurnStart', 'onOppTurnStart']) steps(c[k], `${at} ${k}`, true);

@@ -66,11 +66,11 @@ s = apply(s, 1, { type: 'play', i: 0 }); // Brainrot
 assert(statsOf(s, 1, s.players[1].field[0]).bonus === 1, 'Brainrot: +1 power');
 s = apply(s, 1, { type: 'play', i: 0 }); // Laggy Larry
 assert(statsOf(s, 1, s.players[1].field[1]).def === 16, 'Lurker +2 DEF at 0 Goofiness');
-s = apply(s, 1, { type: 'attack', i: 0, m: 1 }); // Ratio (power 2 + 1)
-assert(s.phase === 'defend' && s.actions === 0, 'blocked attack waits for defender, cost 3 paid');
-throws(() => apply(s, 1, { type: 'end' }), 'cannot act while waiting for defender');
-const handB2 = s.players[1].hand.length;
-s = apply(s, 0, { type: 'defend', i: 0 }, fixed(0.99)); // 20 + 3 = 23 vs VC Goblin 12
+throws(() => apply(s, 1, { type: 'attack', i: 0, m: 1 }), 'attacking a filled field needs a target');
+const handB2 = s.players[1].hand.length, goofA = s.players[0].goof;
+s = apply(s, 1, { type: 'attack', i: 0, m: 1, t: 0 }, fixed(0.99)); // Ratio (power 2 + 1): 20 + 3 = 23 vs VC Goblin 12
+assert(s.actions === 0 && s.phase === 'play', 'attack resolves at once, cost 3 paid');
+assert(s.players[0].goof === Math.max(0, goofA - 1), 'break-through knocks off 1 Goofiness');
 assert(s.roll.hit && s.roll.atk === 3 && s.players[0].field[0].hp === 2 && s.players[0].bore === 4, 'break through: 1 HP, power as Boredom');
 assert(s.players[1].hand.length === handB2 + 1, 'Ratio onHit: draw a card');
 assert(s.events.some(e => e.k === 'attack' && e.move === 'Ratio' && e.target), 'attack event names the move and target');
@@ -81,15 +81,12 @@ assert(s.players[0].bore === 0 && s.players[1].points === 1, 'Left on Read pushe
 
 // ---- turn 3 (A): Larry disadvantage, self damage, coin flips ----
 s.actions = 9;
-s = apply(s, 0, { type: 'attack', i: 1, m: 1 }); // Night Owl All-Nighter (power 4)
-s = apply(s, 1, { type: 'defend', i: 1 }, seq(0.99, 0)); // vs Larry: rolls 20 & 1, keeps 1: 5 vs 16 -> blocked
+s = apply(s, 0, { type: 'attack', i: 1, m: 1, t: 1 }, seq(0.99, 0)); // Night Owl All-Nighter (power 4) // vs Larry: rolls 20 & 1, keeps 1: 5 vs 16 -> blocked
 assert(!s.roll.hit && s.roll.die === 1 && s.roll.rolls.length === 2 && s.players[0].field[1].hp === 2, 'Larry: roll twice keep lower; a blocked attacker takes no damage');
 s.players[0].field[1].hp = 1;
-s = apply(s, 0, { type: 'attack', i: 1, m: 1 });
-s = apply(s, 1, { type: 'defend', i: 0 }, fixed(0.99)); // vs Reply Guy: hit; All-Nighter costs Night Owl 1 HP -> KO
+s = apply(s, 0, { type: 'attack', i: 1, m: 1, t: 0 }, fixed(0.99)); // vs Reply Guy: hit; All-Nighter costs Night Owl 1 HP -> KO
 assert(s.roll.hit && !s.players[0].field.some(f => f.id === 'c_night_owl'), 'All-Nighter: self damage can defeat the attacker');
-s = apply(s, 0, { type: 'attack', i: 0, m: 1 }); // VC Goblin Unmute Scream; heads (0.2) -> +2 more
-s = apply(s, 1, { type: 'defend', i: 0 }, seq(0.99, 0.2));
+s = apply(s, 0, { type: 'attack', i: 0, m: 1, t: 0 }, seq(0.99, 0.2)); // VC Goblin Unmute Scream; heads (0.2) -> +2 more
 const boreGained = s.events.filter(e => e.k === 'meter' && e.p === 1 && e.key === 'bore').reduce((n, e) => n + e.n, 0);
 assert(s.roll.hit && boreGained === 4 && s.events.some(e => e.k === 'coin' && e.heads === true), 'Unmute Scream heads: 2 power + 2 from the coin');
 s.players[1].field.push({ id: 'c_lagger', hp: 2, t: 0 });
@@ -97,12 +94,10 @@ s.players[0].hand = ['c_lagger'];
 s = apply(s, 0, { type: 'play', i: 0 });
 s.players[0].field[s.players[0].field.length - 1].t = 0;
 const li = s.players[0].field.length - 1;
-s = apply(s, 0, { type: 'attack', i: li, m: 1 }); // Rubberband: heads -> 1 more HP
-s = apply(s, 1, { type: 'defend', i: 0 }, seq(0.99, 0.1));
+s = apply(s, 0, { type: 'attack', i: li, m: 1, t: 0 }, seq(0.99, 0.1)); // Rubberband: heads -> 1 more HP
 assert(s.roll.hit && s.events.filter(e => e.k === 'hit' && e.p === 1).length === 2, 'Rubberband heads: 2 HP total');
 s.actions = 2;
-s = apply(s, 0, { type: 'attack', i: li, m: 1 });
-s = apply(s, 1, { type: 'defend', i: 0 }, seq(0.99, 0.99, 0.9)); // vs Larry: two d20s, then tails
+s = apply(s, 0, { type: 'attack', i: li, m: 1, t: 0 }, seq(0.99, 0.99, 0.9)); // vs Larry: two d20s, then tails
 assert(s.roll.hit && s.events.filter(e => e.k === 'hit' && e.p === 1).length === 1, 'Rubberband tails: 1 HP');
 
 // ---- Action economy: carry-over, cap, once-per-turn, extra-Action cards ----
@@ -157,6 +152,19 @@ throws(() => apply(m, 1, { type: 'adjust', who: 0, key: 'goof', d: 50 }), 'bad a
 throws(() => apply(m, 1, { type: 'discard', who: 0, zone: 'hand', i: 0 }), "can't discard opponent's hand");
 m.players[0].points = 4;
 m = apply(m, 0, { type: 'adjust', who: 0, key: 'points', d: 1 });
+CARD.t_cheap = { id: 't_cheap', type: 'bit', name: 'Cheap', cost: 0, dur: 1, onPlay: [['bore', 'opp', 1]] };
+CARD.t_sac = { id: 't_sac', type: 'character', name: 'Sac', def: 10, hp: 3, group: 'G', moves: [{ name: 'Boom', cost: 1, ability: true, ops: [['bore', 'opp', 2], ['sac']] }] };
+CARD.t_buff = { id: 't_buff', type: 'character', name: 'Buff', def: 10, hp: 3, group: 'G', mod: { atk: 1, if: 'G' }, moves: [{ name: 'Hit', cost: 1, power: 1 }] };
+let q = newGame([STARTER, STARTER], ['A', 'B'], fixed(0.1));
+q.players[q.turn].hand = ['t_cheap']; const qa = q.actions;
+q = apply(q, q.turn, { type: 'play', i: 0 });
+assert(q.actions === qa, 'a 0-cost Bit costs nothing');
+q.players[q.turn].field = [{ id: 't_buff', hp: 3, t: 0 }];
+assert(statsOf(q, q.turn, q.players[q.turn].field[0]).bonus === 0, 'group mod needs another group member');
+q.players[q.turn].field.push({ id: 't_sac', hp: 3, t: 0 });
+assert(statsOf(q, q.turn, q.players[q.turn].field[0]).bonus === 1, 'group mod on with a partner');
+q = apply(q, q.turn, { type: 'attack', i: 1, m: 0 });
+assert(q.players[q.turn].field.length === 1, 'sac removes the Character');
 assert(m.phase === 'over' && m.winner === 0, 'first to 5 points wins');
 throws(() => apply(m, 0, { type: 'end' }), 'no actions after game over');
 `, { structuredClone });

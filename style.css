@@ -537,3 +537,10 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
   .tiles { grid-template-columns: repeat(4, 1fr); }
   .victory { padding-inline: max(20px, calc((100% - 560px) / 2)); }
 }
+
+/* Meter changes: a pill that floats up longer, and a coloured glow on the meter that changed. */
+.floater.goof, .floater.bore { font-size: 22px; padding: 4px 14px; border-radius: 999px; background: #fff; text-shadow: none; box-shadow: 0 6px 18px rgba(0, 0, 0, .2); animation-duration: 1.85s; }
+.floater.goof { border: 2px solid #f0941c; } .floater.bore { border: 2px solid #67779a; }
+.meter.goof { --glow: #f0941c; } .meter.bore { --glow: #67779a; }
+.meter.hl { animation: meterGlow 1.4s ease-out; border-radius: 10px; }
+@keyframes meterGlow { 0%, 55% { box-shadow: 0 0 0 3px var(--glow), 0 0 22px var(--glow); background: color-mix(in srgb, var(--glow) 18%, transparent); } 100% { box-shadow: none; } }

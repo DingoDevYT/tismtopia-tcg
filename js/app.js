@@ -115,11 +115,8 @@ function viewGame() {
   if (g.phase === 'over') return viewOver();
   const glow = live ? mine.field.flatMap((f, i) => (canUseAny(g, me, f) ? [i] : [])) : [];
   let html = renderBoard(g, me, { glow, sel: ui.zoom?.zone === 'hand' ? ui.zoom.i : undefined });
-  if (g.phase === 'defend' && g.turn !== me) html += defendSheet();
-  else html += overlay();
-  const wait = g.phase === 'defend' && g.turn === me;
-  const banner = wait ? `Waiting for ${g.players[1 - me].name} to pick a defender…` : ui.toast;
-  return html + (banner ? `<div class="toast neu${wait ? ' wait' : ''}">${esc(banner)}</div>` : '') + coach();
+  html += ui.atk && live ? targetSheet() : overlay();
+  return html + (ui.toast ? `<div class="toast neu">${esc(ui.toast)}</div>` : '') + coach();
 }
 
 // ---------------- tutorial: a guided bot battle; each step waits for `done(game)` or a Next tap ----------------
@@ -135,9 +132,8 @@ const TUT = [
   { text: `Characters attack with moves, each costing Actions. Tap ${TC.name} on the field and use ${TM.name} (1 Action). Nobody is blocking, so its power goes straight to their Boredom.`,
     sel: () => (ui.zoom ? '.dim [data-a*=\'"attack"\']' : `${MY} .field .card`), done: g => g.players[1].bore > 0 },
   { text: "Their Boredom went up by the attack's power. You're out of Actions, so tap End Turn.", sel: '[data-act=end]', done: g => g.turn === 1 },
-  { text: "The bot's turn. When it attacks, you pick a defender. It rolls a d20 and adds its ATK: if that reaches your defender's DEF, the attack breaks through.",
-    sel: () => (game.phase !== 'defend' ? null : ui.defPick != null ? '.sheet [data-a*=\'"defend"\']' : '.sheet .field .card'), done: g => !!g.roll || (g.turn === 0 && g.turnNo > 2) },
-  { text: 'Breaking through costs the defender 1 HP and adds Boredom equal to the ATK. A blocked attack does nothing.', next: true },
+  { text: "The bot's turn. The attacker always picks which Character to hit, then rolls a d20 and adds the attack's power: if that reaches the target's DEF, it breaks through.", done: g => g.turn === 0 && g.turnNo > 2 },
+  { text: 'Breaking through costs the target 1 HP, gives its owner Boredom equal to the power and knocks off 1 of their Goofiness. A blocked attack does nothing.', next: true },
   { text: 'Bits are instant and last a few turns. Evils stay until removed. Tap your Captain to use its ability, or your meters for the log, manual fixes, or to leave.', next: true },
   { text: "That's the basics! Finish this battle against the bot, then build your own deck.", next: 'Got it' },
 ];
@@ -175,8 +171,8 @@ function botMove() {
   if (game !== g) return botSoon(); // wait until the screen has caught up with the last move
   const B = g.players[1], n = g.actions, all = B.field.map((_, i) => i);
   let a = null;
-  if (g.phase === 'defend' && g.turn === 0) a = { type: 'defend', i: best(all, i => statsOf(g, 1, B.field[i]).def * 10 + B.field[i].hp) };
-  else if (g.turn === 1 && g.phase === 'play') {
+  const F = g.players[0].field, t = F.length ? best(F.map((_, i) => i), i => -statsOf(g, 0, F[i]).def * 10 - F[i].hp) : undefined;
+  if (g.turn === 1 && g.phase === 'play') {
     const hc = B.hand.findIndex(id => CARD[id].type === 'character'), canPlay = hc >= 0 && B.field.length < 3;
     // Every move it can afford right now; attacks score by power per Action, abilities are a fallback.
     const moves = all.flatMap(i => CARD[B.field[i].id].moves.map((mv, m) => ({ i, m, mv, c: moveCost(g, 1, mv) })))
@@ -187,7 +183,7 @@ function botMove() {
     const cap = CARD[B.captain];
     if (boost) a = { type: 'attack', i: boost.i, m: boost.m };
     else if (n >= 2 && canPlay) a = { type: 'play', i: hc };
-    else if (attacks.length) { const x = attacks[best(attacks.map((_, k) => k), k => attacks[k].mv.power / attacks[k].c + attacks[k].mv.power * 0.1)]; a = { type: 'attack', i: x.i, m: x.m }; }
+    else if (attacks.length) { const x = attacks[best(attacks.map((_, k) => k), k => attacks[k].mv.power / attacks[k].c + attacks[k].mv.power * 0.1)]; a = { type: 'attack', i: x.i, m: x.m, t }; }
     else if (spell >= 0) a = { type: 'play', i: spell };
     else if (n && canPlay) a = { type: 'play', i: hc };
     else if (n && cap.ability && !(cap.once && g.capUsed)) a = { type: 'ability', i: -1 };
@@ -248,7 +244,8 @@ function zoomGame(z) {
     const acts = c.moves.map((mv, m) => {
       const n = moveCost(game, me, mv), why = moveBlock(game, me, item, m);
       const label = `<span class="mb-name">${mv.name}${why ? `<small>${why}</small>` : ''}</span>${mv.ability ? '' : `<span class="mb-pow">${mv.power + bonus}</span>`}${n ? cost(n) : '<span class="cost">Free</span>'}`;
-      return why ? `<button class="btn move-btn" disabled>${label}</button>` : btn({ type: 'attack', i: z.i, m }, label, `move-btn${m === 0 ? ' primary' : ''}`);
+      return why ? `<button class="btn move-btn" disabled>${label}</button>` : !mv.ability && game.players[1 - me].field.length
+        ? `<button class="btn move-btn${m === 0 ? ' primary' : ''}" data-act="aim" data-i="${z.i}" data-m="${m}">${label}</button>` : btn({ type: 'attack', i: z.i, m }, label, `move-btn${m === 0 ? ' primary' : ''}`);
     });
     rows = (mine && live ? `<div class="row2">${acts.join('')}</div>` : '')
       + `<div class="row2">${stepper(`HP ${item.hp}`, { type: 'hp', who: w, i: z.i, d: -1 }, { type: 'hp', who: w, i: z.i, d: 1 })}${remove}</div>`;
@@ -272,14 +269,16 @@ function adjustSheet() {
     <div class="row2" style="margin-top:14px"><button class="btn" data-act="leave-battle">Leave battle</button><button class="btn primary" data-act="close">Done</button></div>`);
 }
 
-function defendSheet() {
-  const g = game, af = g.players[g.turn].field[g.pending.i], ac = CARD[af.id], A = statsOf(g, g.turn, af), mine = g.players[me].field, pickI = ui.defPick;
-  const mv = ac.moves[g.pending.m], power = mv.power + A.bonus;
-  return sheet(`<div class="attacker neu">${renderCard(ac, { cls: 'mini', hp: af.hp, ...A })}<div><small>Incoming attack</small><br><b>${ac.name}</b> uses <b>${mv.name}</b> (power ${power})${mv.text ? `<br><small>${mv.text}</small>` : ''}</div></div>
-    <h2>Pick a defender</h2>
-    <div class="field">${mine.map((f, i) => renderCard(CARD[f.id], { cls: 'mini' + (i === pickI ? ' picked' : ''), hp: f.hp, ...statsOf(g, me, f), attrs: tappable('defpick', `data-i="${i}"`) })).join('')}</div>
-    <p class="muted center" style="margin:10px 0 12px">They roll d20 + ${power}. It breaks through if that reaches your defender's DEF.</p>
-    ${mine[pickI] ? btn({ type: 'defend', i: pickI }, `Defend with ${CARD[mine[pickI].id].name}`, 'primary wide') : '<button class="btn wide" disabled>Tap a Character</button>'}`, false);
+function targetSheet() {
+  const g = game, af = g.players[me].field[ui.atk.i], ac = CARD[af?.id], mv = ac?.moves[ui.atk.m];
+  if (!mv) { ui.atk = null; return ''; }
+  const power = mv.power + statsOf(g, me, af).bonus, theirs = g.players[1 - me].field, pickI = ui.defPick;
+  const need = f => Math.max(1, statsOf(g, 1 - me, f).def - power);
+  return sheet(`<div class="attacker neu">${renderCard(ac, { cls: 'mini', hp: af.hp, ...statsOf(g, me, af) })}<div><b>${ac.name}</b> uses <b>${mv.name}</b> (power ${power})${mv.text ? `<br><small>${mv.text}</small>` : ''}</div></div>
+    <h2>Pick a target</h2>
+    <div class="field">${theirs.map((f, i) => renderCard(CARD[f.id], { cls: 'mini' + (i === pickI ? ' picked' : ''), hp: f.hp, ...statsOf(g, 1 - me, f), attrs: tappable('defpick', `data-i="${i}"`) })).join('')}</div>
+    <p class="muted center" style="margin:10px 0 12px">${theirs[pickI] ? `You need ${need(theirs[pickI])}+ on the d20 to break through.` : 'Roll d20 + power. It breaks through if that reaches the target\'s DEF.'}</p>
+    ${theirs[pickI] ? btn({ type: 'attack', i: ui.atk.i, m: ui.atk.m, t: pickI }, `Attack ${CARD[theirs[pickI].id].name}`, 'primary wide') : '<button class="btn wide" disabled>Tap a Character</button>'}`);
 }
 
 function render() {
@@ -294,7 +293,7 @@ function render() {
   if (sel) $app.querySelector(typeof sel === 'function' ? sel() : sel)?.classList.add('coach-target');
   if (focus) document.getElementById(focus)?.focus();
   // Entry animations only when an overlay first appears, not on every re-render.
-  const key = [ui.view, JSON.stringify(ui.zoom), ui.sheet, game?.phase === 'defend' && game.turn !== me].join('|');
+  const key = [ui.view, JSON.stringify(ui.zoom), ui.sheet, JSON.stringify(ui.atk)].join('|');
   if (key !== lastOverlay) { lastOverlay = key; $app.querySelectorAll('.dim, .sheet, .card.zoom').forEach(el => el.classList.add('enter')); }
 }
 let lastOverlay = '';
@@ -318,7 +317,7 @@ function floatText(el, text, cls, nudge = 0) {
   const r = el.getBoundingClientRect(), f = document.createElement('div');
   f.className = `floater ${cls}`; f.textContent = text;
   f.style.left = `${r.left + r.width / 2}px`; f.style.top = `${r.top + r.height * 0.3 - nudge}px`;
-  fxLayer.append(f); setTimeout(() => f.remove(), 1300);
+  fxLayer.append(f); setTimeout(() => f.remove(), 1900);
 }
 const banner = (html, cls) => { bannerQ = bannerQ.then(async () => {
   const b = Object.assign(document.createElement('div'), { className: `banner ${cls}`, innerHTML: `<span>${html}</span>` });
@@ -434,7 +433,7 @@ function postAnimate(ev, prev, s) {
     if (e.k === 'meter') {
       const h = hudEl(e.p), n = nudges.get(h) || 0;
       nudges.set(h, n + 24);
-      flash(h?.querySelector(`.meter.${e.key}`), 'bump', 600);
+      flash(h?.querySelector(`.meter.${e.key}`), 'bump', 600); flash(h?.querySelector(`.meter.${e.key}`), 'hl', 1400);
       floatText(h?.querySelector('.meters'), `${e.n > 0 ? '+' : ''}${e.n} ${e.key === 'goof' ? 'Goofiness' : 'Boredom'}`, e.key, n);
     }
     if (e.k === 'point') { flash(hudEl(e.p)?.querySelector('.coins'), 'bump', 700); banner(e.p === me ? '+1 Point!' : `${esc(s.players[e.p].name)} scores!`, 'gold'); }
@@ -541,7 +540,7 @@ async function present(prev, s) {
   const ev = prev && s.seq > prev.seq ? s.events || [] : [];
   if (!prev) ui.zoom = ui.sheet = null; // a fresh deal
   if (!calm && ui.view === 'game' && game && ev.some(e => e.k === 'attack' || e.k === 'hit')) await preAnimate(ev);
-  game = s; ui.view = 'game'; ui.code = ''; ui.status = ''; ui.defPick = null;
+  game = s; ui.view = 'game'; ui.code = ''; ui.status = ''; ui.defPick = null; ui.atk = null;
   toast(s.log[s.log.length - 1]);
   if (calm) return;
   if (!prev) coinFlip(s); else postAnimate(ev, prev, s);
@@ -570,7 +569,8 @@ const ACTS = {
   zoom(d) { ui.zoom = { id: d.id }; },
   card(d) { ui.zoom = { who: d.who, zone: d.zone, i: Number(d.i) }; ui.sheet = null; },
   sheet(d) { ui.sheet = d.s; ui.zoom = null; },
-  close() { ui.zoom = ui.sheet = null; },
+  close() { ui.zoom = ui.sheet = ui.atk = null; },
+  aim(d) { ui.atk = { i: Number(d.i), m: Number(d.m) }; ui.defPick = null; ui.zoom = null; },
   step(d) {
     const dk = deck(), c = CARD[d.id], n = (dk.cards[d.id] || 0) + Number(d.d);
     if (n > (c.main ? 1 : MAX_COPIES)) return toast(c.main ? 'Main Characters are 1 per deck.' : `Max ${MAX_COPIES} copies.`);

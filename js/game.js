@@ -33,11 +33,13 @@ function deckProblems(d) {
 // Everything of a player's that can carry effects: Captain, Characters in play, active Bits and Evils.
 const sources = (s, pi) => { const p = s.players[pi]; return [CARD[p.captain], ...p.field.map(f => CARD[f.id]), ...p.effects.map(e => CARD[e.id])]; };
 const modSum = (s, pi, key) => sources(s, pi).reduce((n, c) =>
-  n + (c.mod?.[key] && !(c.mod.if === 'noGoof' && s.players[pi].goof) ? c.mod[key] : 0), 0);
+  n + (c.mod?.[key] && modOn(s, pi, c) ? c.mod[key] : 0), 0);
+// mod.if: 'noGoof' = while you have 0 Goofiness; any other word = while you have another Character of that group on the field.
+const modOn = (s, pi, c) => { const w = c.mod.if, F = s.players[pi].field; return !w || (w === 'noGoof' ? !s.players[pi].goof : F.filter(f => CARD[f.id].group === w && f.id !== c.id).length > 0); };
 // A Character's live numbers: DEF with modifiers, and `bonus` power added to each of its attacks.
 const statsOf = (s, pi, f) => ({ def: CARD[f.id].def + modSum(s, pi, 'def'), bonus: modSum(s, pi, 'atk') });
 const moveCost = (s, pi, mv) => mv.cost + (mv.ability ? 0 : modSum(s, 1 - pi, 'oppAttackCost'));
-const playCost = (s, pi, c) => 1 + (c.type === 'evil' ? modSum(s, 1 - pi, 'oppEvilCost') : 0);
+const playCost = (s, pi, c) => (c.cost ?? 1) + (c.type === 'evil' ? modSum(s, 1 - pi, 'oppEvilCost') : 0);
 const canAttack = (s, f) => !(CARD[f.id].sick && f.t === s.turnNo);
 // Why move m of field card f can't be used right now ('' = it can).
 function moveBlock(s, pi, f, m) {
@@ -107,6 +109,7 @@ function apply(s0, p, a, rng = Math.random) {
         say(`${c.name}: ${CARD[f.id].name} -${a2} HP.`);
         continue;
       }
+      if (what === 'sac') { const f = ctx.self && s.players[ctx.self.p].field[ctx.self.i]; if (f) { f.hp = 0; say(`${c.name} was sacrificed.`); } continue; }
       const ti = a1 === 'opp' ? 1 - pi : pi, t = s.players[ti];
       if (what === 'goof' || what === 'bore') { const d = gain(ti, what, a2); say(`${c.name}: ${t.name} ${d >= 0 ? '+' : ''}${d} ${METERS[what]}.`); }
       else if (what === 'draw') { for (let k = 0; k < a2; k++) draw(ti); say(`${c.name}: ${t.name} draws ${a2}.`); }
@@ -117,7 +120,6 @@ function apply(s0, p, a, rng = Math.random) {
   const cull = pl => { pl.field = pl.field.filter(f => f.hp > 0 || (say(`${CARD[f.id].name} was defeated.`), false)); };
 
   if (s.phase === 'over') throw new Error('The game is over.');
-  if (s.phase === 'defend' && a.type !== 'defend') throw new Error('Waiting for a defender.');
   s.roll = null;
   s.events = [];
 
@@ -142,12 +144,24 @@ function apply(s0, p, a, rng = Math.random) {
         say(`${c.name} used ${mv.name}.`);
         ev({ k: 'move', p, i: a.i, name: mv.name });
         runOps(p, mv.ops, c, { self });
+        cull(me); cull(opp);
         break;
       }
       if (!canAttack(s, f)) throw new Error(`${c.name} can't attack the turn it's played.`);
       spend(moveCost(s, p, mv));
-      if (opp.field.length) { s.phase = 'defend'; s.pending = { i: a.i, m: a.m }; say(`${c.name} uses ${mv.name}! ${opp.name} picks a defender.`); }
-      else {
+      if (opp.field.length) { // the attacker picks the target (a.t)
+        const df = at(opp.field, a.t), dc = CARD[df.id];
+        const power = mv.power + statsOf(s, p, f).bonus, def = statsOf(s, 1 - p, df).def;
+        const roll = () => 1 + Math.floor(rng() * 20);
+        const rolls = dc.disadv ? [roll(), roll()] : [roll()], die = Math.min(...rolls), total = die + power, hit = total >= def;
+        ev({ k: 'attack', p, i: a.i, target: { p: 1 - p, i: a.t }, move: mv.name, roll: { die, rolls, atk: power, def, total, hit } });
+        if (hit) { hurt(1 - p, a.t); gain(1 - p, 'bore', power); gain(1 - p, 'goof', -1); }
+        s.roll = { seq: s.seq + 1, die, rolls, atk: power, def, total, hit, a: f.id, d: df.id, aHp: f.hp, dHp: df.hp, by: p };
+        say(`${c.name} uses ${mv.name} on ${dc.name}: rolled ${rolls.length > 1 ? `${rolls.join(' & ')}, kept ${die}` : die} + ${power} = ${total} vs ${def} DEF: ` + (hit
+          ? `breaks through! ${dc.name} -1 HP, ${opp.name} +${power} Boredom and -1 Goofiness.` : 'blocked!'));
+        if (hit) { runOps(p, mv.onHit, c, { self, target: { p: 1 - p, i: a.t } }); runOps(p, c.onBreak, c, { self }); }
+        cull(opp);
+      } else {
         const power = mv.power + statsOf(s, p, f).bonus;
         ev({ k: 'attack', p, i: a.i, direct: true, move: mv.name });
         gain(1 - p, 'bore', power);
@@ -155,27 +169,6 @@ function apply(s0, p, a, rng = Math.random) {
         runOps(p, mv.onHit, c, { self });
       }
       cull(me);
-      break;
-    }
-    case 'defend': {
-      if (s.phase !== 'defend' || s.turn === p) throw new Error('Nothing to defend.');
-      const ai = 1 - p, af = at(opp.field, s.pending.i), df = at(me.field, a.i);
-      const ac = CARD[af.id], dc = CARD[df.id], mv = ac.moves[s.pending.m];
-      const power = mv.power + statsOf(s, ai, af).bonus, def = statsOf(s, p, df).def;
-      const roll = () => 1 + Math.floor(rng() * 20);
-      const rolls = dc.disadv ? [roll(), roll()] : [roll()], die = Math.min(...rolls), total = die + power, hit = total >= def;
-      ev({ k: 'attack', p: ai, i: s.pending.i, target: { p, i: a.i }, move: mv.name, roll: { die, rolls, atk: power, def, total, hit } });
-      if (hit) { hurt(p, a.i); gain(p, 'bore', power); }
-      s.roll = { seq: s.seq + 1, die, rolls, atk: power, def, total, hit, a: af.id, d: df.id, aHp: af.hp, dHp: df.hp, by: ai };
-      say(`${mv.name}: rolled ${rolls.length > 1 ? `${rolls.join(' & ')}, kept ${die}` : die} + ${power} = ${total} vs ${def} DEF: ` + (hit
-        ? `breaks through! ${dc.name} -1 HP, ${me.name} +${power} Boredom.`
-        : 'blocked!'));
-      if (hit) {
-        runOps(ai, mv.onHit, ac, { self: { p: ai, i: s.pending.i }, target: { p, i: a.i } });
-        runOps(ai, ac.onBreak, ac);
-      }
-      cull(opp); cull(me);
-      s.phase = 'play'; s.pending = null;
       break;
     }
     case 'ability': { // Captain ability; Character abilities are moves
