@@ -54,6 +54,8 @@ for (const [n, c] of cards.entries()) {
     if (!int(c.def, 8, 16)) errs.push(`${at}: def must be 8-16`);
     if (!int(c.hp, 2, 5)) errs.push(`${at}: hp must be 2-5`);
     if (c.main !== undefined && typeof c.main !== 'boolean') errs.push(`${at}: main must be true/false`);
+    if (c.role !== undefined && !str(c.role, 16)) errs.push(`${at}: role must be a short word like "Tank"`);
+    if (c.cost !== undefined && !int(c.cost, 0, 3)) errs.push(`${at}: cost must be 0-3 Actions (default 1)`);
     for (const k of ['disadv', 'sick']) if (c[k] !== undefined && typeof c[k] !== 'boolean') errs.push(`${at}: ${k} must be true/false`);
     for (const k of ['onPlay', 'onBreak', 'onTurnStart', 'onOppTurnStart']) steps(c[k], `${at} ${k}`);
     mod(c.mod, `${at} mod`);

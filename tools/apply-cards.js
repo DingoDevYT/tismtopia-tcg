@@ -28,6 +28,7 @@ for (const d of drafts) {
   c.name = c.name.replace(/[,\s]+$/, '');
   const hitWord = t => t && t.replace(/[Bb]reak-through/g, m => (m[0] === 'B' ? 'Hit' : 'hit')).replace(/breaks through/g, 'lands a hit');
   c.text = hitWord(c.text); for (const m of c.moves || []) m.text = hitWord(m.text);
+  delete c.main; // no Main Characters: Characters have roles instead
   for (const m of c.moves || []) if (!m.ability && m.power != null) m.power += DMG_BONUS;
   if (c.disadv && c.text) c.text = c.text.replace(/Attacks against .*? roll twice and keep the lower\./, 'Tough: +1 armour.');
   owner[c.id] = r?.owner || d.owner || '';

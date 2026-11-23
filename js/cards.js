@@ -24,6 +24,7 @@
 //   Negative amounts lower meters: ['goof','opp',-2], ['bore','me',-1].
 //   goof (moves): also costs this much Creativity.  ko (Characters): Boredom its owner gains when it's defeated (default 3, 0 = none).
 //   Captains: ability = their Super, goof = its Creativity cost, once = once per turn.
+//   role (Characters): shown on the card, e.g. 'Tank', 'Support', 'Glass Cannon', 'Gimmick'. cost (Characters too): Actions to play, default 1.
 //   ['purge','opp'|'me',n]: remove that player's n newest Evils.
 // Anything these can't express still works by hand from the Adjust panel.
 const BORE_MAX = 10;
@@ -39,14 +40,14 @@ const STARTER = STARTERS[0];
 
 const RULES = [
   ['Goal', `Bore your opponent out. Reach ${BORE_MAX} Boredom and you lose. Boredom is your health; Creativity is your hype, and you spend it.`],
-  ['Your turn', "Draw 1 card (the first player skips this on turn one; the second player starts with 6 cards instead of 5). You gain 2 Actions; any you don't spend are saved for your next turn, up to 5. Playing a card costs 1 Action unless it says otherwise. Each Character move costs what's printed next to it. End your turn whenever."],
+  ['Your turn', "Draw 1 card (the first player skips this on turn one; the second player starts with 6 cards instead of 5). You gain 2 Actions (the first player gets only 1 on their very first turn); any you don't spend are saved for your next turn, up to 5. Playing a card costs 1 Action unless it says otherwise. Each Character move costs what's printed next to it. End your turn whenever."],
   ['Moves', 'Each move shows its Action cost on the left and its damage on the right.'],
   ['Combat', "Pick one of your Character's attacks. Your opponent picks which of their Characters blocks it. The blocker takes the attack's damage minus its armour (the shield number). If any damage gets through, the attack's extra effect happens, your opponent loses 1 Creativity and you gain 1. No Characters to block? The full damage goes straight to their Boredom."],
   ['Defeated', 'A Character at 0 HP leaves the field and its owner gains 3 Boredom (some cards say otherwise). Sacrificing your own Character costs no Boredom.'],
   ['Creativity', 'Gain it by landing break-throughs and from card effects (up to 10). Spend it on moves that cost Creativity and on your Captain\'s Super. Your Captain card shows the Super and how much Creativity it needs.'],
   ['Card types', 'Characters stay on the field to attack and defend. Items are instant and last a set number of turns. Evils last forever, until your opponent Cleanses them (tap the Evil: 2 Actions) or a card purges them.'],
   ['Card effects', "Card text runs automatically. If something isn't covered, tap a player's bar to change meters or Actions, or tap a card to change its HP or remove it. Both players see every change in the log."],
-  ['Deck rules', `${DECK_SIZE} cards plus 1 Captain. Max 3 copies of a card, max 1 of each Main Character.`],
+  ['Deck rules', `${DECK_SIZE} cards plus 1 Captain. Max 3 copies of a card.`],
 ];
 
 [...CAPTAINS, ...CARDS].forEach((c, i) => { c.no = String(i + 1).padStart(3, '0'); });

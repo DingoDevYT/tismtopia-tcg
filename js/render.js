@@ -85,7 +85,7 @@ function renderCard(c, o = {}) {
     <div class="head"><span class="name">${c.name}</span>${hpTag}<span class="type">${ICON[kind]}</span></div>
     <div class="art">${art}${defTag}</div>
     ${body}
-    <div class="foot"><span>${LABEL[kind]}</span><span>TISM ${c.no}</span></div>
+    <div class="foot"><span>${c.role || LABEL[kind]}</span><span>TISM ${c.no}</span></div>
   </div></div>`;
 }
 

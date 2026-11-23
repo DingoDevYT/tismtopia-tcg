@@ -25,7 +25,9 @@ assert(CARDS.filter(c => c.type === 'character').every(c => c.moves.length === 2
 
 // A = Gremlin captain, B = Lurker captain (+2 DEF at 0 Goofiness). rng .1 -> A goes first.
 let s = newGame([STARTER, { ...STARTER, captain: 'cap_lurker' }], ['A', 'B'], fixed(0.1));
-assert(s.turn === 0 && s.players[0].hand.length === 5 && s.players[0].deck.length === DECK_SIZE - 5, 'deal + coin flip');
+assert(s.turn === 0 && s.players[0].hand.length === 5 && s.players[1].hand.length === 6 && s.players[0].deck.length === DECK_SIZE - 5, 'deal + coin flip; second player gets 6 cards');
+assert(s.actions === 1, 'first player starts with 1 Action');
+s.actions = 2; // the scripted checks below assume a normal 2-Action turn
 
 // ---- turn 1 (A): onPlay, direct attack with a move, sickness, Bit, Captain ability, Evil ----
 s.players[0].hand = ['c_vc_goblin', 'c_night_owl', 'b_ping', 'e_slowmode'];
@@ -105,7 +107,7 @@ assert(s.events.filter(e => e.k === 'hit' && e.p === 1).length === 3, 'Rubberban
 
 // ---- Action economy: carry-over, cap, once-per-turn, extra-Action cards ----
 let e = newGame([STARTER, STARTER], ['A', 'B'], fixed(0.1));
-e.players[0].hand = ['c_booster', 'b_energy', 'b_caffeine'];
+e.players[0].hand = ['c_booster', 'b_energy', 'b_caffeine']; e.actions = 2;
 e = apply(e, 0, { type: 'end' });            // A saves both Actions
 e = apply(e, 1, { type: 'end' });            // B saves 2 too
 assert(e.turn === 0 && e.actions === 4, 'unused Actions carry over: 2 saved + 2');
@@ -127,9 +129,9 @@ assert(e.players[0].field[0].once[0] === e.turnNo, 'Boost usable again on a new 
 e = apply(e, 0, { type: 'end' }); e = apply(e, 1, { type: 'end' });
 assert(e.players[0].effects.every(x => x.id !== 'b_caffeine') || e.players[0].effects.find(x => x.id === 'b_caffeine').turns === 1, 'Caffeine IV ticks down');
 let pu = newGame([{ ...STARTER, captain: 'cap_poweruser' }, STARTER], ['P', 'B'], fixed(0.1));
-assert(pu.actions === 3, 'Power User: 3 Actions on the very first turn');
+assert(pu.actions === 2, 'Power User: 1 + 1 Actions on the very first turn');
 pu = apply(pu, 0, { type: 'end' }); pu = apply(pu, 1, { type: 'end' });
-assert(pu.actions === Math.min(MAX_ACTIONS, 3 + 2) + 1, 'Power User: +1 every turn on top of saved Actions');
+assert(pu.actions === Math.min(MAX_ACTIONS, 2 + 2) + 1, 'Power User: +1 every turn on top of saved Actions');
 
 // ---- captain passives on fresh games ----
 let c = newGame([{ ...STARTER, captain: 'cap_clown' }, { ...STARTER, captain: 'cap_mod' }], ['C', 'M'], fixed(0.1));
