@@ -19,6 +19,7 @@ let peer = null, conn = null, isHost = false, me = 0, state = null, game = null,
 const $app = document.getElementById('app');
 const deck = () => decks.find(d => d.id === ui.deckId) || decks[0];
 const saveDecks = () => store.set('decks', decks);
+const own = id => (typeof owned === 'function' ? owned(id) : MAX_COPIES); // collection lives in packs.js
 const count = d => Object.values(d.cards).reduce((a, b) => a + b, 0);
 const json = a => esc(JSON.stringify(a));
 const cost = n => `<span class="cost">${n}${ICON.action}</span>`;
@@ -64,6 +65,7 @@ function viewHome() {
   <div class="tiles">
     <button class="tile neu" data-act="tutorial">${ICON.school}<b>Tutorial</b><small>Learn by playing</small></button>
     <button class="tile neu" data-act="bot">${ICON.bot}<b>Practice</b><small>Play vs the bot</small></button>
+    <button class="tile neu" data-act="go" data-to="packs">${ICON.main}<b>Open Packs</b><small>${typeof ownedCount === 'function' ? ownedCount() : 0} of ${CARDS.length} owned</small></button>
     <button class="tile neu" data-act="go" data-to="deck">${ICON.cards}<b>Deck Builder</b><small>${decks.length} deck${decks.length > 1 ? 's' : ''}</small></button>
     <button class="tile neu" data-act="go" data-to="rules">${ICON.rules}<b>How to Play</b><small>Rules</small></button>
   </div>${tabbar('home')}`;
@@ -89,8 +91,8 @@ function viewBuild() {
   return `${header('Add Cards')}
   <div class="panel neu"><div class="chips">${['all', 'character', 'bit', 'evil'].map(f =>
     `<button class="chip${ui.filter === f ? ' on' : ''}" data-act="filter" data-f="${f}">${f === 'all' ? 'All' : LABEL[f]}</button>`).join('')}</div></div>
-  <div class="grid">${list.map(c => `<div class="cell">${renderCard(c, { attrs: tappable('zoom', `data-id="${c.id}"`) })}
-    <div class="stepper neu"><button data-act="step" data-id="${c.id}" data-d="-1" aria-label="Remove ${esc(c.name)}">−</button><span>${d.cards[c.id] || 0}/${c.main ? 1 : MAX_COPIES}</span><button data-act="step" data-id="${c.id}" data-d="1" aria-label="Add ${esc(c.name)}">+</button></div></div>`).join('')}</div>
+  <div class="grid">${list.map(c => `<div class="cell${own(c.id) ? '' : ' locked'}">${renderCard(c, { attrs: tappable('zoom', `data-id="${c.id}"`) })}
+    <div class="stepper neu"><button data-act="step" data-id="${c.id}" data-d="-1" aria-label="Remove ${esc(c.name)}">−</button><span>${d.cards[c.id] || 0}/${Math.min(c.main ? 1 : MAX_COPIES, own(c.id))}</span><button data-act="step" data-id="${c.id}" data-d="1" aria-label="Add ${esc(c.name)}">+</button></div></div>`).join('')}</div>
   <div class="bar"><b>${n}/${DECK_SIZE}</b><div class="progress"><i style="width:${Math.min(100, (n / DECK_SIZE) * 100)}%"></i></div><button class="btn primary sm" data-act="go" data-to="deck">Done</button></div>
   ${overlay()}`;
 }
@@ -293,7 +295,7 @@ function defendSheet() {
 function render() {
   const scrolls = [...$app.querySelectorAll('.grid, .scroll, .sheet')].map(el => el.scrollTop);
   const focus = document.activeElement?.id;
-  const views = { home: viewHome, deck: viewDeck, build: viewBuild, lobby: viewLobby, rules: viewRules, game: viewGame };
+  const views = { home: viewHome, deck: viewDeck, build: viewBuild, lobby: viewLobby, rules: viewRules, game: viewGame, packs: () => viewPacks(), open: () => (ui.open ? viewOpen() : viewPacks()) };
   if (ui.view === 'game' && !game) ui.view = 'home';
   $app.dataset.view = ui.view;
   $app.innerHTML = views[ui.view]() + (ui.toast && ui.view !== 'game' ? `<div class="toast neu">${esc(ui.toast)}</div>` : '');
@@ -576,6 +578,7 @@ const ACTS = {
   step(d) {
     const dk = deck(), c = CARD[d.id], n = (dk.cards[d.id] || 0) + Number(d.d);
     if (n > (c.main ? 1 : MAX_COPIES)) return toast(c.main ? 'Main Characters are 1 per deck.' : `Max ${MAX_COPIES} copies.`);
+    if (Number(d.d) > 0 && n > own(d.id)) return toast(own(d.id) ? `You own ${own(d.id)}. Open packs for more.` : 'You don\'t own this card yet. Open packs to get it.');
     if (Number(d.d) > 0 && count(dk) >= DECK_SIZE) return toast(`Decks are ${DECK_SIZE} cards.`);
     if (n <= 0) delete dk.cards[d.id]; else dk.cards[d.id] = n;
     saveDecks();
@@ -624,8 +627,7 @@ const ACTS = {
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-act]');
   if (!el || el.disabled || !$app.contains(el)) return;
-  ACTS[el.dataset.act]?.(el.dataset);
-  render();
+  if (ACTS[el.dataset.act]?.(el.dataset) !== false) render(); // an action returns false when it animates and renders itself
 });
 document.addEventListener('keydown', e => {
   if ((e.key === 'Enter' || e.key === ' ') && e.target.matches?.('[data-act]:not(button)')) { e.preventDefault(); e.target.click(); }

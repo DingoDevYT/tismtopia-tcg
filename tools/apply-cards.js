@@ -46,6 +46,15 @@ for (const d of drafts) {
 }
 
 const CAPTAINS = cards.filter(c => c.type === 'captain'), CARDS = cards.filter(c => c.type !== 'captain');
+// Rarity from a rough strength score; tweak any card by giving it "rarity" in its draft.
+const steps = l => JSON.stringify(l || []).length / 20;
+const score = c => c.type === 'character'
+  ? c.hp * 1.4 + Math.max(0, (c.def - 10) / 2) + Math.max(0, ...c.moves.map(m => (m.power || 0) / Math.max(1, m.cost))) * 2 + steps(c.moves.map(m => m.onHit || m.ops)) + (c.mod ? 3 : 0) + (c.onPlay ? 1 : 0) - (c.cost ?? 1) * 0.5
+  : (c.cost ?? 1) * 2 + steps(c.onPlay) + steps(c.onTurnStart) + steps(c.onOppTurnStart) + (c.mod ? 3 : 0) + (c.type === 'evil' ? 1.5 : 0);
+for (const group of [CARDS.filter(c => c.type === 'character'), CARDS.filter(c => c.type !== 'character')]) {
+  const ranked = [...group].sort((a, b) => score(a) - score(b));
+  ranked.forEach((c, i) => { const q = i / ranked.length; if (!c.rarity) c.rarity = q < 0.45 ? 'C' : q < 0.75 ? 'U' : q < 0.93 ? 'R' : 'UR'; });
+}
 // Two mixed starters: deal non-main Characters round-robin by owner so both decks mix everyone's OCs.
 // shortcut: no balance pass, the decks change if more cards get accepted; hand-pick them once the card pool settles.
 const chars = CARDS.filter(c => c.type === 'character');
