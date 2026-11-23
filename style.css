@@ -598,7 +598,7 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
 /* Full art: the illustration fills the card, text printed on it. */
 .v-full .frame { background: linear-gradient(135deg, #e9edf5, #9aa7c2, #f8fbff, #b7c1d8); }
 .v-full .art { position: absolute !important; inset: 2.2cqw; height: auto !important; aspect-ratio: auto !important; border-radius: 3.8cqw; box-shadow: none; z-index: 0; }
-.v-full .frame > :not(.art) { position: relative; z-index: 1; }
+.v-full .frame > :not(.art):not(.holo__shine):not(.holo__glare) { position: relative; z-index: 1; }
 .v-full .head, .v-full .text, .v-full .moves, .v-full .move { background: none !important; box-shadow: none; border: 0; }
 .v-full .name, .v-full .move b, .v-full .mv-pow, .v-full .mv-text, .v-full .text, .v-full .foot, .v-full .mv-tag { color: #fff !important; text-shadow: 0 0 1px #000, 0 1px 2px #000, 0 0 6px rgba(0, 0, 0, .9); }
 .v-full .moves { background: linear-gradient(180deg, rgba(10, 12, 25, 0), rgba(10, 12, 25, .55) 30%) !important; border-radius: 2.4cqw; padding-top: 3cqw; }
@@ -719,7 +719,7 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
 .holo { --pointer-x: var(--mx); --pointer-y: var(--my); --background-x: calc(37% + var(--fx) * 26%); --background-y: calc(33% + var(--fy) * 34%);
   --pointer-from-left: var(--fx); --pointer-from-top: var(--fy); --pointer-from-center: var(--fc, .55); --card-opacity: var(--co, .7);
   --card-radius: 5.5cqw; --clip: inset(13% 5% 51% 5%); --clip-invert: polygon(0 0, 100% 0, 100% 100%, 0 100%, 0 49%, 95% 49%, 95% 13%, 5% 13%, 5% 49%, 0 52%); }
-.holo[data-rarity="rare ultra"] { --foil: url(vendor/holo/img/illusion.png); --clip: none; }
+.holo[data-rarity="rare ultra"] { --foil: url(vendor/holo/img/illusion.png); --mask: linear-gradient(#000, #000); --imgsize: 33%; --clip: none; } /* "masked" = the full-strength full-art foil; the mask covers the whole card */
 .holo .holo__shine, .holo .holo__glare { position: absolute; inset: 0; z-index: 6; pointer-events: none; border-radius: inherit; display: grid; }
 .holo .holo__glare { z-index: 7; }
 .holo .holo__shine::before, .holo .holo__shine::after, .holo .holo__glare::after { grid-area: 1 / 1; }
