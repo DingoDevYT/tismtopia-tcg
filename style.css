@@ -569,3 +569,7 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
 .k-evil .text { color: #f1e6ff; background: rgba(255, 255, 255, .07); border: .5cqw solid rgba(210, 75, 138, .5); }
 .k-evil .tag { color: #ffd0e6; background: rgba(210, 75, 138, .22); }
 .k-evil .foot { color: #d9c5f0; }
+
+/* Super threshold notch on the Goofiness bar, and the ready badge. */
+.mbar i.sup { outline: 2px solid #7348c9; outline-offset: 1px; }
+.meters .ready { margin-left: auto; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 800; color: #fff; background: linear-gradient(90deg, #7348c9, #d24b8a); animation: pop .5s; }

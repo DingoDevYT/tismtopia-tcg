@@ -3,7 +3,8 @@
 // Each new state carries `events` describing what just happened, which the UI animates.
 const MAX_COPIES = 3;
 const MAX_ACTIONS = 5; // unused Actions carry over; you start a turn with at most this many (card bonuses can go past it)
-const METERS = { goof: 'Goofiness', bore: 'Boredom', points: 'Points' };
+const METERS = { goof: 'Goofiness', bore: 'Boredom' };
+const GOOF_MAX = 10; // Goofiness is a hype meter you spend; it stops filling here
 
 const expand = cards => Object.entries(cards).flatMap(([id, n]) => Array(n).fill(id));
 
@@ -46,6 +47,7 @@ function moveBlock(s, pi, f, m) {
   const mv = CARD[f.id].moves?.[m];
   if (!mv) return 'No such move.';
   if (moveCost(s, pi, mv) > s.actions) return 'Not enough Actions';
+  if ((mv.goof || 0) > s.players[pi].goof) return 'Not enough Goofiness';
   if (!mv.ability && !canAttack(s, f)) return 'Can attack next turn';
   if (mv.once && f.once?.[m] === s.turnNo) return 'Used this turn';
   return '';
@@ -56,7 +58,7 @@ function newGame(decks, names, rng = Math.random) {
   const players = [0, 1].map(i => {
     const deck = shuffle(expand(decks[i].cards), rng);
     return { name: names[i], captain: decks[i].captain, deck: deck.slice(5), hand: deck.slice(0, 5), field: [], effects: [],
-      points: 0, goof: 0, bore: 0, bank: 0, stats: { goof: 0, bore: 0 } };
+      goof: 0, bore: 0, bank: 0, stats: { goof: 0, bore: 0 } };
   });
   const first = rng() < 0.5 ? 0 : 1;
   // The first player skips their opening draw: they simply start with 5 cards.
@@ -85,7 +87,7 @@ function apply(s0, p, a, rng = Math.random) {
     const t = s.players[pi];
     if (key === 'goof' && n > 0) n += modSum(s, pi, 'goofBonus');
     const before = t[key];
-    t[key] = Math.max(0, t[key] + n);
+    t[key] = Math.min(key === 'goof' ? GOOF_MAX : Infinity, Math.max(0, t[key] + n));
     const d = t[key] - before;
     if (d > 0 && key === 'goof') t.stats.goof += d;
     if (d > 0 && key === 'bore') s.players[1 - pi].stats.bore += d;
@@ -109,7 +111,7 @@ function apply(s0, p, a, rng = Math.random) {
         say(`${c.name}: ${CARD[f.id].name} -${a2} HP.`);
         continue;
       }
-      if (what === 'sac') { const f = ctx.self && s.players[ctx.self.p].field[ctx.self.i]; if (f) { f.hp = 0; say(`${c.name} was sacrificed.`); } continue; }
+      if (what === 'sac') { const f = ctx.self && s.players[ctx.self.p].field[ctx.self.i]; if (f) { f.hp = 0; f.sac = true; } continue; }
       const ti = a1 === 'opp' ? 1 - pi : pi, t = s.players[ti];
       if (what === 'goof' || what === 'bore') { const d = gain(ti, what, a2); say(`${c.name}: ${t.name} ${d >= 0 ? '+' : ''}${d} ${METERS[what]}.`); }
       else if (what === 'draw') { for (let k = 0; k < a2; k++) draw(ti); say(`${c.name}: ${t.name} draws ${a2}.`); }
@@ -117,7 +119,16 @@ function apply(s0, p, a, rng = Math.random) {
     }
   };
   const hurt = (pi, i) => { const f = s.players[pi].field[i]; if (f.hp <= 0) return; f.hp--; ev({ k: 'hit', p: pi, i, ko: f.hp <= 0 }); };
-  const cull = pl => { pl.field = pl.field.filter(f => f.hp > 0 || (say(`${CARD[f.id].name} was defeated.`), false)); };
+  const cull = pl => {
+    const pi = s.players.indexOf(pl);
+    pl.field = pl.field.filter(f => {
+      if (f.hp > 0) return true;
+      const c = CARD[f.id], ko = f.sac ? 0 : c.ko ?? 2;
+      say(`${c.name} was ${f.sac ? 'sacrificed' : 'defeated'}${ko ? `: ${pl.name} +${ko} Boredom` : ''}.`);
+      if (ko) gain(pi, 'bore', ko);
+      return false;
+    });
+  };
 
   if (s.phase === 'over') throw new Error('The game is over.');
   s.roll = null;
@@ -138,6 +149,7 @@ function apply(s0, p, a, rng = Math.random) {
       const f = at(me.field, a.i), c = CARD[f.id], mv = c.moves?.[a.m], self = { p, i: a.i };
       if (!mv) throw new Error('No such move.');
       if (mv.once && f.once?.[a.m] === s.turnNo) throw new Error(`${mv.name} is once per turn.`);
+      if (mv.goof) { if (me.goof < mv.goof) throw new Error(`${mv.name} needs ${mv.goof} Goofiness.`); gain(p, 'goof', -mv.goof); }
       if (mv.once) f.once = { ...f.once, [a.m]: s.turnNo };
       if (mv.ability) {
         spend(moveCost(s, p, mv));
@@ -155,10 +167,10 @@ function apply(s0, p, a, rng = Math.random) {
         const roll = () => 1 + Math.floor(rng() * 20);
         const rolls = dc.disadv ? [roll(), roll()] : [roll()], die = Math.min(...rolls), total = die + power, hit = total >= def;
         ev({ k: 'attack', p, i: a.i, target: { p: 1 - p, i: a.t }, move: mv.name, roll: { die, rolls, atk: power, def, total, hit } });
-        if (hit) { hurt(1 - p, a.t); gain(1 - p, 'bore', power); gain(1 - p, 'goof', -1); }
+        if (hit) { hurt(1 - p, a.t); gain(1 - p, 'bore', power); gain(1 - p, 'goof', -1); gain(p, 'goof', 1); }
         s.roll = { seq: s.seq + 1, die, rolls, atk: power, def, total, hit, a: f.id, d: df.id, aHp: f.hp, dHp: df.hp, by: p };
         say(`${c.name} uses ${mv.name} on ${dc.name}: rolled ${rolls.length > 1 ? `${rolls.join(' & ')}, kept ${die}` : die} + ${power} = ${total} vs ${def} DEF: ` + (hit
-          ? `breaks through! ${dc.name} -1 HP, ${opp.name} +${power} Boredom and -1 Goofiness.` : 'blocked!'));
+          ? `breaks through! ${dc.name} -1 HP, ${opp.name} +${power} Boredom and -1 Goofiness, ${me.name} +1 Goofiness.` : 'blocked!'));
         if (hit) { runOps(p, mv.onHit, c, { self, target: { p: 1 - p, i: a.t } }); runOps(p, c.onBreak, c, { self }); }
         cull(opp);
       } else {
@@ -171,15 +183,18 @@ function apply(s0, p, a, rng = Math.random) {
       cull(me);
       break;
     }
-    case 'ability': { // Captain ability; Character abilities are moves
+    case 'ability': { // Captain Super: costs Goofiness (c.goof); Character abilities are moves
       const c = CARD[me.captain];
       if (a.i !== -1 || !c.ability) throw new Error(`${c.name} has no ability to use.`);
-      if (c.once && s.capUsed) throw new Error(`${c.name}'s ability is once per turn.`);
-      spend(1);
+      if (c.once && s.capUsed) throw new Error(`${c.name}'s Super is once per turn.`);
+      if (s.turn !== p) throw new Error('Not your turn.');
+      if (me.goof < (c.goof || 0)) throw new Error(`${c.name}'s Super needs ${c.goof} Goofiness.`);
+      gain(p, 'goof', -(c.goof || 0));
       s.capUsed = true;
-      say(`${me.name} used ${c.name}'s ability.`);
+      say(`${me.name} used ${c.name}'s Super!`);
       ev({ k: 'cast', p, id: c.id });
       runOps(p, c.ability, c);
+      cull(me); cull(opp);
       break;
     }
     case 'end': {
@@ -212,7 +227,7 @@ function apply(s0, p, a, rng = Math.random) {
       if (t[a.key] === before) break;
       if (d > 0 && a.key === 'goof') t.stats.goof++;
       if (d > 0 && a.key === 'bore') s.players[1 - a.who].stats.bore++;
-      if (a.key !== 'points') ev({ k: 'meter', p: a.who, key: a.key, n: d });
+      ev({ k: 'meter', p: a.who, key: a.key, n: d });
       say(`${me.name} set ${t.name}'s ${METERS[a.key]} to ${t[a.key]}.`);
       break;
     }
@@ -242,14 +257,9 @@ function apply(s0, p, a, rng = Math.random) {
     default: throw new Error('Unknown action.');
   }
 
-  // Scoring: a meter reaching 5 scores a Point and resets to 0; overflow is lost.
-  for (const [i, pl] of s.players.entries()) {
-    const other = s.players[1 - i];
-    if (pl.goof >= 5) { pl.goof = 0; pl.points++; ev({ k: 'point', p: i }); say(`${pl.name} hit 5 Goofiness: +1 Point!`); }
-    if (pl.bore >= 5) { pl.bore = 0; other.points++; ev({ k: 'point', p: 1 - i }); say(`${pl.name} hit 5 Boredom: ${other.name} +1 Point!`); }
-  }
-  const won = [s.turn, 1 - s.turn].find(i => s.players[i].points >= 5);
-  if (won !== undefined) { s.phase = 'over'; s.winner = won; say(`${s.players[won].name} wins!`); }
+  // Whoever reaches BORE_MAX Boredom is bored out of the game.
+  const lost = [1 - s.turn, s.turn].find(i => s.players[i].bore >= BORE_MAX);
+  if (lost !== undefined) { s.phase = 'over'; s.winner = 1 - lost; say(`${s.players[lost].name} got bored out. ${s.players[1 - lost].name} wins!`); }
   s.seq++;
   return s;
 }

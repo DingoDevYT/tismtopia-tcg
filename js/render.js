@@ -90,9 +90,9 @@ function renderCard(c, o = {}) {
 }
 
 const renderAvatar = (c, cls = '') => `<span class="avatar${cls}">${ICON.captain}${c.art ? `<img src="${c.art}" alt="" onerror="this.remove()">` : ''}</span>`;
-const coins = n => `<div class="coins" title="Points ${n}/5">${Array.from({ length: 5 }, (_, i) => `<span class="${i < n ? 'on' : ''}">${ICON.point}</span>`).join('')}</div>`;
-const meter = (k, v) => `<div class="meter ${k}"><span>${ICON[k]}${k === 'goof' ? 'Goofiness' : 'Boredom'}</span><b>${v}/5</b>
-  <div class="mbar">${Array.from({ length: 5 }, (_, i) => `<i class="${i < v ? 'on' : ''}"></i>`).join('')}</div></div>`;
+// Boredom is health (lose at BORE_MAX); Goofiness is hype up to 10, with the Captain's Super cost marked on the bar.
+const meter = (k, v, max, sup) => `<div class="meter ${k}"><span>${ICON[k]}${k === 'goof' ? 'Goofiness' : 'Boredom'}</span><b>${v}/${max}</b>
+  <div class="mbar">${Array.from({ length: max }, (_, i) => `<i class="${i < v ? 'on' : ''}${i === sup - 1 ? ' sup' : ''}"></i>`).join('')}</div></div>`;
 
 // Clickable bits carry data-act="card" + who/zone/i; the app reads them with one delegated click handler.
 const pick = (who, zone, i) => `data-act="card" data-who="${who}" data-zone="${zone}" data-i="${i}" tabindex="0" role="button"`;
@@ -101,7 +101,7 @@ const pick = (who, zone, i) => `data-act="card" data-who="${who}" data-zone="${z
 function renderHud(p, who = 'me') {
   return `<div class="hud">${renderCard(CARD[p.captain], { cls: 'cap', attrs: pick(who, 'cap', 0) })}
     <div class="meters neu" data-act="sheet" data-s="adjust" tabindex="0" role="button" aria-label="${esc(p.name)}: meters, log and manual tools">
-      <div class="m-top"><b>${esc(p.name)}</b>${p.bank ? `<span class="bank" title="Actions saved for next turn">${ICON.action}${p.bank}</span>` : ''}${coins(p.points)}</div>${meter('goof', p.goof)}${meter('bore', p.bore)}</div></div>`;
+      <div class="m-top"><b>${esc(p.name)}</b>${p.bank ? `<span class="bank" title="Actions saved for next turn">${ICON.action}${p.bank}</span>` : ''}${CARD[p.captain].goof <= p.goof ? '<span class="ready">Super ready</span>' : ''}</div>${meter('goof', p.goof, 10, CARD[p.captain].goof)}${meter('bore', p.bore, BORE_MAX)}</div></div>`;
 }
 
 // stat(f) -> { def, bonus } with modifiers applied (game.js statsOf); omitted in the mockups.

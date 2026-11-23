@@ -125,8 +125,8 @@ const MY = '.side:nth-child(4)';
 const TC = CARD[Object.keys(STARTER.cards).find(id => !CARD[id].sick && CARD[id].moves.some(m => m.cost === 1 && !m.ability))];
 const TM = TC.moves.find(m => m.cost === 1 && !m.ability);
 const TUT = [
-  { text: 'Welcome to Tismtopia! Be the first to score 5 Points. This quick battle shows you how.', next: true },
-  { text: 'This is you: your Captain card and your meters. Gold coins are Points. Goofiness (orange): fill it to 5 to score. Boredom (grey): if yours hits 5, your opponent scores.', sel: `${MY} .hud`, next: true },
+  { text: `Welcome to Tismtopia! Bore your opponent out: whoever reaches ${BORE_MAX} Boredom loses. This quick battle shows you how.`, next: true },
+  { text: 'This is you: your Captain card and your meters. Boredom (grey) is your health: fill it up and you lose. Goofiness (orange) is your hype: land hits to build it, then spend it on your Captain\'s Super (the marked notch).', sel: `${MY} .hud`, next: true },
   { text: "Every turn you gain 2 Actions. Playing a card costs 1, and each move shows its cost. Actions you don't spend are saved for next turn (up to 5), so you can save up for big moves.", sel: '.pips', next: true },
   { text: `Tap ${TC.name} in your hand, then tap Play.`, sel: () => (ui.zoom ? '.dim [data-a*=\'"play"\']' : `.hand .card[data-id="${TC.id}"]`), done: g => g.players[0].field.length > 0 },
   { text: `Characters attack with moves, each costing Actions. Tap ${TC.name} on the field and use ${TM.name} (1 Action). Nobody is blocking, so its power goes straight to their Boredom.`,
@@ -134,7 +134,7 @@ const TUT = [
   { text: "Their Boredom went up by the attack's power. You're out of Actions, so tap End Turn.", sel: '[data-act=end]', done: g => g.turn === 1 },
   { text: "The bot's turn. The attacker always picks which Character to hit, then rolls a d20 and adds the attack's power: if that reaches the target's DEF, it breaks through.", done: g => g.turn === 0 && g.turnNo > 2 },
   { text: 'Breaking through costs the target 1 HP, gives its owner Boredom equal to the power and knocks off 1 of their Goofiness. A blocked attack does nothing.', next: true },
-  { text: 'Bits are instant and last a few turns. Evils stay until removed. Tap your Captain to use its ability, or your meters for the log, manual fixes, or to leave.', next: true },
+  { text: 'Bits are instant and last a few turns. Evils stay until removed. Tap your Captain to use its Super once you have enough Goofiness, or your meters for the log, manual fixes, or to leave.', next: true },
   { text: "That's the basics! Finish this battle against the bot, then build your own deck.", next: 'Got it' },
 ];
 
@@ -182,11 +182,11 @@ function botMove() {
     const spell = B.hand.findIndex(id => CARD[id].type !== 'character' && playCost(g, 1, CARD[id]) <= n);
     const cap = CARD[B.captain];
     if (boost) a = { type: 'attack', i: boost.i, m: boost.m };
+    else if (cap.ability && B.goof >= (cap.goof || 0) && !(cap.once && g.capUsed)) a = { type: 'ability', i: -1 };
     else if (n >= 2 && canPlay) a = { type: 'play', i: hc };
     else if (attacks.length) { const x = attacks[best(attacks.map((_, k) => k), k => attacks[k].mv.power / attacks[k].c + attacks[k].mv.power * 0.1)]; a = { type: 'attack', i: x.i, m: x.m, t }; }
     else if (spell >= 0) a = { type: 'play', i: spell };
     else if (n && canPlay) a = { type: 'play', i: hc };
-    else if (n && cap.ability && !(cap.once && g.capUsed)) a = { type: 'ability', i: -1 };
     else if (abil) a = { type: 'attack', i: abil.i, m: abil.m };
     else a = { type: 'end' };
   }
@@ -198,8 +198,8 @@ function viewOver() {
   return `<div class="victory">${renderAvatar(CARD[mine.captain], ' xl')}<small>vs. ${esc(opp.name)} (${CARD[opp.captain].name})</small>
     <h1 class="big">${g.winner === me ? 'Victory!' : 'Defeat'}</h1><div class="rainbow"></div>
     <div class="stats-list neu-in">
-      <div><span>Your points</span>${coins(mine.points)}</div>
-      <div><span>${esc(opp.name)}'s points</span>${coins(opp.points)}</div>
+      <div><span>Your Boredom</span><b>${mine.bore}/${BORE_MAX}</b></div>
+      <div><span>${esc(opp.name)}'s Boredom</span><b>${opp.bore}/${BORE_MAX}</b></div>
       <div><span>Turns played</span><b>${g.turnNo}</b></div>
       <div><span>Boredom inflicted</span><b><span class="bore-i">${ICON.bore}</span>${mine.stats.bore}</b></div>
       <div><span>Goofiness built</span><b><span class="goof-i">${ICON.goof}</span>${mine.stats.goof}</b></div>
@@ -228,8 +228,8 @@ function overlay() {
 function zoomGame(z) {
   const w = z.who === 'me' ? me : 1 - me, t = game.players[w];
   if (z.zone === 'cap') {
-    const c = CARD[t.captain], can = w === me && game.turn === me && game.phase === 'play' && c.ability && !(c.once && game.capUsed);
-    return `<div class="dim" data-act="close">${renderCard(c, { cls: 'zoom' })}<div class="row2">${can ? btn({ type: 'ability', i: -1 }, `${ICON.bit}Use ability ${cost(1)}`, 'primary') : ''}
+    const c = CARD[t.captain], can = w === me && game.turn === me && game.phase === 'play' && c.ability && t.goof >= (c.goof || 0) && !(c.once && game.capUsed);
+    return `<div class="dim" data-act="close">${renderCard(c, { cls: 'zoom' })}<div class="row2">${can ? btn({ type: 'ability', i: -1 }, `${ICON.main}Super: ${c.goof} Goofiness`, 'primary') : ''}
       <button class="btn" data-act="sheet" data-s="adjust">Meters, log &amp; tools</button></div><button class="btn sm" data-act="close">Close</button></div>`;
   }
   const item = { hand: t.hand, field: t.field, fx: t.effects }[z.zone]?.[z.i];
@@ -256,15 +256,15 @@ function zoomGame(z) {
 }
 
 function adjustSheet() {
-  const g = game, cap = CARD[g.players[me].captain], live = g.turn === me && g.phase === 'play' && cap.ability && !(cap.once && g.capUsed);
-  const meters = [['goof', 'Goofiness', 'goof'], ['bore', 'Boredom', 'bore'], ['point', 'Points', 'points']];
+  const g = game, cap = CARD[g.players[me].captain], live = g.turn === me && g.phase === 'play' && cap.ability && g.players[me].goof >= (cap.goof || 0) && !(cap.once && g.capUsed);
+  const meters = [['goof', 'Goofiness', 'goof'], ['bore', 'Boredom', 'bore']];
   return sheet(`<h2>Adjust</h2><p class="muted center" style="margin-bottom:12px">Card text runs by itself. Use these for anything it misses; both players see every change.</p>
     ${[me, 1 - me].map(w => `<div class="adj neu-in"><b>${esc(g.players[w].name)}${w === me ? ' (you)' : ''}</b>
       ${meters.map(([icon, label, key]) => `<div class="adj-row"><span><span class="${icon}">${ICON[icon]}</span>${label}</span>${stepper(g.players[w][key],
         { type: 'adjust', who: w, key, d: -1 }, { type: 'adjust', who: w, key, d: 1 })}</div>`).join('')}</div>`).join('')}
     <div class="adj neu-in"><div class="adj-row"><span><span class="point">${ICON.action}</span>Actions this turn</span>${stepper(g.actions,
       { type: 'adjust', who: me, key: 'actions', d: -1 }, { type: 'adjust', who: me, key: 'actions', d: 1 })}</div></div>
-    <div class="row2">${btn({ type: 'draw' }, 'Draw a card')}${live ? btn({ type: 'ability', i: -1 }, `${cap.name} ${cost(1)}`, 'primary') : ''}</div>
+    <div class="row2">${btn({ type: 'draw' }, 'Draw a card')}${live ? btn({ type: 'ability', i: -1 }, `${cap.name}'s Super`, 'primary') : ''}</div>
     <small class="lbl" style="margin-top:18px">Log</small><div class="log">${g.log.slice(-15).reverse().map(l => `<p>${esc(l)}</p>`).join('')}</div>
     <div class="row2" style="margin-top:14px"><button class="btn" data-act="leave-battle">Leave battle</button><button class="btn primary" data-act="close">Done</button></div>`);
 }
@@ -436,7 +436,6 @@ function postAnimate(ev, prev, s) {
       flash(h?.querySelector(`.meter.${e.key}`), 'bump', 600); flash(h?.querySelector(`.meter.${e.key}`), 'hl', 1400);
       floatText(h?.querySelector('.meters'), `${e.n > 0 ? '+' : ''}${e.n} ${e.key === 'goof' ? 'Goofiness' : 'Boredom'}`, e.key, n);
     }
-    if (e.k === 'point') { flash(hudEl(e.p)?.querySelector('.coins'), 'bump', 700); banner(e.p === me ? '+1 Point!' : `${esc(s.players[e.p].name)} scores!`, 'gold'); }
     if (e.k === 'draw' && e.p === me) flash($app.querySelector('.hand .card:last-child'), 'drawn', 650);
     if (e.k === 'turn') banner(e.p === me ? 'Your turn' : `${esc(s.players[e.p].name)}'s turn`, 'turn');
   }

@@ -1,7 +1,7 @@
 // Self-check for the rules engine. Run: node test/game.test.js
 const fs = require('fs'), vm = require('vm'), path = require('path');
 const load = files => files.map(f => fs.readFileSync(path.join(__dirname, '..', f), 'utf8')).join('\n');
-const src = load(['test/fixture-cards.js', 'js/cards.js', 'js/game.js']);
+const src = load(['test/fixture-cards.js', 'js/cards.js', 'js/game.js']).replace('const BORE_MAX = 10;', 'const BORE_MAX = 99;');
 
 // The real generated cards: both free starters must be legal and every Character usable.
 vm.runInNewContext(load(['js/cards-data.js', 'js/cards.js', 'js/game.js']) + `
@@ -44,8 +44,9 @@ s = apply(s, 0, { type: 'play', i: 0 }); // Night Owl
 throws(() => apply(s, 0, { type: 'attack', i: 1, m: 0 }), "Night Owl can't attack the turn it's played");
 s = apply(s, 0, { type: 'play', i: 0 }); // @everyone Ping: B +2 -> 4
 assert(s.players[1].bore === 4, 'Ping onPlay: opponent +2 Boredom');
-s = apply(s, 0, { type: 'ability', i: -1 }); // Gremlin: B +1 -> 5 -> A scores, B resets
-assert(s.players[0].points === 1 && s.players[1].bore === 0 && s.events.some(e => e.k === 'point' && e.p === 0), 'captain ability can score');
+const actBefore = s.actions;
+s = apply(s, 0, { type: 'ability', i: -1 }); // Gremlin Super (costs 0 Goofiness here): B +1 Boredom
+assert(s.players[1].bore === 5 && s.actions === actBefore, 'captain Super runs and costs no Actions');
 throws(() => apply(s, 0, { type: 'ability', i: -1 }), 'captain ability once per turn');
 s = apply(s, 0, { type: 'play', i: 0 }); // Slowmode on A's side
 
@@ -77,7 +78,7 @@ assert(s.events.some(e => e.k === 'attack' && e.move === 'Ratio' && e.target), '
 
 s.players[1].effects.push({ id: 'e_read' });
 s = apply(s, 1, { type: 'end' });
-assert(s.players[0].bore === 0 && s.players[1].points === 1, 'Left on Read pushes A to 5 Boredom: B scores');
+assert(s.players[0].bore === 5, 'Left on Read: A +1 Boredom at the start of their turn');
 
 // ---- turn 3 (A): Larry disadvantage, self damage, coin flips ----
 s.actions = 9;
@@ -141,17 +142,19 @@ assert(left - c.actions === 2, 'Sleepless Mod: Evils cost the opponent 2 Actions
 // ---- manual tools, scoring, network input, win ----
 let m = newGame([STARTER, STARTER], ['A', 'B'], fixed(0.1));
 m.players[1].field = [{ id: 'c_lagger', hp: 1, t: 0 }];
-m.players[0].goof = 4;
+m.players[0].goof = 9;
 m = apply(m, 1, { type: 'adjust', who: 0, key: 'goof', d: 1 });
-assert(m.players[0].goof === 0 && m.players[0].points === 1, 'Goofiness 5 scores for self');
+assert(m.players[0].goof === 10, 'Goofiness fills to 10');
+const mb = m.players[1].bore;
 m = apply(m, 1, { type: 'hp', who: 1, i: 0, d: -1 });
-assert(m.players[1].field.length === 0, 'HP 0 removes the card');
+assert(m.players[1].field.length === 0 && m.players[1].bore === mb + 2, 'HP 0 removes the card and its owner gains 2 Boredom');
 throws(() => apply(m, 1, { type: 'adjust', who: '__proto__', key: 'goof', d: 1 }), 'bad player index');
 throws(() => apply(m, 1, { type: 'adjust', who: 0, key: 'hand', d: 1 }), 'bad meter');
 throws(() => apply(m, 1, { type: 'adjust', who: 0, key: 'goof', d: 50 }), 'bad amount');
 throws(() => apply(m, 1, { type: 'discard', who: 0, zone: 'hand', i: 0 }), "can't discard opponent's hand");
-m.players[0].points = 4;
-m = apply(m, 0, { type: 'adjust', who: 0, key: 'points', d: 1 });
+throws(() => apply(m, 0, { type: 'adjust', who: 0, key: 'points', d: 1 }), 'Points are gone');
+m.players[1].bore = 98;
+m = apply(m, 0, { type: 'adjust', who: 1, key: 'bore', d: 1 });
 CARD.t_cheap = { id: 't_cheap', type: 'bit', name: 'Cheap', cost: 0, dur: 1, onPlay: [['bore', 'opp', 1]] };
 CARD.t_sac = { id: 't_sac', type: 'character', name: 'Sac', def: 10, hp: 3, group: 'G', moves: [{ name: 'Boom', cost: 1, ability: true, ops: [['bore', 'opp', 2], ['sac']] }] };
 CARD.t_buff = { id: 't_buff', type: 'character', name: 'Buff', def: 10, hp: 3, group: 'G', mod: { atk: 1, if: 'G' }, moves: [{ name: 'Hit', cost: 1, power: 1 }] };
@@ -164,8 +167,8 @@ assert(statsOf(q, q.turn, q.players[q.turn].field[0]).bonus === 0, 'group mod ne
 q.players[q.turn].field.push({ id: 't_sac', hp: 3, t: 0 });
 assert(statsOf(q, q.turn, q.players[q.turn].field[0]).bonus === 1, 'group mod on with a partner');
 q = apply(q, q.turn, { type: 'attack', i: 1, m: 0 });
-assert(q.players[q.turn].field.length === 1, 'sac removes the Character');
-assert(m.phase === 'over' && m.winner === 0, 'first to 5 points wins');
+assert(q.players[q.turn].field.length === 1 && q.players[q.turn].bore === 0, 'sac removes the Character without Boredom');
+assert(m.phase === 'over' && m.winner === 0, 'reaching the Boredom limit loses');
 throws(() => apply(m, 0, { type: 'end' }), 'no actions after game over');
 `, { structuredClone });
 console.log('game.test.js: all checks passed');
