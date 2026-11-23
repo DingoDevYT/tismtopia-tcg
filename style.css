@@ -251,6 +251,13 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
 .opp-hand { display: flex; justify-content: center; height: 30px; flex: none; }
 .opp-hand .card { --cw: 44px; margin: -32px -6px 0; }
 .side { display: flex; flex-direction: column; gap: 8px; padding: 8px 12px; }
+/* Phone: your Captain and meters sit under your hand, like a player bar. (Desktop places them with grid areas below.) */
+@container app (max-width: 899.98px) {
+  .board > .side:nth-child(4) { display: contents; }
+  .side:nth-child(4) > * { margin: 0 12px 8px; }
+  .board > .hand { order: 1; }
+  .side:nth-child(4) > .hud { order: 2; margin: 0 12px calc(10px + env(safe-area-inset-bottom)); }
+}
 /* player area: the Captain card plus a meter panel (name, points, Goofiness, Boredom) */
 .hud { display: flex; align-items: stretch; gap: 8px; }
 .hud .card.cap { --cw: 116px; }
