@@ -143,7 +143,7 @@ const TUT = [
   { text: "Their Boredom went up by the attack's damage. You're out of Actions, so tap End Turn.", sel: '[data-act=end]', done: g => g.turn === 1 },
   { text: "The bot's turn. When it attacks, you pick which of your Characters blocks. The blocker takes the attack's damage minus its armour (the shield number).",
     sel: () => (game.phase !== 'defend' ? null : ui.defPick != null ? '.sheet [data-a*=\'"defend"\']' : '.sheet .field .card'), done: g => !!g.roll || (g.turn === 0 && g.turnNo > 2) },
-  { text: 'Damage that gets through lowers HP; at 0 HP a Character is defeated and its owner gains Boredom equal to that hit’s damage. Landing damage also moves 1 Creativity from them to you.', next: true },
+  { text: 'Damage that gets through lowers HP; damage past a Character’s HP spills to the next one, and only what’s left after the whole field becomes Boredom. Landing damage also moves 1 Creativity from them to you.', next: true },
   { text: 'Items are instant and last a few turns. Evils stay until removed. Tap your Captain to use its Super once you have enough Creativity, or your meters for the log, manual fixes, or to leave.', next: true },
   { text: "That's the basics! Finish this battle against the bot, then build your own deck.", next: 'Got it' },
 ];
@@ -286,7 +286,7 @@ function defendSheet() {
   return sheet(`<div class="attacker neu">${renderCard(ac, { cls: 'mini', hp: af.hp, ...A })}<div><small>Incoming attack</small><br><b>${ac.name}</b> uses <b>${mv.name}</b>: ${power} damage${mv.text ? `<br><small>${mv.text}</small>` : ''}</div></div>
     <h2>Pick a blocker</h2>
     <div class="field">${mine.map((f, i) => renderCard(CARD[f.id], { cls: 'mini' + (i === pickI ? ' picked' : ''), hp: f.hp, ...statsOf(g, me, f), attrs: tappable('defpick', `data-i="${i}"`) })).join('')}</div>
-    <p class="muted center" style="margin:10px 0 12px">${pick ? (dmg(pick) >= pick.hp ? `${CARD[pick.id].name} takes ${dmg(pick)} and is defeated: you gain ${dmg(pick)} Boredom.` : `${CARD[pick.id].name} takes ${dmg(pick)} damage after armour.`) : 'Armour (the shield) blocks that much of each hit. If a Character is defeated, you gain Boredom equal to the hit’s damage.'}</p>
+    <p class="muted center" style="margin:10px 0 12px">${pick ? (dmg(pick) > pick.hp ? `${CARD[pick.id].name} is defeated and ${dmg(pick) - pick.hp} damage spills to your next Character (then your Boredom).` : dmg(pick) === pick.hp ? `${CARD[pick.id].name} takes ${dmg(pick)} and is defeated.` : `${CARD[pick.id].name} takes ${dmg(pick)} damage after armour.`) : 'Armour (the shield) blocks that much of each hit. Damage past a blocker’s HP spills to your next Character, then to your Boredom.'}</p>
     ${pick ? btn({ type: 'defend', i: pickI }, `Block with ${CARD[pick.id].name}`, 'primary wide') : '<button class="btn wide" disabled>Tap a Character</button>'}`, false);
 }
 

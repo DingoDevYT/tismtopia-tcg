@@ -608,3 +608,7 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
 .v-full .text.passive ~ .moves { margin-top: 0; }
 .v-full .defb { top: 15cqw; right: 3cqw; }
 @media (prefers-reduced-motion: reduce) { .fan .card { animation: none; } }
+
+/* Play cost: Action pips (or FREE) at the start of the name row. */
+.card .pc { flex: none; display: flex; align-items: center; gap: .4cqw; padding: .8cqw 1.8cqw; border-radius: 99px; background: #1f2740; color: #ffd21e; font-size: 4.6cqw; font-weight: 900; letter-spacing: .2cqw; box-shadow: 0 0 0 .7cqw rgba(255, 255, 255, .85); }
+.card .pc .i { width: 5.4cqw; height: 5.4cqw; }

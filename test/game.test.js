@@ -93,7 +93,7 @@ s.players[0].field[1].hp = 1;
 const boreA = s.players[0].bore;
 s = apply(s, 0, { type: 'attack', i: 1, m: 1 });
 s = apply(s, 1, { type: 'defend', i: 0 }); // Reply Guy: B is back to 0 Creativity, so Lurker gives armour 2: 2 damage; Night Owl's self damage defeats it
-assert(s.roll.dmg === 2 && !s.players[0].field.some(f => f.id === 'c_night_owl') && s.players[0].bore === boreA + 1, 'self damage can defeat the attacker; its owner gains Boredom equal to that 1 damage');
+assert(s.roll.dmg === 2 && !s.players[0].field.some(f => f.id === 'c_night_owl') && s.players[0].bore === boreA, 'self damage can defeat the attacker; defeats alone give no Boredom');
 s.players[1].goof = 5; // switches off B's Lurker armour for the coin-flip checks
 s = apply(s, 0, { type: 'attack', i: 0, m: 1 }); // VC Goblin Unmute Scream; heads -> +2 Boredom
 s = apply(s, 1, { type: 'defend', i: 0 }, fixed(0.2));
@@ -153,7 +153,7 @@ m = apply(m, 1, { type: 'adjust', who: 0, key: 'goof', d: 1 });
 assert(m.players[0].goof === 10, 'Goofiness fills to 10');
 const mb = m.players[1].bore;
 m = apply(m, 1, { type: 'hp', who: 1, i: 0, d: -1 });
-assert(m.players[1].field.length === 0 && m.players[1].bore === mb + 1, 'HP 0 removes the card and its owner gains the 1 damage as Boredom');
+assert(m.players[1].field.length === 0 && m.players[1].bore === mb, 'HP 0 removes the card (no Boredom by itself)');
 throws(() => apply(m, 1, { type: 'adjust', who: '__proto__', key: 'goof', d: 1 }), 'bad player index');
 throws(() => apply(m, 1, { type: 'adjust', who: 0, key: 'hand', d: 1 }), 'bad meter');
 throws(() => apply(m, 1, { type: 'adjust', who: 0, key: 'goof', d: 50 }), 'bad amount');
@@ -174,6 +174,15 @@ q.players[q.turn].field.push({ id: 't_sac', hp: 3, t: 0 });
 assert(statsOf(q, q.turn, q.players[q.turn].field[0]).bonus === 1, 'group mod on with a partner');
 q = apply(q, q.turn, { type: 'attack', i: 1, m: 0 });
 assert(q.players[q.turn].field.length === 1 && q.players[q.turn].bore === 0, 'sac removes the Character without Boredom');
+// spill-over: a 9-power hit kills a 2-HP blocker, carries 7 into the next (armour 1 -> 6 into 4 HP), and 2 reaches Boredom
+CARD.t_big = { id: 't_big', type: 'character', name: 'Big', def: 8, hp: 5, moves: [{ name: 'Smash', cost: 1, power: 9 }] };
+CARD.t_a = { id: 't_a', type: 'character', name: 'A', def: 8, hp: 2, moves: [{ name: 'x', cost: 1, power: 1 }] };
+CARD.t_b = { id: 't_b', type: 'character', name: 'B', def: 12, hp: 4, moves: [{ name: 'x', cost: 1, power: 1 }] };
+let sp = newGame([STARTER, STARTER], ['A', 'B'], fixed(0.1)); const sa = sp.turn, sd = 1 - sa; sp.actions = 3;
+sp.players[sa].field = [{ id: 't_big', hp: 5, t: 0 }]; sp.players[sd].field = [{ id: 't_a', hp: 2, t: 0 }, { id: 't_b', hp: 4, t: 0 }]; sp.players[sd].goof = 3;
+const boreD = sp.players[sd].bore;
+sp = apply(sp, sa, { type: 'attack', i: 0, m: 0 }); sp = apply(sp, sd, { type: 'defend', i: 0 });
+assert(sp.players[sd].field.length === 0 && sp.players[sd].bore === boreD + 2, 'damage spills to the next Character (armour applies) and the rest becomes Boredom');
 let ce = newGame([STARTER, STARTER], ['A', 'B'], fixed(0.1)); const ep = ce.turn;
 ce.players[1 - ep].effects = [{ id: 'e_read' }, { id: 'b_brainrot', turns: 2 }]; ce.actions = 2;
 throws(() => apply(ce, ep, { type: 'cleanse', i: 1 }), 'only Evils can be cleansed');

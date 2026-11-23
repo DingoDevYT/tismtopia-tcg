@@ -124,9 +124,8 @@ function apply(s0, p, a, rng = Math.random) {
     const pi = s.players.indexOf(pl);
     pl.field = pl.field.filter(f => {
       if (f.hp > 0) return true;
-      const c = CARD[f.id], ko = f.sac || c.ko === 0 ? 0 : f.lastHit || 1; // Boredom = the defeating hit's damage
-      say(`${c.name} was ${f.sac ? 'sacrificed' : 'defeated'}${ko ? `: ${pl.name} +${ko} Boredom` : ''}.`);
-      if (ko) gain(pi, 'bore', ko);
+      const c = CARD[f.id];
+      say(`${c.name} was ${f.sac ? 'sacrificed' : 'defeated'}.`);
       return false;
     });
   };
@@ -179,10 +178,22 @@ function apply(s0, p, a, rng = Math.random) {
       const ai = 1 - p, af = at(opp.field, s.pending.i), df = at(me.field, a.i);
       const ac = CARD[af.id], dc = CARD[df.id], mv = ac.moves[s.pending.m];
       const power = mv.power + statsOf(s, ai, af).bonus, armor = statsOf(s, p, df).def, dmg = Math.max(0, power - armor), hit = dmg > 0;
-      ev({ k: 'attack', p: ai, i: s.pending.i, target: { p, i: a.i }, move: mv.name, roll: { atk: power, def: armor, dmg, hit } });
-      df.lastHit = dmg; for (let k = 0; k < dmg; k++) hurt(p, a.i);
-      s.roll = { seq: s.seq + 1, atk: power, def: armor, dmg, hit, a: af.id, d: df.id, by: ai };
-      say(`${mv.name} hits ${dc.name} for ${power}${armor ? ` (armour ${armor})` : ''}: ` + (hit ? `${dmg} damage. ${me.name} -1 Creativity, ${opp.name} +1 Creativity.` : 'all blocked!'));
+      // Spill-over: damage past the blocker's HP moves on to the next Character (its own armour applies), then to Boredom.
+      let left = power, ti = a.i, bore = 0; const hitIdx = new Set(), spill = [];
+      while (left > 0) {
+        const tf = me.field[ti];
+        if (!tf) { bore = left; gain(p, 'bore', left); break; }
+        const through = Math.max(0, left - statsOf(s, p, tf).def), taken = Math.min(through, tf.hp);
+        for (let k = 0; k < taken; k++) hurt(p, ti);
+        if (ti !== a.i) spill.push(`${CARD[tf.id].name} -${taken}`);
+        hitIdx.add(ti); left = through - taken;
+        if (!through) break;
+        ti = me.field.findIndex((f, j) => f.hp > 0 && !hitIdx.has(j));
+        if (ti < 0) ti = me.field.length; // nobody left to take it
+      }
+      ev({ k: 'attack', p: ai, i: s.pending.i, target: { p, i: a.i }, move: mv.name, roll: { atk: power, def: armor, dmg, hit, spill: spill.length, bore } });
+      s.roll = { seq: s.seq + 1, atk: power, def: armor, dmg, hit, a: af.id, d: df.id, by: ai, bore };
+      say(`${mv.name} hits ${dc.name} for ${power}${armor ? ` (armour ${armor})` : ''}: ` + (hit ? `${dmg} damage${spill.length ? `, spilling over: ${spill.join(', ')}` : ''}${bore ? `, ${me.name} +${bore} Boredom` : ''}. ${me.name} -1 Creativity, ${opp.name} +1 Creativity.` : 'all blocked!'));
       if (hit) {
         gain(p, 'goof', -1); gain(ai, 'goof', 1);
         runOps(ai, mv.onHit, ac, { self: { p: ai, i: s.pending.i }, target: { p, i: a.i } });

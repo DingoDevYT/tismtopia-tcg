@@ -82,7 +82,7 @@ function renderCard(c, o = {}) {
     : `<div class="text">${c.text}</div><div class="tag">${c.type === 'bit' ? `${ICON.time}${turns} turn${turns > 1 ? 's' : ''}` : c.type === 'evil' ? `${ICON.forever}Forever` : `${ICON.captain}${c.style}`}</div>`;
   const tv = c.type === 'character' && !c.main && TONE[c.art];
   return `<div class="card k-${kind}${cls}"${style} data-id="${c.id}"><div class="frame"${tv ? ` style="${tv}"` : ''}>
-    <div class="head"><span class="name">${c.name}</span>${hpTag}<span class="type">${ICON[kind]}</span></div>
+    <div class="head">${c.type !== 'captain' ? `<span class="pc" title="Actions to play">${(c.cost ?? 1) ? ICON.action.repeat(c.cost ?? 1) : 'FREE'}</span>` : ''}<span class="name">${c.name}</span>${hpTag}<span class="type">${ICON[kind]}</span></div>
     <div class="art">${art}${defTag}</div>
     ${body}
     <div class="foot"><span>${c.role || LABEL[kind]}</span><span>TISM ${c.no}</span></div>
