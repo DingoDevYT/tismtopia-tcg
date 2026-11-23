@@ -727,3 +727,17 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
 /* Reverse holo: foil sits on the card body, under the text panels, like ink printed over foil. */
 .holo[data-rarity="reverse holo"] .frame > :not(.holo__shine):not(.holo__glare) { position: relative; z-index: 2; }
 .holo[data-rarity="reverse holo"] .holo__shine, .holo[data-rarity="reverse holo"] .holo__glare { z-index: 1; }
+
+/* ---------- collection ---------- */
+.coll-tools { display: grid; gap: 10px; }
+.coll-progress { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 4px 10px; font-size: 13px; }
+.coll-progress .progress { grid-column: 1 / -1; }
+.coll-search { width: 100%; box-sizing: border-box; padding: 12px 16px; border: 0; border-radius: 99px; font: inherit; font-size: 15px; color: var(--ink); background: var(--bg, #e9edf5); box-shadow: var(--inset); outline: none; }
+.coll-tools .chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; font-weight: 800; color: var(--muted); }
+.coll-meta { display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 100%; font-size: 12px; font-weight: 800; color: var(--muted); }
+.rar { padding: 1px 7px; border-radius: 99px; font-size: 11px; font-weight: 900; color: #fff; background: #8a93ab; }
+.rar.r-U { background: #2f9e6e; } .rar.r-R { background: #d4a017; } .rar.r-UR { background: linear-gradient(90deg, #ff3c8e, #7b4dff, #3dc7ff); }
+.fav { border: 0; background: none; font-size: 20px; line-height: 1; color: rgba(40, 50, 80, .25); cursor: pointer; padding: 2px 4px; }
+.fav.on { color: #ffb400; text-shadow: 0 0 6px rgba(255, 180, 0, .6); }
+.coll-cell.locked .card { filter: grayscale(1) brightness(.35) contrast(.8); opacity: .65; }
+.coll-tools .chip { padding: 5px 11px; font-size: 12px; min-height: 0; }

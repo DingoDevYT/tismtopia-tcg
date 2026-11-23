@@ -43,7 +43,7 @@ function copy(text, what) {
 }
 
 // ---------------- views ----------------
-const tabbar = on => `<nav class="tabbar">${[['home', 'home'], ['cards', 'deck'], ['battle', 'lobby'], ['rules', 'rules']].map(([icon, view]) =>
+const tabbar = on => `<nav class="tabbar">${[['home', 'home'], ['search', 'collection'], ['cards', 'deck'], ['battle', 'lobby'], ['rules', 'rules']].map(([icon, view]) =>
   `<button class="${view === on ? 'on' : ''}" data-act="go" data-to="${view}" aria-label="${view}">${ICON[icon]}</button>`).join('')}</nav>`;
 
 const deckSelect = withNew => `<label class="deckname neu-in"><select data-change="pick-deck" aria-label="Deck">${decks.map(d =>
@@ -66,6 +66,7 @@ function viewHome() {
     <button class="tile neu" data-act="tutorial">${ICON.school}<b>Tutorial</b><small>Learn by playing</small></button>
     <button class="tile neu" data-act="bot">${ICON.bot}<b>Practice</b><small>Play vs the bot</small></button>
     <button class="tile neu" data-act="go" data-to="packs">${ICON.main}<b>Open Packs</b><small>${typeof ownedCount === 'function' ? ownedCount() : 0} of ${CARDS.length} owned</small></button>
+    <button class="tile neu" data-act="go" data-to="collection">${ICON.search}<b>Collection</b><small>Your cards</small></button>
     <button class="tile neu" data-act="go" data-to="deck">${ICON.cards}<b>Deck Builder</b><small>${decks.length} deck${decks.length > 1 ? 's' : ''}</small></button>
     <button class="tile neu" data-act="go" data-to="rules">${ICON.rules}<b>How to Play</b><small>Rules</small></button>
   </div>${tabbar('home')}`;
@@ -295,7 +296,7 @@ function defendSheet() {
 function render() {
   const scrolls = [...$app.querySelectorAll('.grid, .scroll, .sheet')].map(el => el.scrollTop);
   const focus = document.activeElement?.id;
-  const views = { home: viewHome, deck: viewDeck, build: viewBuild, lobby: viewLobby, rules: viewRules, game: viewGame, packs: () => viewPacks(), open: () => (ui.open ? viewOpen() : viewPacks()) };
+  const views = { home: viewHome, deck: viewDeck, build: viewBuild, lobby: viewLobby, rules: viewRules, game: viewGame, packs: () => viewPacks(), open: () => (ui.open ? viewOpen() : viewPacks()), collection: () => viewCollection() };
   if (ui.view === 'game' && !game) ui.view = 'home';
   $app.dataset.view = ui.view;
   $app.innerHTML = views[ui.view]() + (ui.toast && ui.view !== 'game' ? `<div class="toast neu">${esc(ui.toast)}</div>` : '');

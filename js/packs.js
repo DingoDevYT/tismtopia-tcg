@@ -147,3 +147,36 @@ document.addEventListener('pointerup', e => {
   if (wheelX == null) return; const dx = e.clientX - wheelX; wheelX = null;
   if (Math.abs(dx) > 40) { lastSwipe = Date.now(); ui.packIdx = (ui.packIdx || 0) + (dx < 0 ? 1 : -1); render(); }
 });
+
+// ---------------- collection: every card, what you own, favourites, search / filter / sort ----------------
+let favs = new Set(store.get('favs', []));
+const RANK = { C: 0, U: 1, R: 2, UR: 3 };
+const bestFinish = id => { const f = coll[id]?.f || {}; return f.full ? 'full' : f.holo ? 'holo' : f.rev ? 'rev' : 'normal'; };
+function viewCollection() {
+  const s = (ui.coll ||= { q: '', own: 'all', type: 'all', rar: 'all', sort: 'no' }), q = s.q.trim().toLowerCase();
+  let list = CARDS.filter(c => (s.own === 'all' || (s.own === 'owned' ? owned(c.id) : s.own === 'missing' ? !owned(c.id) : favs.has(c.id)))
+    && (s.type === 'all' || c.type === s.type) && (s.rar === 'all' || (c.rarity || 'C') === s.rar)
+    && (!q || [c.name, c.text, c.role, ...(c.moves || []).flatMap(m => [m.name, m.text])].some(t => t && t.toLowerCase().includes(q))));
+  const by = { no: (a, b) => a.no.localeCompare(b.no), rarity: (a, b) => RANK[b.rarity || 'C'] - RANK[a.rarity || 'C'] || a.no.localeCompare(b.no), name: (a, b) => a.name.localeCompare(b.name), copies: (a, b) => owned(b.id) - owned(a.id) || a.no.localeCompare(b.no) };
+  list = [...list].sort(by[s.sort]);
+  const chip = (key, val, label) => `<button class="chip${s[key] === val ? ' on' : ''}" data-act="coll-set" data-k="${key}" data-v="${val}">${label}</button>`;
+  return `${header('Collection')}
+  <div class="panel neu coll-tools">
+    <div class="coll-progress"><b>${ownedCount()} / ${CARDS.length}</b> cards owned<div class="progress"><i style="width:${(100 * ownedCount() / CARDS.length).toFixed(1)}%"></i></div></div>
+    <input id="coll-search" class="coll-search" type="search" placeholder="Search names, moves, text…" value="${esc(s.q)}" autocomplete="off">
+    <div class="chips">${chip('own', 'all', 'All')}${chip('own', 'owned', 'Owned')}${chip('own', 'missing', 'Missing')}${chip('own', 'favs', '★ Favourites')}</div>
+    <div class="chips">${chip('type', 'all', 'Any type')}${chip('type', 'character', 'Characters')}${chip('type', 'bit', 'Items')}${chip('type', 'evil', 'Evils')}</div>
+    <div class="chips">${chip('rar', 'all', 'Any rarity')}${['C', 'U', 'R', 'UR'].map(r => chip('rar', r, RARITY_NAME[r])).join('')}</div>
+    <div class="chips">Sort: ${chip('sort', 'no', 'Number')}${chip('sort', 'rarity', 'Rarity')}${chip('sort', 'name', 'Name')}${chip('sort', 'copies', 'Copies')}</div>
+  </div>
+  <div class="grid coll-grid">${list.map(c => { const n = owned(c.id), f = bestFinish(c.id);
+    return `<div class="cell coll-cell${n ? '' : ' locked'}">${renderCard(n && f === 'full' ? { ...c, crop: null } : c, { cls: n ? FINISH_CLS[f] : '', attrs: tappable('zoom', `data-id="${c.id}"`) })}
+      <div class="coll-meta"><span class="rar r-${c.rarity || 'C'}">${c.rarity || 'C'}</span><span>${n ? '×' + n : 'Not owned'}</span>
+      <button class="fav${favs.has(c.id) ? ' on' : ''}" data-act="fav" data-id="${c.id}" aria-label="${favs.has(c.id) ? 'Unfavourite' : 'Favourite'} ${esc(c.name)}">★</button></div></div>`; }).join('') || '<p class="muted center">No cards match.</p>'}</div>
+  ${overlay()}`;
+}
+Object.assign(ACTS, {
+  'coll-set'(d) { ui.coll[d.k] = d.v; },
+  fav(d) { favs.has(d.id) ? favs.delete(d.id) : favs.add(d.id); store.set('favs', [...favs]); },
+});
+document.addEventListener('input', e => { if (e.target.id === 'coll-search') { ui.coll.q = e.target.value; const at = e.target.selectionStart; render(); const el = document.getElementById('coll-search'); el?.setSelectionRange(at, at); } });
