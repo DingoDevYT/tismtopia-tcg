@@ -718,7 +718,7 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
 @property --fy { syntax: '<number>'; inherits: true; initial-value: .3; }
 .holo { --pointer-x: var(--mx); --pointer-y: var(--my); --background-x: calc(37% + var(--fx) * 26%); --background-y: calc(33% + var(--fy) * 34%);
   --pointer-from-left: var(--fx); --pointer-from-top: var(--fy); --pointer-from-center: var(--fc, .55); --card-opacity: var(--co, .7);
-  --card-radius: 5.5cqw; --clip: inset(13% 5% 51% 5%); --clip-invert: polygon(0 0, 100% 0, 100% 100%, 0 100%, 0 49%, 95% 49%, 95% 13%, 5% 13%, 5% 49%, 0 52%); }
+  --card-radius: 5.5cqw; --clip: none; --clip-invert: polygon(0 0, 100% 0, 100% 100%, 0 100%, 0 49%, 95% 49%, 95% 13%, 5% 13%, 5% 49%, 0 52%); }
 .holo[data-rarity="rare ultra"] { --foil: url(vendor/holo/img/illusion.png); --mask: linear-gradient(#000, #000); --imgsize: 33%; --clip: none; } /* "masked" = the full-strength full-art foil; the mask covers the whole card */
 .holo .holo__shine, .holo .holo__glare { position: absolute; inset: 0; z-index: 6; pointer-events: none; border-radius: inherit; display: grid; }
 .holo .holo__glare { z-index: 7; }
@@ -754,3 +754,6 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
 .viewer-top { display: flex; align-items: center; gap: 8px; font-size: 17px; }
 .viewer-top b { flex: 1; }
 .viewer-info .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+/* Rare holo: the foil lives inside the art window itself, so it always lines up with the picture. */
+.holo[data-rarity="rare holo"] .art .holo__shine, .holo[data-rarity="rare holo"] .art .holo__glare { border-radius: 0; }
+.holo[data-rarity="rare holo"] .art .defb { z-index: 8; }
