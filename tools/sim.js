@@ -116,7 +116,8 @@ function randomDeck(items = Math.floor(rng() * 11)) {
 if (process.env.ROUNDROBIN) {
   const D = JSON.parse(fs.readFileSync(process.env.ROUNDROBIN, 'utf8')), n = D.length;
   const wins = Array(n).fill(0), games = Array(n).fill(0), pair = D.map(() => Array(n).fill(0));
-  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) { let wi = 0, g = 0;
+  const part = +(process.env.RR_PART || 0), parts = +(process.env.RR_PARTS || 1); let pairNo = 0; // split the pairings across processes
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) { if (pairNo++ % parts !== part) continue; let wi = 0, g = 0;
     for (let k = 0; k < N; k++) { const seat = k % 2, r = play(seat ? [D[j], D[i]] : [D[i], D[j]], [POL.greedy, POL.greedy]); if (r.winner < 0) continue; g++; if (r.winner === seat) wi++; }
     pair[i][j] = wi / Math.max(1, g); pair[j][i] = 1 - pair[i][j]; wins[i] += wi; wins[j] += g - wi; games[i] += g; games[j] += g; }
   process.stdout.write(JSON.stringify({ wins, games, pair })); process.exit(0);
