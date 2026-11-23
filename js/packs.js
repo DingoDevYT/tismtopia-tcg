@@ -56,20 +56,26 @@ function viewPacks() {
   </div>`;
 }
 
+// Edge colour of a card in the stack: foil and rares glint so you can peek before revealing.
+const edgeOf = c => c.finish === 'full' ? 'edge-full' : c.finish === 'holo' ? 'edge-holo' : c.finish === 'rev' ? 'edge-rev' : c.rarity === 'UR' || c.rarity === 'R' ? 'edge-gold' : '';
 function viewOpen() {
   const o = ui.open, P = PACKS.find(p => p.id === o.pack);
   if (o.stage === 'tear') return `<div class="open-stage">
-    <p class="open-hint">Swipe across the top to open</p>
-    <div class="tear-zone" data-act="noop">${packArt(P, 'big')}<div class="tear-line"><i></i></div></div>
+    <p class="open-hint">Drag across the top to tear it open</p>
+    <div class="tear-zone">${packArt(P, 'big body')}${packArt(P, 'big strip')}<div class="tear-guide"></div></div>
     <button class="btn sm" data-act="tear-now">Tap to open</button></div>`;
+  if (o.stage === 'deck') return `<div class="open-stage deck-stage">
+    <p class="open-hint">Spin the stack to peek at the edges</p>
+    <div class="deck3d" data-act="noop"><div class="deck-rot">${o.cards.map((c, k) => `<div class="dc ${edgeOf(c)}" style="--z:${(o.cards.length - k) * 7}px"></div>`).join('')}</div></div>
+    <button class="btn primary" data-act="start-reveal">Reveal cards</button></div>`;
   if (o.stage === 'reveal') {
     const cur = o.cards[o.i], c = CARD[cur.id], rare = cur.rarity === 'R' || cur.rarity === 'UR' || cur.finish !== 'normal';
-    const behind = o.cards.slice(o.i + 1).map((_, k) => `<div class="stack-back" style="--k:${k + 1}"></div>`).join('');
+    const behind = o.cards.slice(o.i + 1).map((n, k) => `<div class="stack-back ${edgeOf(n)}" style="--k:${k + 1}"></div>`).join('');
     return `<div class="open-stage reveal${rare ? ' rare r-' + cur.rarity : ''}" data-act="next-card">
       ${rare ? '<div class="burst"></div>' : ''}
-      <div class="stack">${behind}${renderCard(cur.finish === 'full' ? { ...c, crop: null } : c, { cls: `zoom sway enter ${FINISH_CLS[cur.finish]}` })}</div>
+      <div class="stack" data-act="noop">${behind}${renderCard(cur.finish === 'full' ? { ...c, crop: null } : c, { cls: `zoom flick enter ${FINISH_CLS[cur.finish]}` })}</div>
       <p class="pull-tag">${cur.isNew ? '<span class="new">NEW</span>' : ''}${RARITY_NAME[cur.rarity]}${cur.finish !== 'normal' ? ` · ${FINISH_NAME[cur.finish]}` : ''}</p>
-      <p class="open-hint">Tap for the next card (${o.i + 1}/${o.cards.length})</p></div>`;
+      <p class="open-hint">Drag to tilt · flick to the side for the next card (${o.i + 1}/${o.cards.length})</p></div>`;
   }
   return `${header('Your pulls')}
     <div class="pull-grid">${o.cards.map(p => `<div class="pull">${renderCard(p.finish === 'full' ? { ...CARD[p.id], crop: null } : CARD[p.id], { cls: FINISH_CLS[p.finish], attrs: tappable('zoom', `data-id="${p.id}"`) })}${p.isNew ? '<span class="new">NEW</span>' : ''}<small>${RARITY_NAME[p.rarity]}${p.finish !== 'normal' ? ` · ${FINISH_NAME[p.finish]}` : ''}</small></div>`).join('')}</div>
@@ -82,34 +88,57 @@ Object.assign(ACTS, {
   'wheel-to'(d) { if (Date.now() - lastSwipe < 350) return false; ui.packIdx = Number(d.i); },
   'pick-pack'(d) { if (Date.now() - lastSwipe < 350) return false; ui.open = openPack(d.p); ui.view = 'open'; }, // a swipe isn't a tap
   'tear-now'() { tearOpen(); return false; },
-  'next-card'() {
-    const o = ui.open; if (!o || o.stage !== 'reveal') return;
-    const top = $app.querySelector('.stack .card');
-    if (top && !calm) { top.classList.add('flyout'); setTimeout(() => { advance(); render(); }, 260); return false; }
-    advance();
-  },
+  'start-reveal'() { ui.open.stage = 'reveal'; ui.open.i = 0; },
+  'next-card'() { flick(-1); return false; },
   noop() { return false; },
 });
 function advance() { const o = ui.open; if (++o.i >= o.cards.length) o.stage = 'summary'; }
 function tearOpen() {
   const z = $app.querySelector('.tear-zone');
-  if (z && !calm) { z.classList.add('torn'); setTimeout(() => { ui.open.stage = 'reveal'; render(); }, 650); }
-  else { ui.open.stage = 'reveal'; render(); }
+  if (z && !calm) { z.classList.add('torn'); setTimeout(() => { ui.open.stage = 'deck'; render(); }, 750); }
+  else { ui.open.stage = 'deck'; render(); }
 }
-// Swipe to tear: drag across the top of the pack; past 80% of the width it rips open.
-let tearing = null;
+// Finger gestures for opening: tear the strip, spin the deck, tilt and flick the revealed card.
+let drag = null, deckRot = [-25, 12];
+const setVars = (el, vars) => { for (const [k, v] of Object.entries(vars)) el.style.setProperty(k, v); };
+function flick(dir) {
+  const o = ui.open; if (!o || o.stage !== 'reveal') return;
+  const top = $app.querySelector('.stack .card');
+  if (top && !calm) { top.classList.remove('enter'); top.classList.add(dir < 0 ? 'out-l' : 'out-r'); setTimeout(() => { advance(); render(); }, 280); }
+  else { advance(); render(); }
+}
 document.addEventListener('pointerdown', e => {
-  const z = e.target.closest?.('.tear-zone'); if (!z || ui.view !== 'open') return;
-  const r = z.getBoundingClientRect(); if (e.clientY > r.top + r.height * 0.35) return;
-  tearing = { z, r, x0: e.clientX }; z.setPointerCapture?.(e.pointerId);
+  if (ui.view !== 'open') return;
+  const zone = e.target.closest?.('.tear-zone'), deck = e.target.closest?.('.deck3d'), card = e.target.closest?.('.stack .card');
+  const el = zone || deck || card; if (!el) return;
+  const r = el.getBoundingClientRect();
+  if (zone && e.clientY > r.top + r.height * 0.3) return;               // tearing starts on the top strip
+  drag = { kind: zone ? 'tear' : deck ? 'deck' : 'card', el, r, x0: e.clientX, y0: e.clientY, t0: performance.now(), rot: deck ? deckRot : null };
+  el.setPointerCapture?.(e.pointerId); if (card) card.classList.add('held');
 });
 document.addEventListener('pointermove', e => {
-  if (!tearing) return;
-  const p = Math.max(0, Math.min(1, (e.clientX - tearing.r.left) / tearing.r.width));
-  tearing.z.style.setProperty('--tear', p);
-  if (p > 0.8) { tearing = null; tearOpen(); }
+  if (!drag) return;
+  const { kind, el, r } = drag, dx = e.clientX - drag.x0, dy = e.clientY - drag.y0;
+  if (kind === 'tear') {
+    const t = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+    el.style.setProperty('--tear', t);
+    if (t > 0.92) { drag = null; tearOpen(); }
+  } else if (kind === 'deck') {
+    const ry = Math.max(-75, Math.min(75, drag.rot[0] + dx * 0.5)), rx = Math.max(-35, Math.min(45, drag.rot[1] - dy * 0.3));
+    setVars(el, { '--dry': ry + 'deg', '--drx': rx + 'deg' }); drag.cur = [ry, rx];
+  } else {
+    const x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+    setVars(el, { '--dx': dx * 0.8 + 'px', '--dy': dy * 0.25 + 'px', '--ry': Math.max(-28, Math.min(28, (x - 0.5) * 40 + dx * 0.05)) + 'deg', '--rx': Math.max(-24, Math.min(24, (0.5 - y) * 34)) + 'deg', '--mx': Math.max(0, Math.min(100, x * 100)) + '%', '--my': Math.max(0, Math.min(100, y * 100)) + '%' });
+  }
 });
-document.addEventListener('pointerup', () => { if (tearing) { tearing.z.style.setProperty('--tear', 0); tearing = null; } });
+document.addEventListener('pointerup', e => {
+  if (!drag) return;
+  const { kind, el } = drag, dx = e.clientX - drag.x0, v = Math.abs(dx) / Math.max(1, performance.now() - drag.t0);
+  if (kind === 'tear') el.style.setProperty('--tear', 0);
+  else if (kind === 'deck') { deckRot = drag.cur || deckRot; drag = null; return; }
+  else { el.classList.remove('held'); if (Math.abs(dx) > 90 || (v > 0.6 && Math.abs(dx) > 30)) { drag = null; flick(dx < 0 ? -1 : 1); return; } for (const k of ['--dx', '--dy', '--rx', '--ry', '--mx', '--my']) el.style.removeProperty(k); }
+  drag = null;
+});
 
 // Swipe the wheel left/right.
 let wheelX = null, lastSwipe = 0;
