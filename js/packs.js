@@ -128,7 +128,7 @@ document.addEventListener('pointermove', e => {
     setVars(el, { '--dry': ry + 'deg', '--drx': rx + 'deg' }); drag.cur = [ry, rx];
   } else {
     const x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
-    setVars(el, { '--dx': dx * 0.8 + 'px', '--dy': dy * 0.25 + 'px', '--ry': Math.max(-28, Math.min(28, (x - 0.5) * 40 + dx * 0.05)) + 'deg', '--rx': Math.max(-24, Math.min(24, (0.5 - y) * 34)) + 'deg', '--mx': Math.max(0, Math.min(100, x * 100)) + '%', '--my': Math.max(0, Math.min(100, y * 100)) + '%' });
+    setVars(el, { '--dx': dx * 0.8 + 'px', '--dy': dy * 0.25 + 'px', '--ry': Math.max(-28, Math.min(28, (x - 0.5) * 40 + dx * 0.05)) + 'deg', '--rx': Math.max(-24, Math.min(24, (0.5 - y) * 34)) + 'deg', '--mx': Math.max(0, Math.min(100, x * 100)) + '%', '--my': Math.max(0, Math.min(100, y * 100)) + '%', '--fx': Math.max(0, Math.min(1, x)), '--fy': Math.max(0, Math.min(1, y)), '--fc': Math.min(1, Math.hypot(x - 0.5, y - 0.5) * 2), '--co': 1 });
   }
 });
 document.addEventListener('pointerup', e => {
@@ -136,7 +136,7 @@ document.addEventListener('pointerup', e => {
   const { kind, el } = drag, dx = e.clientX - drag.x0, v = Math.abs(dx) / Math.max(1, performance.now() - drag.t0);
   if (kind === 'tear') el.style.setProperty('--tear', 0);
   else if (kind === 'deck') { deckRot = drag.cur || deckRot; drag = null; return; }
-  else { el.classList.remove('held'); if (Math.abs(dx) > 90 || (v > 0.6 && Math.abs(dx) > 30)) { drag = null; flick(dx < 0 ? -1 : 1); return; } for (const k of ['--dx', '--dy', '--rx', '--ry', '--mx', '--my']) el.style.removeProperty(k); }
+  else { el.classList.remove('held'); if (Math.abs(dx) > 90 || (v > 0.6 && Math.abs(dx) > 30)) { drag = null; flick(dx < 0 ? -1 : 1); return; } for (const k of ['--dx', '--dy', '--rx', '--ry', '--mx', '--my', '--fx', '--fy', '--fc', '--co']) el.style.removeProperty(k); }
   drag = null;
 });
 

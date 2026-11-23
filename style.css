@@ -593,11 +593,8 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
   background: radial-gradient(circle at var(--mx) var(--my), rgba(255, 255, 255, .55), transparent 50%); mix-blend-mode: soft-light; }
 
 /* Holo: rainbow foil over the whole card, sliding with the tilt. */
-.v-holo .art::after { content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none; border-radius: inherit; mix-blend-mode: color-dodge; opacity: .55;
-  background: repeating-linear-gradient(115deg, #ff3c8e 0 5%, #ffcf3d 10%, #3dffa2 15%, #3dc7ff 20%, #b45cff 25%, #ff3c8e 30%) calc(var(--mx) * 2) calc(var(--my) * 2) / 300% 300%; }
+/* (holo foil now from vendor/holo/holo.css) */
 /* Reverse holo: the frame is foil, the art stays clean. */
-.v-rev .frame { background: repeating-linear-gradient(115deg, #ffb3d1 0 6%, #ffe9a3 12%, #b3ffd9 18%, #b3e9ff 24%, #dcc2ff 30%, #ffb3d1 36%) calc(var(--mx) * 2) calc(var(--my) * 2) / 300% 300%; }
-.v-rev .art { z-index: 5; }
 /* Full art: the illustration fills the card, text printed on it. */
 .v-full .frame { background: linear-gradient(135deg, #e9edf5, #9aa7c2, #f8fbff, #b7c1d8); }
 .v-full .art { position: absolute !important; inset: 2.2cqw; height: auto !important; aspect-ratio: auto !important; border-radius: 3.8cqw; box-shadow: none; z-index: 0; }
@@ -715,3 +712,18 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
 .stack .card.out-r { animation: outR .28s ease-in forwards !important; }
 @keyframes outL { to { transform: translateX(-140%) rotate(-24deg); opacity: 0; } }
 @keyframes outR { to { transform: translateX(140%) rotate(24deg); opacity: 0; } }
+
+/* ---------- holo effect layers (vendor/holo/holo.css, GPL-3.0, by Simon Goellner) ---------- */
+@property --fx { syntax: '<number>'; inherits: true; initial-value: .5; }
+@property --fy { syntax: '<number>'; inherits: true; initial-value: .3; }
+.holo { --pointer-x: var(--mx); --pointer-y: var(--my); --background-x: calc(37% + var(--fx) * 26%); --background-y: calc(33% + var(--fy) * 34%);
+  --pointer-from-left: var(--fx); --pointer-from-top: var(--fy); --pointer-from-center: var(--fc, .55); --card-opacity: var(--co, .7);
+  --card-radius: 5.5cqw; --clip: inset(13% 5% 51% 5%); --clip-invert: polygon(0 0, 100% 0, 100% 100%, 0 100%, 0 49%, 95% 49%, 95% 13%, 5% 13%, 5% 49%, 0 52%); }
+.holo[data-rarity="rare ultra"] { --foil: url(vendor/holo/img/illusion.png); --clip: none; }
+.holo .holo__shine, .holo .holo__glare { position: absolute; inset: 0; z-index: 6; pointer-events: none; border-radius: inherit; display: grid; }
+.holo .holo__glare { z-index: 7; }
+.holo .holo__shine::before, .holo .holo__shine::after, .holo .holo__glare::after { grid-area: 1 / 1; }
+@keyframes sway { 0% { --rx: 6deg; --ry: -12deg; --mx: 15%; --my: 20%; --fx: .15; --fy: .2; } 50% { --rx: -4deg; --ry: 4deg; --mx: 55%; --my: 60%; --fx: .55; --fy: .6; } 100% { --rx: 5deg; --ry: 13deg; --mx: 90%; --my: 30%; --fx: .9; --fy: .3; } }
+/* Reverse holo: foil sits on the card body, under the text panels, like ink printed over foil. */
+.holo[data-rarity="reverse holo"] .frame > :not(.holo__shine):not(.holo__glare) { position: relative; z-index: 2; }
+.holo[data-rarity="reverse holo"] .holo__shine, .holo[data-rarity="reverse holo"] .holo__glare { z-index: 1; }

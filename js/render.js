@@ -81,11 +81,14 @@ function renderCard(c, o = {}) {
     ? `${c.text ? `<div class="text passive">${c.text}</div>` : ''}<div class="moves">${c.moves.map(mv => renderMove(mv, o.bonus)).join('')}</div>`
     : `<div class="text">${c.text}</div><div class="tag">${c.type === 'bit' ? `${ICON.time}${turns} turn${turns > 1 ? 's' : ''}` : c.type === 'evil' ? `${ICON.forever}Forever` : `${ICON.captain}${c.style}`}</div>`;
   const tv = c.type === 'character' && !c.main && TONE[c.art];
-  return `<div class="card k-${kind}${cls}"${style} data-id="${c.id}"><div class="frame"${tv ? ` style="${tv}"` : ''}>
+  // Foil finishes use the holo effect layers (vendor/holo/holo.css): v-holo = rare holo, v-rev = reverse holo, v-full = full-art ultra rare.
+  const fin = /\bv-full\b/.test(cls) ? ' data-rarity="rare ultra" data-supertype="pokémon"' : /\bv-rev\b/.test(cls) ? ' data-rarity="reverse holo"' : /\bv-holo\b/.test(cls) ? ' data-rarity="rare holo"' : '';
+  const layers = fin ? '<div class="holo__shine"></div><div class="holo__glare"></div>' : '';
+  return `<div class="card k-${kind}${cls}${fin ? ' holo' : ''}"${style}${fin} data-id="${c.id}"><div class="frame"${tv ? ` style="${tv}"` : ''}>
     <div class="head">${c.type !== 'captain' ? `<span class="pc" title="Actions to play">${(c.cost ?? 1) ? ICON.action.repeat(c.cost ?? 1) : 'FREE'}</span>` : ''}<span class="name">${c.name}</span>${hpTag}<span class="type">${ICON[kind]}</span></div>
     <div class="art">${art}${defTag}</div>
     ${body}
-    <div class="foot"><span>${c.role || LABEL[kind]}</span><span>TISM ${c.no}</span></div>
+    <div class="foot"><span>${c.role || LABEL[kind]}</span><span>TISM ${c.no}</span></div>${layers}
   </div></div>`;
 }
 

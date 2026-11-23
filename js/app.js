@@ -452,11 +452,11 @@ document.addEventListener('pointermove', e => {
   if (!c || calm) return;
   c.classList.add('held');
   const r = c.getBoundingClientRect(), x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
-  for (const [k, v] of [['--rx', `${((0.5 - y) * 18).toFixed(1)}deg`], ['--ry', `${((x - 0.5) * 22).toFixed(1)}deg`], ['--mx', `${(x * 100).toFixed(0)}%`], ['--my', `${(y * 100).toFixed(0)}%`]]) c.style.setProperty(k, v);
+  for (const [k, v] of [['--rx', `${((0.5 - y) * 18).toFixed(1)}deg`], ['--ry', `${((x - 0.5) * 22).toFixed(1)}deg`], ['--mx', `${(x * 100).toFixed(0)}%`], ['--my', `${(y * 100).toFixed(0)}%`], ['--fx', x.toFixed(3)], ['--fy', y.toFixed(3)], ['--fc', Math.min(1, Math.hypot(x - 0.5, y - 0.5) * 2).toFixed(3)], ['--co', 1]]) c.style.setProperty(k, v);
 });
 document.addEventListener('pointerout', e => {
   const c = e.target.closest?.('.card.zoom, .fan .card');
-  if (c && !c.contains(e.relatedTarget)) { c.classList.remove('held'); for (const k of ['--rx', '--ry', '--mx', '--my']) c.style.removeProperty(k); }
+  if (c && !c.contains(e.relatedTarget)) { c.classList.remove('held'); for (const k of ['--rx', '--ry', '--mx', '--my', '--fx', '--fy', '--fc', '--co']) c.style.removeProperty(k); }
 });
 
 // ---------------- networking ----------------
