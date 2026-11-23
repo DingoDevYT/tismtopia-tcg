@@ -67,6 +67,7 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
 .profile { display: flex; align-items: center; gap: 10px; padding: 5px 16px 5px 5px; border-radius: 999px; }
 .avatar { width: 40px; height: 40px; flex: none; display: grid; place-items: center; overflow: hidden; border-radius: 50%; color: #fff; background: linear-gradient(160deg, #f6e3a8, #d2a53f); box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--glow); }
 .avatar .i { width: 56%; height: 56%; }
+.avatar > * { grid-area: 1 / 1; }
 .avatar img { width: 100%; height: 100%; object-fit: cover; }
 .avatar.xl { width: 92px; height: 92px; }
 .logo { text-align: center; margin: 10px 0 0; }
@@ -139,7 +140,8 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
 .card .type { width: 11cqw; height: 11cqw; flex: none; display: grid; place-items: center; border-radius: 50%; color: #fff; background: var(--tint); box-shadow: 0 0 0 .9cqw rgba(255, 255, 255, .85); }
 .card .type .i { width: 7cqw; height: 7cqw; }
 .card .art { height: 44%; flex: none; overflow: hidden; border-radius: 2cqw; box-shadow: 0 0 0 1cqw rgba(255, 255, 255, .9), 0 1cqw 2.5cqw rgba(0, 0, 0, .18); }
-.card .art img { width: 100%; height: 100%; object-fit: cover; }
+.card .art { position: relative; }
+.card .art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .card .ph { width: 100%; height: 100%; display: grid; place-items: center; color: var(--tint);
   background: radial-gradient(circle at 50% 45%, rgba(255, 255, 255, .96) 30%, rgba(255, 255, 255, .7) 80%), repeating-linear-gradient(45deg, var(--tint) 0 .5cqw, transparent .5cqw 3cqw); }
 .card .ph .i { width: 34%; height: 50%; opacity: .32; }

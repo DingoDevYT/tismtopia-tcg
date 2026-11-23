@@ -1,6 +1,13 @@
 // Self-check for the rules engine. Run: node test/game.test.js
 const fs = require('fs'), vm = require('vm'), path = require('path');
-const src = ['cards.js', 'game.js'].map(f => fs.readFileSync(path.join(__dirname, '..', 'js', f), 'utf8')).join('\n');
+const load = files => files.map(f => fs.readFileSync(path.join(__dirname, '..', f), 'utf8')).join('\n');
+const src = load(['test/fixture-cards.js', 'js/cards.js', 'js/game.js']);
+
+// The real generated cards: both free starters must be legal and every Character usable.
+vm.runInNewContext(load(['js/cards-data.js', 'js/cards.js', 'js/game.js']) + `
+if (STARTERS.length !== 2 || STARTERS.some(d => deckProblems(d).length)) throw new Error('FAIL: real starters: ' + JSON.stringify(STARTERS.map(deckProblems)));
+if (!CARDS.filter(c => c.type === 'character').every(c => c.moves?.some(m => m.cost <= 1))) throw new Error('FAIL: a real Character has no move costing 0-1');
+`);
 
 vm.runInNewContext(src + `
 const assert = (ok, msg) => { if (!ok) throw new Error('FAIL: ' + msg); };

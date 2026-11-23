@@ -13,14 +13,18 @@ const int = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
 const str = (v, max) => typeof v === 'string' && v.trim().length > 0 && v.length <= max;
 const MOD_KEYS = ['atk', 'def', 'if', 'oppAttackCost', 'oppEvilCost', 'goofBonus', 'actions'];
 
-function steps(list, where) {
+function steps(list, where, noHp) {
   if (list === undefined) return;
   if (!Array.isArray(list)) return errs.push(`${where}: must be a list of steps like [["bore","opp",1]]`);
   for (const st of list) {
     if (!Array.isArray(st)) { errs.push(`${where}: each step must be an array`); continue; }
     const [what, a1, a2] = st;
-    if (what === 'flip') { steps(a1, `${where} > flip heads`); if (a2 !== undefined) steps(a2, `${where} > flip tails`); continue; }
-    if (what === 'hp') { if (!['target', 'self'].includes(a1) || !int(a2, 1, 3)) errs.push(`${where}: hp step must be ["hp","target"|"self",1-3]`); continue; }
+    if (what === 'flip') { steps(a1, `${where} > flip heads`, noHp); if (a2 !== undefined) steps(a2, `${where} > flip tails`, noHp); continue; }
+    if (what === 'hp') {
+      if (noHp) errs.push(`${where}: hp steps only work inside a Character's moves (Bits/Evils have no target)`);
+      else if (!['target', 'self'].includes(a1) || !int(a2, 1, 3)) errs.push(`${where}: hp step must be ["hp","target"|"self",1-3]`);
+      continue;
+    }
     if (!['goof', 'bore', 'draw', 'actions'].includes(what)) { errs.push(`${where}: unknown step "${what}" (allowed: goof, bore, draw, actions, hp, flip)`); continue; }
     if (!['me', 'opp'].includes(a1)) errs.push(`${where}: "${what}" needs "me" or "opp"`);
     if (!Number.isInteger(a2) || a2 === 0 || Math.abs(a2) > 4) errs.push(`${where}: "${what}" amount must be a whole number from -4 to 4, not 0`);
@@ -40,7 +44,8 @@ for (const [n, c] of cards.entries()) {
   if (!c || typeof c !== 'object') { errs.push(`${at}: not an object`); continue; }
   if (!/^[a-z0-9_]{3,40}$/.test(c.id || '')) errs.push(`${at}: id must be lowercase letters, digits and _ (e.g. "scrunge_orpheus")`);
   else if (ids.has(c.id)) errs.push(`${at}: duplicate id "${c.id}"`); else ids.add(c.id);
-  if (!str(c.folder, 200)) errs.push(`${at}: folder must be the exact art folder name`);
+  const item = c.type === 'bit' || c.type === 'evil';
+  if ((!item || c.folder !== undefined) && !str(c.folder, 200)) errs.push(`${at}: folder must be the exact art folder name`);
   if (!str(c.name, 24)) errs.push(`${at}: name must be 1-24 characters`);
   if (c.text !== undefined && c.text !== '' && !str(c.text, 140)) errs.push(`${at}: text must be at most 140 characters`);
   if (c.note !== undefined && typeof c.note !== 'string') errs.push(`${at}: note must be a string`);
@@ -70,7 +75,14 @@ for (const [n, c] of cards.entries()) {
     steps(c.ability, `${at} ability`);
     mod(c.mod, `${at} mod`);
     if (!c.ability && !c.mod) errs.push(`${at}: captain needs an ability (with once) or a mod`);
-  } else errs.push(`${at}: type must be "character" or "captain"`);
+  } else if (item) {
+    if (!str(c.text, 140)) errs.push(`${at}: needs text describing the effect`);
+    if (c.type === 'bit' && !int(c.dur, 1, 3)) errs.push(`${at}: a Bit needs dur 1-3 (how many of your turns it lasts)`);
+    if (c.type === 'evil' && c.dur !== undefined) errs.push(`${at}: Evils last forever, so no dur`);
+    for (const k of ['onPlay', 'onTurnStart', 'onOppTurnStart']) steps(c[k], `${at} ${k}`, true);
+    mod(c.mod, `${at} mod`);
+    if (!c.onPlay && !c.onTurnStart && !c.onOppTurnStart && !c.mod) errs.push(`${at}: needs an effect (onPlay, onTurnStart, onOppTurnStart or mod)`);
+  } else errs.push(`${at}: type must be "character", "captain", "bit" or "evil"`);
 }
 
 if (errs.length) { console.log(errs.join('\n')); process.exit(1); }

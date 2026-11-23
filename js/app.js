@@ -7,7 +7,10 @@ const store = {
 };
 const uid = () => Math.random().toString(36).slice(2, 10);
 let decks = store.get('decks', null);
-if (!Array.isArray(decks) || !decks.length) decks = [{ id: uid(), ...structuredClone(STARTER) }];
+// Old saves can hold placeholder cards that no longer exist: drop those, then add back any missing free starter.
+decks = (Array.isArray(decks) ? decks : []).map(d => ({ ...d, captain: CARD[d.captain]?.type === 'captain' ? d.captain : CAPTAINS[0].id,
+  cards: Object.fromEntries(Object.entries(d.cards || {}).filter(([id]) => CARD[id] && CARD[id].type !== 'captain')) })).filter(d => Object.keys(d.cards).length);
+decks.unshift(...STARTERS.filter(s => !decks.some(d => d.name === s.name)).map(s => ({ id: uid(), ...structuredClone(s) })));
 let myName = store.get('name', 'Player');
 const ui = { view: 'home', deckId: store.get('deck', decks[0].id), filter: 'all', zoom: null, sheet: null, defPick: null, toast: '', code: '', status: '', joinCode: '', tut: null };
 // `state` is the authoritative game (rules run on it); `game` is what's on screen, which trails it while animations play.
@@ -49,7 +52,7 @@ function viewHome() {
   return `<div class="topbar"><button class="profile neu" data-act="rename-me" aria-label="Change your name">${renderAvatar(CARD[deck().captain] || CAPTAINS[0])}<b>${esc(myName)}</b></button></div>
   <div class="logo"><b>Tismtopia</b><span>TRADING CARD GAME</span></div>
   <section class="hero neu">
-    <div class="fan">${['c_vc_goblin', 'm_sticker', 'b_brainrot'].map((id, i) => renderCard(CARD[id], { style: `--r:${(i - 1) * 9}deg;--y:${Math.abs(i - 1) * 14}px` })).join('')}</div>
+    <div class="fan">${Object.keys(STARTER.cards).slice(0, 3).map((id, i) => renderCard(CARD[id], { style: `--r:${(i - 1) * 9}deg;--y:${Math.abs(i - 1) * 14}px` })).join('')}</div>
     <div class="row2"><button class="btn primary" data-act="go" data-to="lobby" data-host="1">Host Battle</button><button class="btn" data-act="go" data-to="lobby">Join Battle</button></div>
   </section>
   <div class="tiles">
@@ -121,15 +124,17 @@ function viewGame() {
 
 // ---------------- tutorial: a guided bot battle; each step waits for `done(game)` or a Next tap ----------------
 const MY = '.side:nth-child(4)';
+// The tutorial Character: the first starter card with a 1-Action attack that can be used straight away.
+const TC = CARD[Object.keys(STARTER.cards).find(id => !CARD[id].sick && CARD[id].moves.some(m => m.cost === 1 && !m.ability))];
+const TM = TC.moves.find(m => m.cost === 1 && !m.ability);
 const TUT = [
   { text: 'Welcome to Tismtopia! Be the first to score 5 Points. This quick battle shows you how.', next: true },
   { text: 'This is you: your Captain card and your meters. Gold coins are Points. Goofiness (orange): fill it to 5 to score. Boredom (grey): if yours hits 5, your opponent scores.', sel: `${MY} .hud`, next: true },
   { text: "Every turn you gain 2 Actions. Playing a card costs 1, and each move shows its cost. Actions you don't spend are saved for next turn (up to 5), so you can save up for big moves.", sel: '.pips', next: true },
-  { text: 'Tap VC Goblin in your hand, then tap Play.', sel: () => (ui.zoom ? '.dim [data-a*=\'"play"\']' : '.hand .card[data-id="c_vc_goblin"]'), done: g => g.players[0].field.length > 0 },
-  { text: 'VC Goblin says "When played: +1 Goofiness", so your orange bar just went up. Card text runs by itself.', sel: `${MY} .meter.goof`, next: true },
-  { text: 'Characters attack with moves, each costing Actions. Tap VC Goblin on the field and use Mic Spam (1 Action). Nobody is blocking, so its power goes straight to their Boredom.',
+  { text: `Tap ${TC.name} in your hand, then tap Play.`, sel: () => (ui.zoom ? '.dim [data-a*=\'"play"\']' : `.hand .card[data-id="${TC.id}"]`), done: g => g.players[0].field.length > 0 },
+  { text: `Characters attack with moves, each costing Actions. Tap ${TC.name} on the field and use ${TM.name} (1 Action). Nobody is blocking, so its power goes straight to their Boredom.`,
     sel: () => (ui.zoom ? '.dim [data-a*=\'"attack"\']' : `${MY} .field .card`), done: g => g.players[1].bore > 0 },
-  { text: "Their Boredom went up by VC Goblin's ATK. You're out of Actions, so tap End Turn.", sel: '[data-act=end]', done: g => g.turn === 1 },
+  { text: "Their Boredom went up by the attack's power. You're out of Actions, so tap End Turn.", sel: '[data-act=end]', done: g => g.turn === 1 },
   { text: "The bot's turn. When it attacks, you pick a defender. It rolls a d20 and adds its ATK: if that reaches your defender's DEF, the attack breaks through.",
     sel: () => (game.phase !== 'defend' ? null : ui.defPick != null ? '.sheet [data-a*=\'"defend"\']' : '.sheet .field .card'), done: g => !!g.roll || (g.turn === 0 && g.turnNo > 2) },
   { text: 'Breaking through costs the defender 1 HP and adds Boredom equal to the ATK. A blocked attack costs the attacker 1 HP instead.', next: true },
@@ -147,7 +152,7 @@ function coach() {
 
 // ---------------- bot: adds a Character, attacks with its strongest, plays Bits/Evils, uses abilities, blocks with its toughest ----------------
 // shortcut: greedy, no lookahead; fine for practice, not a real opponent.
-const BOT_DECK = { ...STARTER, captain: 'cap_lurker' };
+const BOT_DECK = STARTERS[1];
 const best = (idx, score) => idx.reduce((b, i) => (score(i) > score(b) ? i : b), idx[0]);
 
 function startBot(tutorial) {
@@ -156,8 +161,7 @@ function startBot(tutorial) {
   const d = tutorial ? STARTER : deck(), g = newGame([{ captain: d.captain, cards: d.cards }, BOT_DECK], [myName, 'Bot']);
   if (tutorial) {
     g.turn = 0; g.log = ['Tutorial battle: you go first.'];
-    g.players[0].hand = ['c_vc_goblin', 'b_brainrot', 'c_reply_guy', 'e_slowmode', 'b_ping'];
-    g.players[1].hand = ['c_lagger', 'c_night_owl', 'b_ping', 'e_read', 'b_voice_crack'];
+    g.players[0].hand[0] = TC.id;
   }
   ui.tut = tutorial ? 0 : null;
   state = game = null; setGame(g); botSoon();

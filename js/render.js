@@ -52,7 +52,8 @@ function renderCard(c, o = {}) {
   const cls = o.cls ? ' ' + o.cls : '', style = (o.style ? ` style="${o.style}"` : '') + (o.attrs ? ' ' + o.attrs : '');
   if (!c) return `<div class="card back${cls}"${style}><div class="frame"></div></div>`;
   const kind = kindOf(c), hp = o.hp ?? c.hp, turns = o.turns ?? c.dur, def = o.def ?? c.def;
-  const art = c.art ? `<img src="${c.art}" alt=""${cropStyle(c.crop)}>` : `<span class="ph">${ICON[c.type]}</span>`;
+  // Art lives only on computers that ran tools/apply-cards.js; elsewhere the image fails and the placeholder underneath shows.
+  const art = `<span class="ph">${ICON[c.type]}</span>${c.art ? `<img src="${c.art}" alt="" onerror="this.remove()"${cropStyle(c.crop)}>` : ''}`;
   // Characters read like Pokemon cards: HP top right, DEF as a shield on the art, moves on one panel.
   const isChar = c.type === 'character';
   const hpTag = isChar ? `<span class="hp${hp < c.hp ? ' hurt' : ''}"><i>HP</i>${hp}</span>` : '';
@@ -68,7 +69,7 @@ function renderCard(c, o = {}) {
   </div></div>`;
 }
 
-const renderAvatar = (c, cls = '') => `<span class="avatar${cls}">${c.art ? `<img src="${c.art}" alt="">` : ICON.captain}</span>`;
+const renderAvatar = (c, cls = '') => `<span class="avatar${cls}">${ICON.captain}${c.art ? `<img src="${c.art}" alt="" onerror="this.remove()">` : ''}</span>`;
 const coins = n => `<div class="coins" title="Points ${n}/5">${Array.from({ length: 5 }, (_, i) => `<span class="${i < n ? 'on' : ''}">${ICON.point}</span>`).join('')}</div>`;
 const meter = (k, v) => `<div class="meter ${k}"><span>${ICON[k]}${k === 'goof' ? 'Goofiness' : 'Boredom'}</span><b>${v}/5</b>
   <div class="mbar">${Array.from({ length: 5 }, (_, i) => `<i class="${i < v ? 'on' : ''}"></i>`).join('')}</div></div>`;
