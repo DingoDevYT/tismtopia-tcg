@@ -243,7 +243,7 @@ function zoomGame(z) {
     const bonus = statsOf(game, w, item).bonus;
     const acts = c.moves.map((mv, m) => {
       const n = moveCost(game, me, mv), why = moveBlock(game, me, item, m);
-      const label = `<span class="mb-name">${mv.name}${why ? `<small>${why}</small>` : ''}</span>${mv.ability ? '' : `<span class="mb-pow">${mv.power + bonus}</span>`}${n ? cost(n) : '<span class="cost">Free</span>'}`;
+      const label = `<span class="mb-name">${mv.name}${why ? `<small>${why}</small>` : ''}</span>${mv.ability ? '' : `<span class="mb-pow">+${mv.power + bonus}</span>`}${n ? cost(n) : '<span class="cost">Free</span>'}`;
       return why ? `<button class="btn move-btn" disabled>${label}</button>` : !mv.ability && game.players[1 - me].field.length
         ? `<button class="btn move-btn${m === 0 ? ' primary' : ''}" data-act="aim" data-i="${z.i}" data-m="${m}">${label}</button>` : btn({ type: 'attack', i: z.i, m }, label, `move-btn${m === 0 ? ' primary' : ''}`);
     });

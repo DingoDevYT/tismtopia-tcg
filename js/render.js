@@ -45,7 +45,7 @@ const cropStyle = cr => {
 
 // A Character move, Pokemon style: Action pips, name, power (or "Ability"), effect text underneath.
 const renderMove = (mv, bonus = 0) => `<div class="move"><div class="mv-top"><span class="mv-cost">${mv.cost ? ICON.action.repeat(mv.cost) : '<em>Free</em>'}</span><b>${mv.name}</b>${mv.ability
-  ? '<span class="mv-tag">Ability</span>' : `<span class="mv-pow${bonus > 0 ? ' buff' : ''}">${mv.power + bonus}</span>`}</div>${mv.text ? `<div class="mv-text">${mv.text}</div>` : ''}</div>`;
+  ? '<span class="mv-tag">Ability</span>' : `<span class="mv-pow${bonus > 0 ? ' buff' : ''}" title="Power: added to the d20 roll, and the Boredom it deals on a break-through">+${mv.power + bonus}</span>`}</div>${mv.text ? `<div class="mv-text">${mv.text}</div>` : ''}</div>`;
 
 // c = card data (null = face-down). o: { cls, hp, def, bonus (live values; buffs show green), turns, style, attrs }
 // Character cards take their art's main colour: averaged once per image (saturated pixels count most), then cached.
