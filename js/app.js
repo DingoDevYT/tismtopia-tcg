@@ -115,8 +115,11 @@ function viewGame() {
   if (g.phase === 'over') return viewOver();
   const glow = live ? mine.field.flatMap((f, i) => (canUseAny(g, me, f) ? [i] : [])) : [];
   let html = renderBoard(g, me, { glow, sel: ui.zoom?.zone === 'hand' ? ui.zoom.i : undefined });
-  html += ui.atk && live ? targetSheet() : overlay();
-  return html + (ui.toast ? `<div class="toast neu">${esc(ui.toast)}</div>` : '') + coach();
+  if (g.phase === 'defend' && g.turn !== me) html += defendSheet();
+  else html += overlay();
+  const wait = g.phase === 'defend' && g.turn === me;
+  const banner = wait ? `Waiting for ${g.players[1 - me].name} to pick a blocker…` : ui.toast;
+  return html + (banner ? `<div class="toast neu${wait ? ' wait' : ''}">${esc(banner)}</div>` : '') + coach();
 }
 
 // ---------------- tutorial: a guided bot battle; each step waits for `done(game)` or a Next tap ----------------
@@ -129,11 +132,12 @@ const TUT = [
   { text: 'This is you: your Captain card and your meters. Boredom (grey) is your health: fill it up and you lose. Creativity (orange) is your hype: land hits to build it, then spend it on your Captain\'s Super (the marked notch).', sel: `${MY} .hud`, next: true },
   { text: "Every turn you gain 2 Actions. Playing a card costs 1, and each move shows its cost. Actions you don't spend are saved for next turn (up to 5), so you can save up for big moves.", sel: '.pips', next: true },
   { text: `Tap ${TC.name} in your hand, then tap Play.`, sel: () => (ui.zoom ? '.dim [data-a*=\'"play"\']' : `.hand .card[data-id="${TC.id}"]`), done: g => g.players[0].field.length > 0 },
-  { text: `Characters attack with moves, each costing Actions. Tap ${TC.name} on the field and use ${TM.name} (1 Action). Nobody is blocking, so its power goes straight to their Boredom.`,
+  { text: `Characters attack with moves, each costing Actions. Tap ${TC.name} on the field and use ${TM.name} (1 Action). Nobody can block, so its damage goes straight to their Boredom.`,
     sel: () => (ui.zoom ? '.dim [data-a*=\'"attack"\']' : `${MY} .field .card`), done: g => g.players[1].bore > 0 },
-  { text: "Their Boredom went up by the attack's power. You're out of Actions, so tap End Turn.", sel: '[data-act=end]', done: g => g.turn === 1 },
-  { text: "The bot's turn. The attacker always picks which Character to hit, then rolls a d20 and adds the attack's power: if that reaches the target's DEF, it breaks through.", done: g => g.turn === 0 && g.turnNo > 2 },
-  { text: 'Breaking through costs the target 1 HP, gives its owner Boredom equal to the power and knocks off 1 of their Creativity. A blocked attack does nothing.', next: true },
+  { text: "Their Boredom went up by the attack's damage. You're out of Actions, so tap End Turn.", sel: '[data-act=end]', done: g => g.turn === 1 },
+  { text: "The bot's turn. When it attacks, you pick which of your Characters blocks. The blocker takes the attack's damage minus its armour (the shield number).",
+    sel: () => (game.phase !== 'defend' ? null : ui.defPick != null ? '.sheet [data-a*=\'"defend"\']' : '.sheet .field .card'), done: g => !!g.roll || (g.turn === 0 && g.turnNo > 2) },
+  { text: 'Damage that gets through lowers HP; at 0 HP a Character is defeated and its owner gains 2 Boredom. Landing damage also moves 1 Creativity from them to you.', next: true },
   { text: 'Items are instant and last a few turns. Evils stay until removed. Tap your Captain to use its Super once you have enough Creativity, or your meters for the log, manual fixes, or to leave.', next: true },
   { text: "That's the basics! Finish this battle against the bot, then build your own deck.", next: 'Got it' },
 ];
@@ -171,8 +175,10 @@ function botMove() {
   if (game !== g) return botSoon(); // wait until the screen has caught up with the last move
   const B = g.players[1], n = g.actions, all = B.field.map((_, i) => i);
   let a = null;
-  const F = g.players[0].field, t = F.length ? best(F.map((_, i) => i), i => -statsOf(g, 0, F[i]).def * 10 - F[i].hp) : undefined;
-  if (g.turn === 1 && g.phase === 'play') {
+  if (g.phase === 'defend' && g.turn === 0) {
+    const mv = CARD[g.players[0].field[g.pending.i].id].moves[g.pending.m], pw = mv.power + statsOf(g, 0, g.players[0].field[g.pending.i]).bonus;
+    a = { type: 'defend', i: best(all, i => { const d = Math.max(0, pw - statsOf(g, 1, B.field[i]).def); return (d < B.field[i].hp ? 100 : 0) - d * 10 + B.field[i].hp; }) };
+  } else if (g.turn === 1 && g.phase === 'play') {
     const hc = B.hand.findIndex(id => CARD[id].type === 'character'), canPlay = hc >= 0 && B.field.length < 3;
     // Every move it can afford right now; attacks score by power per Action, abilities are a fallback.
     const moves = all.flatMap(i => CARD[B.field[i].id].moves.map((mv, m) => ({ i, m, mv, c: moveCost(g, 1, mv) })))
@@ -184,7 +190,7 @@ function botMove() {
     if (boost) a = { type: 'attack', i: boost.i, m: boost.m };
     else if (cap.ability && B.goof >= (cap.goof || 0) && !(cap.once && g.capUsed)) a = { type: 'ability', i: -1 };
     else if (n >= 2 && canPlay) a = { type: 'play', i: hc };
-    else if (attacks.length) { const x = attacks[best(attacks.map((_, k) => k), k => attacks[k].mv.power / attacks[k].c + attacks[k].mv.power * 0.1)]; a = { type: 'attack', i: x.i, m: x.m, t }; }
+    else if (attacks.length) { const x = attacks[best(attacks.map((_, k) => k), k => attacks[k].mv.power / attacks[k].c + attacks[k].mv.power * 0.1)]; a = { type: 'attack', i: x.i, m: x.m }; }
     else if (spell >= 0) a = { type: 'play', i: spell };
     else if (n && canPlay) a = { type: 'play', i: hc };
     else if (abil) a = { type: 'attack', i: abil.i, m: abil.m };
@@ -243,9 +249,8 @@ function zoomGame(z) {
     const bonus = statsOf(game, w, item).bonus;
     const acts = c.moves.map((mv, m) => {
       const n = moveCost(game, me, mv), why = moveBlock(game, me, item, m);
-      const label = `<span class="mb-name">${mv.name}${why ? `<small>${why}</small>` : ''}</span>${mv.ability ? '' : `<span class="mb-pow">+${mv.power + bonus}</span>`}${n ? cost(n) : '<span class="cost">Free</span>'}`;
-      return why ? `<button class="btn move-btn" disabled>${label}</button>` : !mv.ability && game.players[1 - me].field.length
-        ? `<button class="btn move-btn${m === 0 ? ' primary' : ''}" data-act="aim" data-i="${z.i}" data-m="${m}">${label}</button>` : btn({ type: 'attack', i: z.i, m }, label, `move-btn${m === 0 ? ' primary' : ''}`);
+      const label = `<span class="mb-name">${mv.name}${why ? `<small>${why}</small>` : ''}</span>${mv.ability ? '' : `<span class="mb-pow">${mv.power + bonus}</span>`}${n ? cost(n) : '<span class="cost">Free</span>'}`;
+      return why ? `<button class="btn move-btn" disabled>${label}</button>` : btn({ type: 'attack', i: z.i, m }, label, `move-btn${m === 0 ? ' primary' : ''}`);
     });
     rows = (mine && live ? `<div class="row2">${acts.join('')}</div>` : '')
       + `<div class="row2">${stepper(`HP ${item.hp}`, { type: 'hp', who: w, i: z.i, d: -1 }, { type: 'hp', who: w, i: z.i, d: 1 })}${remove}</div>`;
@@ -269,16 +274,14 @@ function adjustSheet() {
     <div class="row2" style="margin-top:14px"><button class="btn" data-act="leave-battle">Leave battle</button><button class="btn primary" data-act="close">Done</button></div>`);
 }
 
-function targetSheet() {
-  const g = game, af = g.players[me].field[ui.atk.i], ac = CARD[af?.id], mv = ac?.moves[ui.atk.m];
-  if (!mv) { ui.atk = null; return ''; }
-  const power = mv.power + statsOf(g, me, af).bonus, theirs = g.players[1 - me].field, pickI = ui.defPick;
-  const need = f => Math.max(1, statsOf(g, 1 - me, f).def - power);
-  return sheet(`<div class="attacker neu">${renderCard(ac, { cls: 'mini', hp: af.hp, ...statsOf(g, me, af) })}<div><b>${ac.name}</b> uses <b>${mv.name}</b> (power ${power})${mv.text ? `<br><small>${mv.text}</small>` : ''}</div></div>
-    <h2>Pick a target</h2>
-    <div class="field">${theirs.map((f, i) => renderCard(CARD[f.id], { cls: 'mini' + (i === pickI ? ' picked' : ''), hp: f.hp, ...statsOf(g, 1 - me, f), attrs: tappable('defpick', `data-i="${i}"`) })).join('')}</div>
-    <p class="muted center" style="margin:10px 0 12px">${theirs[pickI] ? `You need ${need(theirs[pickI])}+ on the d20 to break through.` : 'Roll d20 + power. It breaks through if that reaches the target\'s DEF.'}</p>
-    ${theirs[pickI] ? btn({ type: 'attack', i: ui.atk.i, m: ui.atk.m, t: pickI }, `Attack ${CARD[theirs[pickI].id].name}`, 'primary wide') : '<button class="btn wide" disabled>Tap a Character</button>'}`);
+function defendSheet() {
+  const g = game, af = g.players[g.turn].field[g.pending.i], ac = CARD[af.id], A = statsOf(g, g.turn, af), mine = g.players[me].field, pickI = ui.defPick;
+  const mv = ac.moves[g.pending.m], power = mv.power + A.bonus, dmg = f => Math.max(0, power - statsOf(g, me, f).def), pick = mine[pickI];
+  return sheet(`<div class="attacker neu">${renderCard(ac, { cls: 'mini', hp: af.hp, ...A })}<div><small>Incoming attack</small><br><b>${ac.name}</b> uses <b>${mv.name}</b>: ${power} damage${mv.text ? `<br><small>${mv.text}</small>` : ''}</div></div>
+    <h2>Pick a blocker</h2>
+    <div class="field">${mine.map((f, i) => renderCard(CARD[f.id], { cls: 'mini' + (i === pickI ? ' picked' : ''), hp: f.hp, ...statsOf(g, me, f), attrs: tappable('defpick', `data-i="${i}"`) })).join('')}</div>
+    <p class="muted center" style="margin:10px 0 12px">${pick ? (dmg(pick) >= pick.hp ? `${CARD[pick.id].name} takes ${dmg(pick)} and is defeated: you gain 2 Boredom.` : `${CARD[pick.id].name} takes ${dmg(pick)} damage after armour.`) : 'Armour (the shield) blocks that much of each hit. A defeated Character gives you 2 Boredom.'}</p>
+    ${pick ? btn({ type: 'defend', i: pickI }, `Block with ${CARD[pick.id].name}`, 'primary wide') : '<button class="btn wide" disabled>Tap a Character</button>'}`, false);
 }
 
 function render() {
@@ -293,7 +296,7 @@ function render() {
   if (sel) $app.querySelector(typeof sel === 'function' ? sel() : sel)?.classList.add('coach-target');
   if (focus) document.getElementById(focus)?.focus();
   // Entry animations only when an overlay first appears, not on every re-render.
-  const key = [ui.view, JSON.stringify(ui.zoom), ui.sheet, JSON.stringify(ui.atk)].join('|');
+  const key = [ui.view, JSON.stringify(ui.zoom), ui.sheet, game?.phase === 'defend' && game.turn !== me].join('|');
   if (key !== lastOverlay) { lastOverlay = key; $app.querySelectorAll('.dim, .sheet, .card.zoom').forEach(el => el.classList.add('enter')); }
 }
 let lastOverlay = '';
@@ -394,18 +397,11 @@ async function attackAnim(e, ev) {
   const defEl = fieldEl(e.target.p, e.target.i), r = e.roll;
   if (!defEl) return;
   const shield = overlayOn(defEl, `<div class="shield">${ICON.def}<b>${r.def}</b></div>`, 'shield-on');
-  await sleep(380);
-  const roll = overlayOn(atkEl, '<div class="d20">?</div><div class="die-sum"></div>', 'die-on');
-  await spin(roll.querySelector('.d20'), r.rolls);
-  const sum = roll.querySelector('.die-sum');
-  sum.textContent = `${r.rolls.length > 1 ? `kept ${r.die} ` : ''}+${r.atk} = ${r.total}`;
-  sum.classList.add('show');
-  await sleep(650);
-  roll.remove();
+  await sleep(420);
   await jump(atkEl, defEl);
-  if (r.hit) { shield.classList.add('shatter'); flash(defEl, 'hurt', 600); floatText(defEl, '−1 HP', 'dmg'); }
+  if (r.hit) { shield.classList.add('shatter'); flash(defEl, 'hurt', 600); floatText(defEl, `−${r.dmg} HP`, 'dmg'); }
   else { shield.classList.add('block'); floatText(defEl, 'Blocked!', 'blocked'); }
-  await sleep(520);
+  await sleep(560);
   shield.remove();
   const kos = ev.filter(x => x.k === 'hit' && x.ko);
   kos.forEach(k => disintegrate(fieldEl(k.p, k.i)));

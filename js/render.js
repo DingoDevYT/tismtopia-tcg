@@ -45,7 +45,7 @@ const cropStyle = cr => {
 
 // A Character move, Pokemon style: Action pips, name, power (or "Ability"), effect text underneath.
 const renderMove = (mv, bonus = 0) => `<div class="move"><div class="mv-top"><span class="mv-cost">${mv.cost ? ICON.action.repeat(mv.cost) : '<em>Free</em>'}</span><b>${mv.name}</b>${mv.ability
-  ? '<span class="mv-tag">Ability</span>' : `<span class="mv-pow${bonus > 0 ? ' buff' : ''}" title="Power: added to the d20 roll, and the Boredom it deals on a break-through">+${mv.power + bonus}</span>`}</div>${mv.text ? `<div class="mv-text">${mv.text}</div>` : ''}</div>`;
+  ? '<span class="mv-tag">Ability</span>' : `<span class="mv-pow${bonus > 0 ? ' buff' : ''}" title="Damage">${mv.power + bonus}</span>`}</div>${mv.text ? `<div class="mv-text">${mv.text}</div>` : ''}</div>`;
 
 // c = card data (null = face-down). o: { cls, hp, def, bonus (live values; buffs show green), turns, style, attrs }
 // Character cards take their art's main colour: averaged once per image (saturated pixels count most), then cached.
@@ -70,13 +70,13 @@ function tone(img) {
 function renderCard(c, o = {}) {
   const cls = o.cls ? ' ' + o.cls : '', style = (o.style ? ` style="${o.style}"` : '') + (o.attrs ? ' ' + o.attrs : '');
   if (!c) return `<div class="card back${cls}"${style}><div class="frame"></div></div>`;
-  const kind = kindOf(c), hp = o.hp ?? c.hp, turns = o.turns ?? c.dur, def = o.def ?? c.def;
+  const kind = kindOf(c), isCh = c.type === 'character', hp = o.hp ?? (isCh ? maxHp(c) : c.hp), turns = o.turns ?? c.dur, def = o.def ?? (isCh ? baseArmor(c) : c.def);
   // Art lives only on computers that ran tools/apply-cards.js; elsewhere the image fails and the placeholder underneath shows.
   const art = `<span class="ph">${ICON[c.type]}</span>${c.art ? `<img src="${c.art}" alt="" onerror="this.remove()"${c.type === 'character' && !c.main ? ' onload="tone(this)"' : ''}${cropStyle(c.crop)}>` : ''}`;
   // Characters read like Pokemon cards: HP top right, DEF as a shield on the art, moves on one panel.
   const isChar = c.type === 'character';
-  const hpTag = isChar ? `<span class="hp${hp < c.hp ? ' hurt' : ''}"><i>HP</i>${hp}</span>` : '';
-  const defTag = isChar ? `<span class="defb${def > c.def ? ' buff' : ''}" title="Defense">${ICON.def}<b>${def}</b></span>` : '';
+  const hpTag = isChar ? `<span class="hp${hp < maxHp(c) ? ' hurt' : ''}"><i>HP</i>${hp}</span>` : '';
+  const defTag = isChar ? `<span class="defb${def > baseArmor(c) ? ' buff' : ''}" title="Armour: damage blocked per hit">${ICON.def}<b>${def}</b></span>` : '';
   const body = isChar
     ? `${c.text ? `<div class="text passive">${c.text}</div>` : ''}<div class="moves">${c.moves.map(mv => renderMove(mv, o.bonus)).join('')}</div>`
     : `<div class="text">${c.text}</div><div class="tag">${c.type === 'bit' ? `${ICON.time}${turns} turn${turns > 1 ? 's' : ''}` : c.type === 'evil' ? `${ICON.forever}Forever` : `${ICON.captain}${c.style}`}</div>`;

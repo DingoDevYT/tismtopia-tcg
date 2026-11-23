@@ -38,7 +38,7 @@ const modSum = (s, pi, key) => sources(s, pi).reduce((n, c) =>
 // mod.if: 'noGoof' = while you have 0 Creativity; any other word = while you have another Character of that group on the field.
 const modOn = (s, pi, c) => { const w = c.mod.if, F = s.players[pi].field; return !w || (w === 'noGoof' ? !s.players[pi].goof : F.filter(f => CARD[f.id].group === w && f.id !== c.id).length > 0); };
 // A Character's live numbers: DEF with modifiers, and `bonus` power added to each of its attacks.
-const statsOf = (s, pi, f) => ({ def: CARD[f.id].def + modSum(s, pi, 'def'), bonus: modSum(s, pi, 'atk') });
+const statsOf = (s, pi, f) => ({ def: baseArmor(CARD[f.id]) + modSum(s, pi, 'def'), bonus: modSum(s, pi, 'atk') }); // def = armour
 const moveCost = (s, pi, mv) => mv.cost + (mv.ability ? 0 : modSum(s, 1 - pi, 'oppAttackCost'));
 const playCost = (s, pi, c) => (c.cost ?? 1) + (c.type === 'evil' ? modSum(s, 1 - pi, 'oppEvilCost') : 0);
 const canAttack = (s, f) => !(CARD[f.id].sick && f.t === s.turnNo);
@@ -132,6 +132,7 @@ function apply(s0, p, a, rng = Math.random) {
   };
 
   if (s.phase === 'over') throw new Error('The game is over.');
+  if (s.phase === 'defend' && a.type !== 'defend') throw new Error('Waiting for a blocker.');
   s.roll = null;
   s.events = [];
 
@@ -140,7 +141,7 @@ function apply(s0, p, a, rng = Math.random) {
       const id = at(me.hand, a.i), c = CARD[id];
       spend(playCost(s, p, c));
       me.hand.splice(a.i, 1);
-      if (c.type === 'character') { me.field.push({ id, hp: c.hp, t: s.turnNo }); ev({ k: 'play', p, zone: 'field', i: me.field.length - 1 }); }
+      if (c.type === 'character') { me.field.push({ id, hp: maxHp(c), t: s.turnNo }); ev({ k: 'play', p, zone: 'field', i: me.field.length - 1 }); }
       else { me.effects.push(c.type === 'bit' ? { id, turns: c.dur } : { id }); ev({ k: 'play', p, zone: 'fx', i: me.effects.length - 1 }); ev({ k: 'cast', p, id }); }
       say(`${me.name} played ${c.name}.`);
       runOps(p, c.onPlay, c);
@@ -162,19 +163,8 @@ function apply(s0, p, a, rng = Math.random) {
       }
       if (!canAttack(s, f)) throw new Error(`${c.name} can't attack the turn it's played.`);
       spend(moveCost(s, p, mv));
-      if (opp.field.length) { // the attacker picks the target (a.t)
-        const df = at(opp.field, a.t), dc = CARD[df.id];
-        const power = mv.power + statsOf(s, p, f).bonus, def = statsOf(s, 1 - p, df).def;
-        const roll = () => 1 + Math.floor(rng() * 20);
-        const rolls = dc.disadv ? [roll(), roll()] : [roll()], die = Math.min(...rolls), total = die + power, hit = total >= def;
-        ev({ k: 'attack', p, i: a.i, target: { p: 1 - p, i: a.t }, move: mv.name, roll: { die, rolls, atk: power, def, total, hit } });
-        if (hit) { hurt(1 - p, a.t); gain(1 - p, 'bore', power); gain(1 - p, 'goof', -1); gain(p, 'goof', 1); }
-        s.roll = { seq: s.seq + 1, die, rolls, atk: power, def, total, hit, a: f.id, d: df.id, aHp: f.hp, dHp: df.hp, by: p };
-        say(`${c.name} uses ${mv.name} on ${dc.name}: rolled ${rolls.length > 1 ? `${rolls.join(' & ')}, kept ${die}` : die} + ${power} = ${total} vs ${def} DEF: ` + (hit
-          ? `breaks through! ${dc.name} -1 HP, ${opp.name} +${power} Boredom and -1 Creativity, ${me.name} +1 Creativity.` : 'blocked!'));
-        if (hit) { runOps(p, mv.onHit, c, { self, target: { p: 1 - p, i: a.t } }); runOps(p, c.onBreak, c, { self }); }
-        cull(opp);
-      } else {
+      if (opp.field.length) { s.phase = 'defend'; s.pending = { i: a.i, m: a.m }; say(`${c.name} uses ${mv.name}! ${opp.name} picks a blocker.`); }
+      else {
         const power = mv.power + statsOf(s, p, f).bonus;
         ev({ k: 'attack', p, i: a.i, direct: true, move: mv.name });
         gain(1 - p, 'bore', power);
@@ -182,6 +172,24 @@ function apply(s0, p, a, rng = Math.random) {
         runOps(p, mv.onHit, c, { self });
       }
       cull(me);
+      break;
+    }
+    case 'defend': { // the defender picks which Character blocks; damage = power - armour
+      if (s.phase !== 'defend' || s.turn === p) throw new Error('Nothing to defend.');
+      const ai = 1 - p, af = at(opp.field, s.pending.i), df = at(me.field, a.i);
+      const ac = CARD[af.id], dc = CARD[df.id], mv = ac.moves[s.pending.m];
+      const power = mv.power + statsOf(s, ai, af).bonus, armor = statsOf(s, p, df).def, dmg = Math.max(0, power - armor), hit = dmg > 0;
+      ev({ k: 'attack', p: ai, i: s.pending.i, target: { p, i: a.i }, move: mv.name, roll: { atk: power, def: armor, dmg, hit } });
+      for (let k = 0; k < dmg; k++) hurt(p, a.i);
+      s.roll = { seq: s.seq + 1, atk: power, def: armor, dmg, hit, a: af.id, d: df.id, by: ai };
+      say(`${mv.name} hits ${dc.name} for ${power}${armor ? ` (armour ${armor})` : ''}: ` + (hit ? `${dmg} damage. ${me.name} -1 Creativity, ${opp.name} +1 Creativity.` : 'all blocked!'));
+      if (hit) {
+        gain(p, 'goof', -1); gain(ai, 'goof', 1);
+        runOps(ai, mv.onHit, ac, { self: { p: ai, i: s.pending.i }, target: { p, i: a.i } });
+        runOps(ai, ac.onBreak, ac, { self: { p: ai, i: s.pending.i } });
+      }
+      cull(opp); cull(me);
+      s.phase = 'play'; s.pending = null;
       break;
     }
     case 'ability': { // Captain Super: costs Creativity (c.goof); Character abilities are moves

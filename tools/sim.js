@@ -1,10 +1,10 @@
 // Headless balance sim on the real rules engine: bots play each other thousands of times, then it prints a summary.
-// Run: node tools/sim.js [games per matchup, default 200] [seed, default 1] [Boredom knockout, default the game's]
+// Run: node tools/sim.js [games per matchup, default 200] [seed, default 1] [Boredom knockout] [HP scale] (defaults: the game's)
 // The bots are small greedy policies on purpose: if one simple plan beats everything by a mile, that's a balance problem.
 const fs = require('fs'), vm = require('vm'), path = require('path');
 const root = path.join(__dirname, '..');
 const ctx = vm.createContext({ structuredClone, console });
-vm.runInContext(['js/cards-data.js', 'js/cards.js', 'js/game.js'].map(f => fs.readFileSync(path.join(root, f), 'utf8')).join('\n').replace(/const BORE_MAX = \d+;/, m => (process.argv[4] ? `const BORE_MAX = ${+process.argv[4]};` : m))
+vm.runInContext(['js/cards-data.js', 'js/cards.js', 'js/game.js'].map(f => fs.readFileSync(path.join(root, f), 'utf8')).join('\n').replace(/const BORE_MAX = \d+;/, m => (process.argv[4] ? `const BORE_MAX = ${+process.argv[4]};` : m)).replace(/const HP_SCALE = \d+;/, m => (process.argv[5] ? `const HP_SCALE = ${+process.argv[5]};` : m))
   + '\nthis.E = { CARDS, CAPTAINS, STARTERS, CARD, newGame, apply, deckProblems, statsOf, DECK_SIZE };', ctx);
 const { CARDS, CAPTAINS, STARTERS, CARD, newGame, apply, deckProblems, statsOf, DECK_SIZE } = ctx.E;
 
@@ -18,8 +18,7 @@ const tryAct = (s, p, a, r = rng) => { try { return apply(s, p, a, r); } catch {
 function options(s) {
   const p = s.turn, me = s.players[p], out = [], seen = new Set();
   me.hand.forEach((id, i) => { if (!seen.has(id)) { seen.add(id); out.push({ type: 'play', i }); } });
-  const T = s.players[1 - p].field.map((_, t) => t);
-  me.field.forEach((f, i) => CARD[f.id].moves.forEach((mv, m) => (T.length && !mv.ability ? T.map(t => ({ type: 'attack', i, m, t })) : [{ type: 'attack', i, m }]).forEach(a => out.push(a))));
+  me.field.forEach((f, i) => CARD[f.id].moves.forEach((_, m) => out.push({ type: 'attack', i, m })));
   if (CARD[me.captain].ability) out.push({ type: 'ability', i: -1 });
   s.players[1 - p].effects.forEach((e, i) => CARD[e.id].type === 'evil' && out.push({ type: 'cleanse', i }));
   return out.filter(a => tryAct(s, p, a));
@@ -42,6 +41,10 @@ const odds = (s, a) => {
   const need = statsOf(s, 1 - p, tf).def - (mv(s, a).power + statsOf(s, p, s.players[p].field[a.i]).bonus);
   const ph = Math.min(1, Math.max(0, (21 - need) / 20));
   return CARD[tf.id].disadv ? ph * ph : ph;
+};
+const block = (s, p) => {
+  const af = s.players[1 - p].field[s.pending.i], pw = CARD[af.id].moves[s.pending.m].power + statsOf(s, 1 - p, af).bonus;
+  return s.players[p].field.reduce((b, f, i, F) => { const sc = x => { const d = Math.max(0, pw - statsOf(s, p, F[x]).def); return (d < F[x].hp ? 100 : 0) - d * 10 + F[x].hp; }; return sc(i) > sc(b) ? i : b; }, 0);
 };
 const byOrder = order => (s, p) => {
   const o = options(s);
@@ -67,9 +70,9 @@ const POL = {
     for (const a of options(s)) {
       const n = tryAct(s, p, a);
       let v;
-      if (kind(s, a) === 'attack' && a.t !== undefined) {
-        const ph = odds(s, a), hit = tryAct(s, p, a, () => 0.999), miss = tryAct(s, p, a, () => 0);
-        v = ph * val(hit, p) + (1 - ph) * val(miss, p);
+      if (n.phase === 'defend') {
+        const d = tryAct(n, 1 - p, { type: 'defend', i: block(n, 1 - p) });
+        v = d ? val(d, p) : val(n, p);
       } else v = val(n, p);
       if (v > bestV) { bestV = v; best = a; }
     }
@@ -81,7 +84,8 @@ function play(decks, pols, cap = 200) {
   let s = newGame(decks, ['A', 'B'], rng);
   const st = { first: s.turn, attacks: 0, hits: 0, direct: 0, supers: 0, kos: 0 };
   for (let steps = 0; s.phase !== 'over' && s.turnNo < cap && steps < 5000; steps++) {
-    const p = s.turn, a = pols[p](s, p);
+    const p = s.phase === 'defend' ? 1 - s.turn : s.turn;
+    const a = s.phase === 'defend' ? { type: 'defend', i: block(s, p) } : pols[p](s, p);
     s.events = [];
     const n = tryAct(s, p, a) || tryAct(s, p, END);
     if (!n) throw new Error('stuck on ' + JSON.stringify(a));
@@ -112,7 +116,7 @@ const t0 = Date.now(), agg = {};
 const note = (k, r, won) => { const a = (agg[k] ||= { g: 0, w: 0, turns: 0, attacks: 0, hits: 0, direct: 0, goof: 0, bore: 0, draws: 0 });
   a.g++; a.w += won; a.turns += r.turns; a.attacks += r.attacks; a.hits += r.hits; a.direct += r.direct; a.goof += r.supers; a.bore += r.kos; a.draws += r.winner < 0; };
 
-console.log(`== Strategy matrix: row's win rate vs column (${N} games each, starter decks swapped every game, attacker picks the target) ==`);
+console.log(`== Strategy matrix: row's win rate vs column (${N} games each, starter decks swapped every game, defender blocks with the Character that loses least) ==`);
 const names = Object.keys(POL);
 console.log('          ' + names.map(n => n.padStart(8)).join(''));
 let firstWins = 0, decided = 0;

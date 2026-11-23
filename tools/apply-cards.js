@@ -25,6 +25,7 @@ for (const d of drafts) {
   for (const k of META) delete c[k];
   c.id = d.id;
   c.name = c.name.replace(/[,\s]+$/, '');
+  if (c.disadv && c.text) c.text = c.text.replace(/Attacks against .*? roll twice and keep the lower\./, 'Tough: +1 armour.');
   owner[c.id] = r?.owner || d.owner || '';
   const a = r?.art || {}, src = a.path ? path.join(ART, a.path) : a.file ? path.join(ART, r?.folder || d.folder, a.file) : null;
   if (src && fs.existsSync(src)) {
