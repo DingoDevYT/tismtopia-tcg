@@ -14,20 +14,22 @@ fs.mkdirSync(path.join(root, 'art', 'local'), { recursive: true });
 const owner = {}, cards = [];
 for (const d of drafts) {
   const r = dec[d.id];
-  if (r?.status !== 'accepted') continue;
-  const c = structuredClone(r.card || d);
+  // shortcut: lore Bits/Evils go in unless denied, so the starters have some before they're reviewed; require 'accepted' once they are.
+  const item = d.type === 'bit' || d.type === 'evil';
+  if (item ? r?.status === 'denied' : r?.status !== 'accepted') continue;
+  const c = structuredClone(r?.card || d);
   if (c.type === 'captain' && !d.id.startsWith('captain_')) continue; // old OC captains: Captains are the people now
   for (const k of META) delete c[k];
   c.id = d.id;
   c.name = c.name.replace(/[,\s]+$/, '');
-  owner[c.id] = r.owner || d.owner || '';
-  const a = r.art || {}, src = a.path ? path.join(ART, a.path) : a.file ? path.join(ART, r.folder || d.folder, a.file) : null;
+  owner[c.id] = r?.owner || d.owner || '';
+  const a = r?.art || {}, src = a.path ? path.join(ART, a.path) : a.file ? path.join(ART, r?.folder || d.folder, a.file) : null;
   if (src && fs.existsSync(src)) {
     const rel = `art/local/${c.id}${path.extname(src).toLowerCase()}`;
     fs.copyFileSync(src, path.join(root, rel));
     c.art = rel;
     c.crop = { x: a.x ?? 50, y: a.y ?? 50, zoom: a.zoom ?? 1 };
-  } else console.warn(`no art for ${c.id}${src ? ` (missing ${src})` : ''}`);
+  } else if (!item) console.warn(`no art for ${c.id}${src ? ` (missing ${src})` : ''}`);
   cards.push(c);
 }
 
@@ -40,10 +42,12 @@ const dealt = [];
 for (let i = 0; groups.some(g => g[i]); i++) for (const g of groups) if (g[i]) dealt.push(g[i]);
 const mains = chars.filter(c => c.main);
 const mainB = mains.find(m => owner[m.id] !== owner[mains[0]?.id]) || mains[1];
+const items = CARDS.filter(c => c.type !== 'character');
 const STARTERS = [['All-Stars A', 'captain_anonagon', mains[0]], ['All-Stars B', 'captain_xee', mainB]].map(([name, cap, main], k) => {
   const pick = dealt.filter((_, i) => i % 2 === k), deck = {};
   let n = 0;
   if (main) { deck[main.id] = 1; n = 1; }
+  for (const c of items.filter((_, i) => i % 2 === k)) { deck[c.id] = 1; n++; } // half the Bits/Evils each, one copy
   for (const c of pick) { if (n >= 20) break; const take = Math.min(2, 20 - n); deck[c.id] = take; n += take; }
   if (n < 20) throw new Error(`${name}: only ${n} cards available`);
   return { name, captain: CAPTAINS.some(c => c.id === cap) ? cap : CAPTAINS[k].id, cards: deck };

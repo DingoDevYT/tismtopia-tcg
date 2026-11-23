@@ -137,7 +137,7 @@ const TUT = [
   { text: "Their Boredom went up by the attack's power. You're out of Actions, so tap End Turn.", sel: '[data-act=end]', done: g => g.turn === 1 },
   { text: "The bot's turn. When it attacks, you pick a defender. It rolls a d20 and adds its ATK: if that reaches your defender's DEF, the attack breaks through.",
     sel: () => (game.phase !== 'defend' ? null : ui.defPick != null ? '.sheet [data-a*=\'"defend"\']' : '.sheet .field .card'), done: g => !!g.roll || (g.turn === 0 && g.turnNo > 2) },
-  { text: 'Breaking through costs the defender 1 HP and adds Boredom equal to the ATK. A blocked attack costs the attacker 1 HP instead.', next: true },
+  { text: 'Breaking through costs the defender 1 HP and adds Boredom equal to the ATK. A blocked attack does nothing.', next: true },
   { text: 'Bits are instant and last a few turns. Evils stay until removed. Tap your Captain to use its ability, or your meters for the log, manual fixes, or to leave.', next: true },
   { text: "That's the basics! Finish this battle against the bot, then build your own deck.", next: 'Got it' },
 ];
@@ -405,7 +405,7 @@ async function attackAnim(e, ev) {
   roll.remove();
   await jump(atkEl, defEl);
   if (r.hit) { shield.classList.add('shatter'); flash(defEl, 'hurt', 600); floatText(defEl, '−1 HP', 'dmg'); }
-  else { shield.classList.add('block'); flash(atkEl, 'hurt', 600); floatText(defEl, 'Blocked!', 'blocked'); setTimeout(() => floatText(atkEl, '−1 HP', 'dmg'), 200); }
+  else { shield.classList.add('block'); floatText(defEl, 'Blocked!', 'blocked'); }
   await sleep(520);
   shield.remove();
   const kos = ev.filter(x => x.k === 'hit' && x.ko);

@@ -83,7 +83,8 @@ assert(s.players[0].bore === 0 && s.players[1].points === 1, 'Left on Read pushe
 s.actions = 9;
 s = apply(s, 0, { type: 'attack', i: 1, m: 1 }); // Night Owl All-Nighter (power 4)
 s = apply(s, 1, { type: 'defend', i: 1 }, seq(0.99, 0)); // vs Larry: rolls 20 & 1, keeps 1: 5 vs 16 -> blocked
-assert(!s.roll.hit && s.roll.die === 1 && s.roll.rolls.length === 2 && s.players[0].field[1].hp === 1, 'Larry: roll twice keep lower');
+assert(!s.roll.hit && s.roll.die === 1 && s.roll.rolls.length === 2 && s.players[0].field[1].hp === 2, 'Larry: roll twice keep lower; a blocked attacker takes no damage');
+s.players[0].field[1].hp = 1;
 s = apply(s, 0, { type: 'attack', i: 1, m: 1 });
 s = apply(s, 1, { type: 'defend', i: 0 }, fixed(0.99)); // vs Reply Guy: hit; All-Nighter costs Night Owl 1 HP -> KO
 assert(s.roll.hit && !s.players[0].field.some(f => f.id === 'c_night_owl'), 'All-Nighter: self damage can defeat the attacker');

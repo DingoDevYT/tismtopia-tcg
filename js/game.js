@@ -165,11 +165,11 @@ function apply(s0, p, a, rng = Math.random) {
       const roll = () => 1 + Math.floor(rng() * 20);
       const rolls = dc.disadv ? [roll(), roll()] : [roll()], die = Math.min(...rolls), total = die + power, hit = total >= def;
       ev({ k: 'attack', p: ai, i: s.pending.i, target: { p, i: a.i }, move: mv.name, roll: { die, rolls, atk: power, def, total, hit } });
-      if (hit) { hurt(p, a.i); gain(p, 'bore', power); } else hurt(ai, s.pending.i);
+      if (hit) { hurt(p, a.i); gain(p, 'bore', power); }
       s.roll = { seq: s.seq + 1, die, rolls, atk: power, def, total, hit, a: af.id, d: df.id, aHp: af.hp, dHp: df.hp, by: ai };
       say(`${mv.name}: rolled ${rolls.length > 1 ? `${rolls.join(' & ')}, kept ${die}` : die} + ${power} = ${total} vs ${def} DEF: ` + (hit
         ? `breaks through! ${dc.name} -1 HP, ${me.name} +${power} Boredom.`
-        : `blocked! ${ac.name} -1 HP.`));
+        : 'blocked!'));
       if (hit) {
         runOps(ai, mv.onHit, ac, { self: { p: ai, i: s.pending.i }, target: { p, i: a.i } });
         runOps(ai, ac.onBreak, ac);

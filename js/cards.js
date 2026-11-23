@@ -29,7 +29,7 @@ const RULES = [
   ['Goal', 'First to 5 Points wins. Both players start at 0 Points, 0 Goofiness and 0 Boredom.'],
   ['Scoring', "Your Goofiness hits 5: you get 1 Point and it resets. Your opponent's Boredom hits 5: you get 1 Point and theirs resets. Meters cap at 5; extra is lost."],
   ['Your turn', "Draw 1 card (the first player skips this on turn one). You gain 2 Actions; any you don't spend are saved for your next turn, up to 5. Playing a card costs 1. Each Character move costs what's printed next to it. End your turn whenever."],
-  ['Combat', "Pick one of your Character's attacks. Roll a d20 and add the attack's power. If it's at least the defender's DEF, the defender loses 1 HP, your opponent gains Boredom equal to the power, and the attack's extra effect happens. If not, your attacker loses 1 HP. No Characters to block? The power goes straight to Boredom."],
+  ['Combat', "Pick one of your Character's attacks. Roll a d20 and add the attack's power. If it's at least the defender's DEF, the defender loses 1 HP, your opponent gains Boredom equal to the power, and the attack's extra effect happens. If not, nothing happens. No Characters to block? The power goes straight to Boredom."],
   ['Card types', 'Characters stay on the field to attack and defend. Bits are instant and last a set number of turns. Evils last forever unless removed.'],
   ['Card effects', "Card text runs automatically. If something isn't covered, tap a player's bar to change meters or Actions, or tap a card to change its HP or remove it. Both players see every change in the log."],
   ['Deck rules', `${DECK_SIZE} cards plus 1 Captain. Max 3 copies of a card, max 1 of each Main Character.`],

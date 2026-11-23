@@ -11,6 +11,20 @@ const CAPTAINS = [
 ];
 
 const CARDS = [
+{"id":"item_wifi_password","type":"bit","name":"Stolen WiFi Password","dur":1,"text":"Grim stole it, raccoon style. Draw 2 cards.","onPlay":[["draw","me",2]]},
+{"id":"item_water_core","type":"bit","name":"Water Core","dur":2,"text":"A magic water core that Water-Core Dog cannot swim with. Your attacks get +1 power while in play.","mod":{"atk":1}},
+{"id":"item_here_comes_sun","type":"bit","name":"Here Comes the Sun","dur":1,"text":"Atlas walks in singing. Gain 2 Goofiness.","onPlay":[["goof","me",2]]},
+{"id":"item_u2_flyover","type":"bit","name":"U-2 Flyover","dur":1,"text":"A spy plane passes overhead. +2 Actions this turn.","onPlay":[["actions","me",2]]},
+{"id":"item_hidden_blade","type":"bit","name":"Hidden Blade","dur":1,"text":"Stabbed through the neck in front of the whole court. Opponent +2 Boredom.","onPlay":[["bore","opp",2]]},
+{"id":"item_bee_swarm","type":"bit","name":"Bee Swarm","dur":2,"text":"A swarm buzzes after you. Opponent +1 Boredom at the start of each of their turns.","onOppTurnStart":[["bore","opp",1]]},
+{"id":"item_evening_coil","type":"evil","name":"Evening Coil","text":"Vesper stays coiled. Opponent's Evils cost them 1 more Action.","mod":{"oppEvilCost":1}},
+{"id":"item_wont_let_rest","type":"evil","name":"Won't Let You Rest","text":"Fenrik never lets anyone rest. Opponent +1 Boredom at the start of each of their turns.","onOppTurnStart":[["bore","opp",1]]},
+{"id":"item_deity_form","type":"evil","name":"Deity Form","text":"Atlas in his deity form looms over the room. Your Characters get +1 DEF while you have 0 Goofiness.","mod":{"def":1,"if":"noGoof"}},
+{"id":"item_overthinking","type":"evil","name":"Overthinking","text":"Enoch's anxiety never switches off. Opponent's attacks cost them 1 more Action.","mod":{"oppAttackCost":1}},
+{"id":"item_wiffle_soup","type":"bit","dur":1,"name":"Wiffle's Soup","text":"Properly cooked, never pink. +1 Goofiness and draw a card.","onPlay":[["goof","me",1],["draw","me",1]]},
+{"id":"item_butter","type":"bit","dur":2,"name":"Butter","text":"Wiffle buttered the floor. Opponent's attacks cost 1 more Action until the end of your next turn.","mod":{"oppAttackCost":1}},
+{"id":"item_pollen_season","type":"evil","name":"Pollen Season","text":"Wiffle is horrendously allergic. Start of opponent's turn: they lose 1 Goofiness.","onOppTurnStart":[["goof","opp",-1]]},
+{"id":"item_stellar_output","type":"evil","name":"Stellar Output","text":"Fey's star-born strength and durability. Your Characters get +1 DEF.","mod":{"def":1}},
 {"id":"jangle_bee_boy","type":"character","name":"Bee Boy","def":10,"hp":3,"moves":[{"name":"Sting Jab","cost":1,"power":1},{"name":"Swarm Dive","cost":2,"power":3,"text":"On a break-through, flip a coin. Heads: +2 Boredom for them.","onHit":[["flip",[["bore","opp",2]]]]}],"art":"art/local/jangle_bee_boy.png","crop":{"x":0.8107886721446841,"y":11.389838556784975,"zoom":2.3}},
 {"id":"jangle_chi_chi","type":"character","name":"Chi Chi","def":12,"hp":3,"moves":[{"name":"Chi Chi Poke","cost":1,"power":1},{"name":"Favourite Flourish","cost":2,"power":3,"text":"On a break-through, you gain 1 Goofiness.","onHit":[["goof","me",1]]}],"art":"art/local/jangle_chi_chi.png","crop":{"x":46.53678861807207,"y":29.634412390411793,"zoom":1}},
 {"id":"jangle_dizzy","type":"character","name":"Dizzy","def":11,"hp":3,"text":"Can't attack the turn it's played.","sick":true,"moves":[{"name":"Dizzy Spin","cost":1,"power":2},{"name":"Gummy Breath","cost":2,"power":3,"text":"On a break-through, flip a coin. Heads: +1 Boredom for them. Tails: +1 Goofiness for you.","onHit":[["flip",[["bore","opp",1]],[["goof","me",1]]]]}],"art":"art/local/jangle_dizzy.png","crop":{"x":49.733603814788495,"y":16.373130620559444,"zoom":1}},
@@ -77,16 +91,19 @@ const STARTERS = [
   "captain": "captain_anonagon",
   "cards": {
    "jangle_fenrik": 1,
+   "item_wifi_password": 1,
+   "item_here_comes_sun": 1,
+   "item_hidden_blade": 1,
+   "item_evening_coil": 1,
+   "item_deity_form": 1,
+   "item_wiffle_soup": 1,
+   "item_pollen_season": 1,
    "jangle_bee_boy": 2,
    "anonagon_jeremy": 2,
    "scrunge_acer": 2,
    "jegg_aj": 2,
    "jangle_dizzy": 2,
-   "scrunge_alto": 2,
-   "jegg_brulee": 2,
-   "jangle_enoch_son": 2,
-   "scrunge_custard": 2,
-   "jegg_poinsettia": 1
+   "scrunge_alto": 2
   }
  },
  {
@@ -94,16 +111,19 @@ const STARTERS = [
   "captain": "captain_xee",
   "cards": {
    "jimmy_arhakoth": 1,
+   "item_water_core": 1,
+   "item_u2_flyover": 1,
+   "item_bee_swarm": 1,
+   "item_wont_let_rest": 1,
+   "item_overthinking": 1,
+   "item_butter": 1,
+   "item_stellar_output": 1,
    "lord_osric_hayden": 2,
    "jegg_abigaia": 2,
    "jangle_chi_chi": 2,
    "scrunge_alek": 2,
    "jegg_anxio": 2,
-   "jangle_drow_paladin": 2,
-   "scrunge_anna_lee": 2,
-   "jegg_jenosu": 2,
-   "jangle_enoch": 2,
-   "scrunge_caerus": 1
+   "jangle_drow_paladin": 2
   }
  }
 ];
