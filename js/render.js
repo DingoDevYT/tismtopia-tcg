@@ -54,6 +54,10 @@ const hsl = (r, g, b) => { r /= 255; g /= 255; b /= 255; const mx = Math.max(r, 
   if (!d) return [0, 0]; const h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; return [Math.round(h * 60 + 360) % 360, Math.round(100 * d / (1 - Math.abs(2 * l - 1)))]; };
 function tone(img) {
   const src = img.getAttribute('src');
+  toneOf(img, src);
+  if (TONE[src]) img.closest('.frame')?.setAttribute('style', TONE[src]);
+}
+function toneOf(img, src) {
   if (!(src in TONE)) {
     try {
       const cv = document.createElement('canvas'), x = cv.getContext('2d'); cv.width = cv.height = 24;
@@ -64,7 +68,6 @@ function tone(img) {
       TONE[src] = s < 10 ? '' : `--frame:linear-gradient(180deg,hsl(${h} ${S}% 82%),hsl(${h} ${S}% 52%));--tint:hsl(${h} ${S}% 30%)`; // grey art keeps the default blue
     } catch { TONE[src] = ''; }
   }
-  if (TONE[src]) img.closest('.frame')?.setAttribute('style', TONE[src]);
 }
 
 function renderCard(c, o = {}) {
@@ -141,3 +144,12 @@ function renderBoard(s, me, o = {}) {
     ${renderHand(you.hand, o.sel)}
   </div>`;
 }
+
+// Preload every card's art, the pack images and the foil textures at start-up so nothing pops in later;
+// each art's frame colour is worked out as it arrives, so frames are already tinted on first draw.
+const PRELOAD = (() => {
+  const arts = [...new Set([...CAPTAINS, ...CARDS].map(c => c.art).filter(Boolean))];
+  const extra = ['art/logo.png', 'art/card-back.jpg', ...['heehn', 'empirical', 'foreseen'].map(id => 'art/local/pack-' + id + '.png'),
+    ...['illusion.png', 'glitter.png', 'grain.webp', 'galaxy.jpg', 'cosmos-bottom.png', 'cosmos-middle-trans.png', 'cosmos-top-trans.png'].map(f => 'vendor/holo/img/' + f)];
+  return [...arts, ...extra].map(src => { const i = new Image(); i.decoding = 'async'; if (arts.includes(src)) i.onload = () => toneOf(i, src); i.src = src; return i; });
+})();
