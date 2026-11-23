@@ -35,14 +35,14 @@ const ICON = Object.fromEntries(Object.entries({
   rules: G('<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 19V5M8 7h7M8 11h5"/>'),
 }).map(([k, d]) => [k, `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`]));
 
-// c = card data (null = face-down). o: { cls, hp, turns, style, attrs }
+// c = card data (null = face-down). o: { cls, hp, atk, def (current values, shown green when buffed), turns, style, attrs }
 function renderCard(c, o = {}) {
   const cls = o.cls ? ' ' + o.cls : '', style = (o.style ? ` style="${o.style}"` : '') + (o.attrs ? ' ' + o.attrs : '');
   if (!c) return `<div class="card back${cls}"${style}><div class="frame"></div></div>`;
-  const kind = kindOf(c), hp = o.hp ?? c.hp, turns = o.turns ?? c.dur;
+  const kind = kindOf(c), hp = o.hp ?? c.hp, turns = o.turns ?? c.dur, atk = o.atk ?? c.atk, def = o.def ?? c.def;
   const art = c.art ? `<img src="${c.art}" alt="">` : `<span class="ph">${ICON[c.type]}</span>`;
   const foot = c.type === 'character'
-    ? `<div class="stats"><span class="st atk">${ICON.atk}<b>${c.atk}</b></span><span class="st def">${ICON.def}<b>${c.def}</b></span><span class="st hp${hp < c.hp ? ' hurt' : ''}">${ICON.hp}<b>${hp}</b></span></div>`
+    ? `<div class="stats"><span class="st atk${atk > c.atk ? ' buff' : ''}">${ICON.atk}<b>${atk}</b></span><span class="st def${def > c.def ? ' buff' : ''}">${ICON.def}<b>${def}</b></span><span class="st hp${hp < c.hp ? ' hurt' : ''}">${ICON.hp}<b>${hp}</b></span></div>`
     : `<div class="tag">${c.type === 'bit' ? `${ICON.time}${turns} turn${turns > 1 ? 's' : ''}` : c.type === 'evil' ? `${ICON.forever}Forever` : `${ICON.captain}${c.style}`}</div>`;
   return `<div class="card k-${kind}${cls}"${style} data-id="${c.id}"><div class="frame">
     <div class="head"><span class="name">${c.name}</span><span class="type">${ICON[kind]}</span></div>
@@ -67,8 +67,9 @@ function renderHud(p) {
     <div class="meters">${coins(p.points)}${meter('goof', p.goof)}${meter('bore', p.bore)}</div></div>`;
 }
 
-function renderField(p, glow = [], who = 'me') {
-  const cards = p.field.map((f, i) => renderCard(CARD[f.id], { hp: f.hp, cls: 'mini' + (glow.includes(i) ? ' glow' : ''), attrs: pick(who, 'field', i) })).join('');
+// stat(f) -> { atk, def } with modifiers applied (game.js statsOf); omitted in the mockups.
+function renderField(p, glow = [], who = 'me', stat) {
+  const cards = p.field.map((f, i) => renderCard(CARD[f.id], { hp: f.hp, ...stat?.(f), cls: 'mini' + (glow.includes(i) ? ' glow' : ''), attrs: pick(who, 'field', i) })).join('');
   return `<div class="field">${cards}${'<div class="slot"></div>'.repeat(Math.max(0, 3 - p.field.length))}</div>`;
 }
 
@@ -87,16 +88,17 @@ function renderHand(ids, sel) {
 // s = game state, me = my player index. o: { glow: [my field indexes], sel: hand index }
 function renderBoard(s, me, o = {}) {
   const you = s.players[me], opp = s.players[1 - me], live = s.turn === me && s.phase === 'play';
+  const stat = pi => (typeof statsOf === 'function' ? f => statsOf(s, pi, f) : undefined);
   return `<div class="board">
     <div class="opp-hand">${renderCard(null).repeat(opp.hand.length)}</div>
-    <div class="side">${renderHud(opp)}${renderFx(opp, 'opp')}${renderField(opp, [], 'opp')}</div>
+    <div class="side">${renderHud(opp)}${renderFx(opp, 'opp')}${renderField(opp, [], 'opp', stat(1 - me))}</div>
     <div class="mid neu">
       <div class="pile">${renderCard(null)}<span>${you.deck.length}</span></div>
       <div class="turn"><b>${s.turn === me ? 'Your turn' : `${esc(opp.name)}'s turn`}</b>
         <div class="pips">${Array.from({ length: Math.max(2, s.actions) }, (_, i) => `<i class="${i < s.actions ? 'on' : ''}">${ICON.action}</i>`).join('')}</div></div>
       <button class="btn end" data-act="end"${live ? '' : ' disabled'}>End Turn</button>
     </div>
-    <div class="side">${renderField(you, o.glow)}${renderFx(you)}${renderHud(you)}</div>
+    <div class="side">${renderField(you, o.glow, 'me', stat(me))}${renderFx(you)}${renderHud(you)}</div>
     ${renderHand(you.hand, o.sel)}
   </div>`;
 }

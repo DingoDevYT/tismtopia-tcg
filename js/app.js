@@ -10,7 +10,8 @@ let decks = store.get('decks', null);
 if (!Array.isArray(decks) || !decks.length) decks = [{ id: uid(), ...structuredClone(STARTER) }];
 let myName = store.get('name', 'Player');
 const ui = { view: 'home', deckId: store.get('deck', decks[0].id), filter: 'all', zoom: null, sheet: null, defPick: null, toast: '', code: '', status: '', joinCode: '', seenRoll: 0, tut: null };
-let peer = null, conn = null, isHost = false, me = 0, game = null, guest = null, toastTimer, bot = false, botTimer;
+// `state` is the authoritative game (rules run on it); `game` is what's on screen, which trails it while animations play.
+let peer = null, conn = null, isHost = false, me = 0, state = null, game = null, guest = null, toastTimer, bot = false, botTimer;
 
 const $app = document.getElementById('app');
 const deck = () => decks.find(d => d.id === ui.deckId) || decks[0];
@@ -25,9 +26,12 @@ const header = t => `<h1 class="title">${t}</h1><div class="rainbow"></div>`;
 const tappable = (act, extra) => `data-act="${act}" ${extra} tabindex="0" role="button"`;
 
 function toast(msg) {
+  const changed = msg !== ui.toast;
   ui.toast = msg; render();
+  if (changed) $app.querySelector('.toast:not(.wait)')?.classList.add('enter');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { ui.toast = ''; render(); }, 2800);
+  // Remove just the toast rather than re-rendering, so running card animations aren't cut off.
+  toastTimer = setTimeout(() => { ui.toast = ''; $app.querySelector('.toast:not(.wait)')?.remove(); }, 2800);
 }
 
 function copy(text, what) {
@@ -106,12 +110,14 @@ const viewRules = () => `${header('How to Play')}
 function viewGame() {
   const g = game, mine = g.players[me], live = g.turn === me && g.phase === 'play';
   if (g.phase === 'over') return viewOver();
-  let html = renderBoard(g, me, { glow: live && g.actions ? mine.field.map((_, i) => i) : [], sel: ui.zoom?.zone === 'hand' ? ui.zoom.i : undefined });
+  const glow = live && g.actions >= attackCost(g, me) ? mine.field.flatMap((f, i) => (canAttack(g, f) ? [i] : [])) : [];
+  let html = renderBoard(g, me, { glow, sel: ui.zoom?.zone === 'hand' ? ui.zoom.i : undefined });
   if (g.phase === 'defend' && g.turn !== me) html += defendSheet();
   else if (g.roll && g.roll.seq > ui.seenRoll) html += rollOverlay();
   else html += overlay();
-  const banner = g.phase === 'defend' && g.turn === me ? `Waiting for ${g.players[1 - me].name} to pick a defender…` : ui.toast;
-  return html + (banner ? `<div class="toast neu">${esc(banner)}</div>` : '') + coach();
+  const wait = g.phase === 'defend' && g.turn === me;
+  const banner = wait ? `Waiting for ${g.players[1 - me].name} to pick a defender…` : ui.toast;
+  return html + (banner ? `<div class="toast neu${wait ? ' wait' : ''}">${esc(banner)}</div>` : '') + coach();
 }
 
 // ---------------- tutorial: a guided bot battle; each step waits for `done(game)` or a Next tap ----------------
@@ -121,14 +127,14 @@ const TUT = [
   { text: 'This is you. Gold coins are Points. The orange bar is Goofiness: fill it to 5 to score. The grey bar is Boredom: if yours hits 5, your opponent scores.', sel: `${MY} .hud`, next: true },
   { text: 'Every turn you get 2 Actions. Playing a card, attacking and using an ability cost 1 each.', sel: '.pips', next: true },
   { text: 'Tap VC Goblin in your hand, then tap Play.', sel: () => (ui.zoom ? '.dim [data-a*=\'"play"\']' : '.hand .card[data-id="c_vc_goblin"]'), done: g => g.players[0].field.length > 0 },
-  { text: 'VC Goblin says "When played: +1 Goofiness". Card effects are applied by hand: tap your bar, then press + on your Goofiness.', sel: () => (ui.sheet ? '.sheet .adj-row button:last-child' : `${MY} .hud`), done: g => g.players[0].goof > 0 },
-  { text: 'Now tap Done, then tap VC Goblin on the field and Attack. Your opponent has no Characters to block, so the hit goes straight to their Boredom.',
-    sel: () => (ui.sheet ? '.sheet [data-act=close]' : ui.zoom ? '.dim [data-a*=\'"attack"\']' : `${MY} .field .card`), done: g => g.players[1].bore > 0 },
+  { text: 'VC Goblin says "When played: +1 Goofiness", so your orange bar just went up. Card text runs by itself.', sel: `${MY} .meter.goof`, next: true },
+  { text: 'Now tap VC Goblin on the field and Attack. Your opponent has no Characters to block, so the hit goes straight to their Boredom.',
+    sel: () => (ui.zoom ? '.dim [data-a*=\'"attack"\']' : `${MY} .field .card`), done: g => g.players[1].bore > 0 },
   { text: "Their Boredom went up by VC Goblin's ATK. You're out of Actions, so tap End Turn.", sel: '[data-act=end]', done: g => g.turn === 1 },
   { text: "The bot's turn. When it attacks, you pick a defender. It rolls a d20 and adds its ATK: if that reaches your defender's DEF, the attack breaks through.",
     sel: () => (game.phase !== 'defend' ? null : ui.defPick != null ? '.sheet [data-a*=\'"defend"\']' : '.sheet .field .card'), done: g => !!g.roll || (g.turn === 0 && g.turnNo > 2) },
   { text: 'Breaking through costs the defender 1 HP and adds Boredom equal to the ATK. A blocked attack costs the attacker 1 HP instead. Tap Continue.', sel: '[data-act=seen-roll]', done: g => !(g.roll && g.roll.seq > ui.seenRoll) },
-  { text: 'Bits are instant and last a few turns. Evils stay until removed. Apply their text by hand, just like VC Goblin. Tap your bar any time for the log, manual tools, or to leave.', next: true },
+  { text: 'Bits are instant and last a few turns. Evils stay until removed. Tap your bar any time for the log, manual fixes, or to leave.', next: true },
   { text: "That's the basics! Finish this battle against the bot, then build your own deck.", next: 'Got it' },
 ];
 
@@ -140,10 +146,10 @@ function coach() {
   return `<div class="coach neu"><p>${s.text}</p><div class="row2"><button class="btn sm" data-act="tut-skip">Skip tutorial</button>${s.next ? `<button class="btn sm primary" data-act="tut-next">${s.next === true ? 'Next' : s.next}</button>` : ''}</div></div>`;
 }
 
-// ---------------- bot: plays Characters, attacks with its strongest, blocks with its toughest ----------------
-// shortcut: ignores Bits/Evils and card text (effects aren't automated yet); teach it once effects live in card data.
+// ---------------- bot: adds a Character, attacks with its strongest, plays Bits/Evils, uses abilities, blocks with its toughest ----------------
+// shortcut: greedy, no lookahead; fine for practice, not a real opponent.
 const BOT_DECK = { ...STARTER, captain: 'cap_lurker' };
-const best = (field, score) => field.reduce((b, f, i) => (score(f) > score(field[b]) ? i : b), 0);
+const best = (idx, score) => idx.reduce((b, i) => (score(i) > score(b) ? i : b), idx[0]);
 
 function startBot(tutorial) {
   if (!tutorial && deckProblems(deck()).length) return toast('Fix your deck first.');
@@ -155,24 +161,29 @@ function startBot(tutorial) {
     g.players[1].hand = ['c_lagger', 'c_night_owl', 'b_ping', 'e_read', 'b_voice_crack'];
   }
   ui.tut = tutorial ? 0 : null;
-  game = null; setGame(g); botSoon();
+  state = game = null; setGame(g); botSoon();
 }
 
-const botSoon = () => { clearTimeout(botTimer); botTimer = setTimeout(botMove, 900); };
+const botSoon = () => { clearTimeout(botTimer); botTimer = setTimeout(botMove, 1100); };
 
 function botMove() {
-  const g = game;
+  const g = state;
   if (!bot || !g || g.phase === 'over') return;
   if (g.roll && g.roll.seq > ui.seenRoll) return botSoon(); // let the human read the roll first
-  const B = g.players[1];
+  const B = g.players[1], n = g.actions, all = B.field.map((_, i) => i);
   let a = null;
-  if (g.phase === 'defend' && g.turn === 0) a = { type: 'defend', i: best(B.field, f => CARD[f.id].def * 10 + f.hp) };
+  if (g.phase === 'defend' && g.turn === 0) a = { type: 'defend', i: best(all, i => statsOf(g, 1, B.field[i]).def * 10 + B.field[i].hp) };
   else if (g.turn === 1 && g.phase === 'play') {
-    // First Action: add a Character if there's room. Remaining Actions: attack (or play if there's nobody to attack with).
     const hc = B.hand.findIndex(id => CARD[id].type === 'character'), canPlay = hc >= 0 && B.field.length < 3;
-    if (g.actions >= 2 && canPlay) a = { type: 'play', i: hc };
-    else if (g.actions && B.field.length) a = { type: 'attack', i: best(B.field, f => CARD[f.id].atk * 10 + f.hp) };
-    else if (g.actions && canPlay) a = { type: 'play', i: hc };
+    const ready = all.filter(i => canAttack(g, B.field[i]));
+    const spell = B.hand.findIndex(id => CARD[id].type !== 'character' && playCost(g, 1, CARD[id]) <= n);
+    const cap = CARD[B.captain], abil = all.find(i => CARD[B.field[i].id].ability);
+    if (n >= 2 && canPlay) a = { type: 'play', i: hc };
+    else if (ready.length && n >= attackCost(g, 1)) a = { type: 'attack', i: best(ready, i => statsOf(g, 1, B.field[i]).atk * 10 + B.field[i].hp) };
+    else if (spell >= 0) a = { type: 'play', i: spell };
+    else if (n && canPlay) a = { type: 'play', i: hc };
+    else if (n && cap.ability && !(cap.once && g.capUsed)) a = { type: 'ability', i: -1 };
+    else if (n && abil !== undefined) a = { type: 'ability', i: abil };
     else a = { type: 'end' };
   }
   if (a && !act(1, a) && a.type !== 'end') act(1, { type: 'end' });
@@ -211,33 +222,38 @@ function zoomGame(z) {
   const c = CARD[item.id ?? item], live = game.turn === me && game.phase === 'play', mine = w === me;
   const remove = btn({ type: 'discard', who: w, zone: z.zone, i: z.i }, z.zone === 'hand' ? 'Discard' : 'Remove');
   let rows = '';
-  if (z.zone === 'hand') rows = `<div class="row2">${live ? btn({ type: 'play', i: z.i }, `Play ${cost(1)}`, 'primary') : ''}${remove}</div>`;
-  if (z.zone === 'field') rows = (mine && live ? `<div class="row2">${btn({ type: 'attack', i: z.i }, `${ICON.atk}Attack ${cost(1)}`, 'primary')}${btn({ type: 'ability', i: z.i }, `${ICON.bit}Ability ${cost(1)}`)}</div>` : '')
-    + `<div class="row2">${stepper(`HP ${item.hp}`, { type: 'hp', who: w, i: z.i, d: -1 }, { type: 'hp', who: w, i: z.i, d: 1 })}${remove}</div>`;
+  if (z.zone === 'hand') rows = `<div class="row2">${live ? btn({ type: 'play', i: z.i }, `Play ${cost(playCost(game, me, c))}`, 'primary') : ''}${remove}</div>`;
+  if (z.zone === 'field') {
+    const acts = [canAttack(game, item) ? btn({ type: 'attack', i: z.i }, `${ICON.atk}Attack ${cost(attackCost(game, me))}`, 'primary') : '<button class="btn" disabled>Can attack next turn</button>',
+      c.ability ? btn({ type: 'ability', i: z.i }, `${ICON.bit}Ability ${cost(1)}`) : ''];
+    rows = (mine && live ? `<div class="row2">${acts.join('')}</div>` : '')
+      + `<div class="row2">${stepper(`HP ${item.hp}`, { type: 'hp', who: w, i: z.i, d: -1 }, { type: 'hp', who: w, i: z.i, d: 1 })}${remove}</div>`;
+  }
   if (z.zone === 'fx') rows = `<div class="row2">${item.turns != null ? stepper(`${item.turns} turn${item.turns > 1 ? 's' : ''}`, { type: 'turns', who: w, i: z.i, d: -1 }, { type: 'turns', who: w, i: z.i, d: 1 }) : ''}${remove}</div>`;
-  return `<div class="dim" data-act="close">${renderCard(c, { cls: 'zoom', hp: item.hp, turns: item.turns })}${rows}<button class="btn sm" data-act="close">Close</button></div>`;
+  const stats = z.zone === 'field' ? statsOf(game, w, item) : {};
+  return `<div class="dim" data-act="close">${renderCard(c, { cls: 'zoom', hp: item.hp, turns: item.turns, ...stats })}${rows}<button class="btn sm" data-act="close">Close</button></div>`;
 }
 
 function adjustSheet() {
-  const g = game, live = g.turn === me && g.phase === 'play';
+  const g = game, cap = CARD[g.players[me].captain], live = g.turn === me && g.phase === 'play' && cap.ability && !(cap.once && g.capUsed);
   const meters = [['goof', 'Goofiness', 'goof'], ['bore', 'Boredom', 'bore'], ['point', 'Points', 'points']];
-  return sheet(`<h2>Adjust</h2><p class="muted center" style="margin-bottom:12px">Apply card effects by hand. Both players see every change.</p>
+  return sheet(`<h2>Adjust</h2><p class="muted center" style="margin-bottom:12px">Card text runs by itself. Use these for anything it misses; both players see every change.</p>
     ${[me, 1 - me].map(w => `<div class="adj neu-in"><b>${esc(g.players[w].name)}${w === me ? ' (you)' : ''}</b>
       ${meters.map(([icon, label, key]) => `<div class="adj-row"><span><span class="${icon}">${ICON[icon]}</span>${label}</span>${stepper(g.players[w][key],
         { type: 'adjust', who: w, key, d: -1 }, { type: 'adjust', who: w, key, d: 1 })}</div>`).join('')}</div>`).join('')}
     <div class="adj neu-in"><div class="adj-row"><span><span class="point">${ICON.action}</span>Actions this turn</span>${stepper(g.actions,
       { type: 'adjust', who: me, key: 'actions', d: -1 }, { type: 'adjust', who: me, key: 'actions', d: 1 })}</div></div>
-    <div class="row2">${btn({ type: 'draw' }, 'Draw a card')}${live ? btn({ type: 'ability', i: -1 }, `Captain ability ${cost(1)}`) : ''}</div>
+    <div class="row2">${btn({ type: 'draw' }, 'Draw a card')}${live ? btn({ type: 'ability', i: -1 }, `${cap.name} ${cost(1)}`, 'primary') : ''}</div>
     <small class="lbl" style="margin-top:18px">Log</small><div class="log">${g.log.slice(-15).reverse().map(l => `<p>${esc(l)}</p>`).join('')}</div>
     <div class="row2" style="margin-top:14px"><button class="btn" data-act="leave-battle">Leave battle</button><button class="btn primary" data-act="close">Done</button></div>`);
 }
 
 function defendSheet() {
-  const g = game, af = g.players[g.turn].field[g.pending.i], ac = CARD[af.id], mine = g.players[me].field, pickI = ui.defPick;
-  return sheet(`<div class="attacker neu">${renderCard(ac, { cls: 'mini', hp: af.hp })}<div><small>Incoming attack</small><br><b>${ac.name}</b> attacks with <b>${ac.atk} ATK</b></div></div>
+  const g = game, af = g.players[g.turn].field[g.pending.i], ac = CARD[af.id], A = statsOf(g, g.turn, af), mine = g.players[me].field, pickI = ui.defPick;
+  return sheet(`<div class="attacker neu">${renderCard(ac, { cls: 'mini', hp: af.hp, ...A })}<div><small>Incoming attack</small><br><b>${ac.name}</b> attacks with <b>${A.atk} ATK</b></div></div>
     <h2>Pick a defender</h2>
-    <div class="field">${mine.map((f, i) => renderCard(CARD[f.id], { cls: 'mini' + (i === pickI ? ' picked' : ''), hp: f.hp, attrs: tappable('defpick', `data-i="${i}"`) })).join('')}</div>
-    <p class="muted center" style="margin:10px 0 12px">They roll d20 + ${ac.atk}. It breaks through if that reaches your defender's DEF.</p>
+    <div class="field">${mine.map((f, i) => renderCard(CARD[f.id], { cls: 'mini' + (i === pickI ? ' picked' : ''), hp: f.hp, ...statsOf(g, me, f), attrs: tappable('defpick', `data-i="${i}"`) })).join('')}</div>
+    <p class="muted center" style="margin:10px 0 12px">They roll d20 + ${A.atk}. It breaks through if that reaches your defender's DEF.</p>
     ${mine[pickI] ? btn({ type: 'defend', i: pickI }, `Defend with ${CARD[mine[pickI].id].name}`, 'primary wide') : '<button class="btn wide" disabled>Tap a Character</button>'}`, false);
 }
 
@@ -246,7 +262,7 @@ function rollOverlay() {
   return `<div class="dim">
     <div class="duel">${renderCard(A, { cls: 'mini', hp: Math.max(0, r.aHp) })}<span class="vs">VS</span>${renderCard(D, { cls: 'mini', hp: Math.max(0, r.dHp) })}</div>
     <div class="d20">${r.die}</div>
-    <div class="math neu">${r.die} + <b>${r.atk} ATK</b> = <b>${r.total}</b> vs <b>${r.def} DEF</b></div>
+    <div class="math neu">${r.rolls?.length > 1 ? `<small>rolled ${r.rolls.join(' & ')}, kept the lower</small><br>` : ''}${r.die} + <b>${r.atk} ATK</b> = <b>${r.total}</b> vs <b>${r.def} DEF</b></div>
     <div class="result neu"><b${r.hit ? '' : ' class="miss"'}>${r.hit ? 'Breaks through!' : 'Blocked!'}</b>
       <small>${r.hit ? `${D.name} −1 ${ICON.hp} · ${esc(defender.name)} +${r.atk} ${ICON.bore}` : `${A.name} −1 ${ICON.hp}`}</small></div>
     <button class="btn primary" data-act="seen-roll">Continue</button></div>`;
@@ -263,7 +279,98 @@ function render() {
   const sel = ui.view === 'game' && ui.tut != null && TUT[ui.tut]?.sel;
   if (sel) $app.querySelector(typeof sel === 'function' ? sel() : sel)?.classList.add('coach-target');
   if (focus) document.getElementById(focus)?.focus();
+  // Entry animations only when an overlay first appears, not on every re-render.
+  const key = [ui.view, JSON.stringify(ui.zoom), ui.sheet, game?.phase === 'defend' && game.turn !== me, game?.roll?.seq > ui.seenRoll && game.roll.seq].join('|');
+  if (key !== lastOverlay) { lastOverlay = key; $app.querySelectorAll('.dim, .sheet, .card.zoom').forEach(el => el.classList.add('enter')); }
 }
+let lastOverlay = '';
+
+// ---------------- animations: `pre` plays on the old board (lunges, hits, KOs), `post` on the new one ----------------
+const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const fxLayer = document.body.appendChild(Object.assign(document.createElement('div'), { id: 'fx' }));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const whoOf = pi => (pi === me ? 'me' : 'opp');
+const fieldEl = (pi, i) => $app.querySelector(`.card[data-who="${whoOf(pi)}"][data-zone="field"][data-i="${i}"]`);
+const hudEl = pi => $app.querySelector(`.side:nth-child(${pi === me ? 4 : 2}) .hud`);
+let bannerQ = Promise.resolve();
+
+function flash(el, cls, ms = 700) {
+  if (!el) return;
+  el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls);
+  setTimeout(() => el.classList.remove(cls), ms);
+}
+function floatText(el, text, cls, nudge = 0) {
+  if (!el) return;
+  const r = el.getBoundingClientRect(), f = document.createElement('div');
+  f.className = `floater ${cls}`; f.textContent = text;
+  f.style.left = `${r.left + r.width / 2}px`; f.style.top = `${r.top + r.height * 0.3 - nudge}px`;
+  fxLayer.append(f); setTimeout(() => f.remove(), 1300);
+}
+const banner = (html, cls) => { bannerQ = bannerQ.then(async () => {
+  const b = Object.assign(document.createElement('div'), { className: `banner ${cls}`, innerHTML: `<span>${html}</span>` });
+  fxLayer.append(b); await sleep(950); setTimeout(() => b.remove(), 600);
+}); };
+function splash(id) {
+  const d = Object.assign(document.createElement('div'), { className: 'splash', innerHTML: renderCard(CARD[id]) });
+  fxLayer.append(d); setTimeout(() => d.remove(), 1400);
+}
+function coinFlip(s) {
+  const d = Object.assign(document.createElement('div'), { className: 'coinflip',
+    innerHTML: `<div class="coin">${ICON.main}</div><b>${s.turn === me ? 'You go first!' : `${esc(s.players[s.turn].name)} goes first`}</b>` });
+  fxLayer.append(d); setTimeout(() => d.remove(), 2300);
+}
+function tumble() {
+  const d = $app.querySelector('.d20');
+  if (!d) return;
+  const final = d.textContent;
+  d.classList.add('rolling');
+  let k = 0;
+  const t = setInterval(() => {
+    d.textContent = 1 + Math.floor(Math.random() * 20);
+    if (++k > 11) { clearInterval(t); d.textContent = final; d.classList.remove('rolling'); flash(d, 'land', 500); }
+  }, 60);
+}
+
+function preAnimate(ev) {
+  for (const e of ev) {
+    if (e.k === 'attack') flash(fieldEl(e.p, e.i), e.p === me ? 'lunge-up' : 'lunge-down', 520);
+    if (e.k === 'hit') {
+      const el = fieldEl(e.p, e.i);
+      setTimeout(() => { flash(el, e.ko ? 'ko' : 'hurt', 700); floatText(el, e.ko ? 'KO!' : '−1 HP', 'dmg'); }, 230);
+    }
+  }
+}
+
+function postAnimate(ev, prev, s) {
+  const nudges = new Map();
+  for (const e of ev) {
+    if (e.k === 'play') flash(e.zone === 'field' ? fieldEl(e.p, e.i) : $app.querySelector(`.fx[data-who="${whoOf(e.p)}"][data-i="${e.i}"]`), e.zone === 'field' ? 'slam' : 'pop', 700);
+    if (e.k === 'cast') splash(e.id);
+    if (e.k === 'meter') {
+      const h = hudEl(e.p), n = nudges.get(h) || 0;
+      nudges.set(h, n + 24);
+      flash(h?.querySelector(`.meter.${e.key}`), 'bump', 600);
+      floatText(h?.querySelector('.meters'), `${e.n > 0 ? '+' : ''}${e.n} ${e.key === 'goof' ? 'Goofiness' : 'Boredom'}`, e.key, n);
+    }
+    if (e.k === 'point') { flash(hudEl(e.p)?.querySelector('.coins'), 'bump', 700); banner(e.p === me ? '+1 Point!' : `${esc(s.players[e.p].name)} scores!`, 'gold'); }
+    if (e.k === 'draw' && e.p === me) flash($app.querySelector('.hand .card:last-child'), 'drawn', 650);
+    if (e.k === 'turn') banner(e.p === me ? 'Your turn' : `${esc(s.players[e.p].name)}'s turn`, 'turn');
+  }
+  if (s.phase === 'over' && prev.phase !== 'over') flash($app.querySelector('.big'), 'enter', 1000);
+  if (s.roll && s.roll.seq !== prev.roll?.seq) tumble();
+}
+
+// Inspecting a card tilts it toward the pointer with a moving shine.
+document.addEventListener('pointermove', e => {
+  const c = e.target.closest?.('.card.zoom');
+  if (!c || calm) return;
+  const r = c.getBoundingClientRect(), x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+  c.style.cssText += `--rx:${((0.5 - y) * 18).toFixed(1)}deg;--ry:${((x - 0.5) * 22).toFixed(1)}deg;--mx:${(x * 100).toFixed(0)}%;--my:${(y * 100).toFixed(0)}%`;
+});
+document.addEventListener('pointerout', e => {
+  const c = e.target.closest?.('.card.zoom');
+  if (c && !c.contains(e.relatedTarget)) c.style.cssText = '';
+});
 
 // ---------------- networking ----------------
 const peerId = code => 'tismtopia-tcg-' + code;
@@ -312,8 +419,8 @@ function wire(c) {
   c.on('close', () => {
     if (conn !== c) return;
     conn = null;
-    if (game && game.phase !== 'over') { game = null; ui.view = 'home'; peer?.destroy(); peer = null; ui.code = ''; toast('Your opponent left the battle.'); }
-    else if (!game && isHost && ui.code) { ui.status = 'Waiting for a friend to join'; render(); }
+    if (state && state.phase !== 'over') { state = game = null; ui.view = 'home'; peer?.destroy(); peer = null; ui.code = ''; toast('Your opponent left the battle.'); }
+    else if (!state && isHost && ui.code) { ui.status = 'Waiting for a friend to join'; render(); }
     else render();
   });
 }
@@ -321,13 +428,13 @@ function wire(c) {
 function onMsg(m) {
   if (!m || typeof m !== 'object') return;
   if (isHost) {
-    if (m.t === 'hello' && !game) {
+    if (m.t === 'hello' && !state) {
       const probs = deckProblems(m.deck);
       if (probs.length) { conn.send({ t: 'error', msg: `Your deck isn't legal: ${probs[0]}` }); return; }
       guest = { name: String(m.name || 'Guest').slice(0, 20), deck: { captain: m.deck.captain, cards: m.deck.cards } };
       startGame();
-    } else if (m.t === 'act' && game && m.a && typeof m.a === 'object') act(1, m.a);
-    else if (m.t === 'rematch' && game?.phase === 'over') startGame();
+    } else if (m.t === 'act' && state && m.a && typeof m.a === 'object') act(1, m.a);
+    else if (m.t === 'rematch' && state?.phase === 'over') startGame();
   } else if (m.t === 'state' && m.s) setGame(m.s);
   else if (m.t === 'error') toast(String(m.msg));
 }
@@ -335,17 +442,29 @@ function onMsg(m) {
 function startGame() {
   const d = deck();
   setGame(newGame([{ captain: d.captain, cards: d.cards }, guest.deck], [myName, guest.name]));
-  conn?.send({ t: 'state', s: game });
+  conn?.send({ t: 'state', s: state });
 }
 
+// New states apply to `state` at once; the screen catches up in order, animating each step.
+let showQ = Promise.resolve();
 function setGame(s) {
-  if (!game || s.seq < game.seq) { ui.zoom = ui.sheet = null; ui.seenRoll = 0; } // a fresh deal
+  const prev = state, fresh = !prev || s.seq < prev.seq;
+  state = s;
+  showQ = showQ.then(() => present(fresh ? null : prev, s)).catch(console.error);
+}
+
+async function present(prev, s) {
+  const ev = prev && s.seq > prev.seq ? s.events || [] : [];
+  if (!prev) { ui.zoom = ui.sheet = null; ui.seenRoll = 0; } // a fresh deal
+  if (!calm && ui.view === 'game' && game && ev.some(e => e.k === 'attack' || e.k === 'hit')) { preAnimate(ev); await sleep(560); }
   game = s; ui.view = 'game'; ui.code = ''; ui.status = ''; ui.defPick = null;
   toast(s.log[s.log.length - 1]);
+  if (calm) return;
+  if (!prev) coinFlip(s); else postAnimate(ev, prev, s);
 }
 
 function act(p, a) { // host (or bot game) only; returns whether the action was legal
-  try { setGame(apply(game, p, a)); conn?.send({ t: 'state', s: game }); }
+  try { setGame(apply(state, p, a)); conn?.send({ t: 'state', s: state }); }
   catch (e) { if (p === me) toast(e.message); else conn?.send({ t: 'error', msg: e.message }); return false; }
   if (bot) botSoon();
   return true;
@@ -355,7 +474,7 @@ const doAction = a => (isHost ? act(0, a) : conn?.send({ t: 'act', a }));
 
 function leave(quiet) {
   const c = conn; conn = null; c?.close(); peer?.destroy(); clearTimeout(botTimer);
-  peer = null; game = null; bot = false; ui.tut = null; ui.code = ''; ui.status = ''; ui.zoom = ui.sheet = null;
+  peer = null; state = game = null; bot = false; ui.tut = null; ui.code = ''; ui.status = ''; ui.zoom = ui.sheet = null;
   if (!quiet) ui.view = 'home';
 }
 

@@ -1,5 +1,6 @@
 // Rules engine. Pure: apply(state, player, action) returns a new state or throws Error(message for the player).
-// Card effect text is NOT automated; players apply it with the manual actions (adjust, hp, turns, discard, draw).
+// Card effects come from card data (key at the top of cards.js); the manual actions cover anything else.
+// Each new state carries `events` describing what just happened, which the UI animates.
 const MAX_COPIES = 3;
 const METERS = { goof: 'Goofiness', bore: 'Boredom', points: 'Points' };
 
@@ -28,6 +29,15 @@ function deckProblems(d) {
   return out;
 }
 
+// Everything of a player's that can carry effects: Captain, Characters in play, active Bits and Evils.
+const sources = (s, pi) => { const p = s.players[pi]; return [CARD[p.captain], ...p.field.map(f => CARD[f.id]), ...p.effects.map(e => CARD[e.id])]; };
+const modSum = (s, pi, key) => sources(s, pi).reduce((n, c) =>
+  n + (c.mod?.[key] && !(c.mod.if === 'noGoof' && s.players[pi].goof) ? c.mod[key] : 0), 0);
+const statsOf = (s, pi, f) => ({ atk: CARD[f.id].atk + modSum(s, pi, 'atk'), def: CARD[f.id].def + modSum(s, pi, 'def') });
+const attackCost = (s, pi) => 1 + modSum(s, 1 - pi, 'oppAttackCost');
+const playCost = (s, pi, c) => 1 + (c.type === 'evil' ? modSum(s, 1 - pi, 'oppEvilCost') : 0);
+const canAttack = (s, f) => !(CARD[f.id].sick && f.t === s.turnNo);
+
 function newGame(decks, names, rng = Math.random) {
   const players = [0, 1].map(i => {
     const deck = shuffle(expand(decks[i].cards), rng);
@@ -36,7 +46,7 @@ function newGame(decks, names, rng = Math.random) {
   });
   const first = rng() < 0.5 ? 0 : 1;
   // The first player skips their opening draw: they simply start with 5 cards.
-  return { players, turn: first, turnNo: 1, actions: 2, phase: 'play', pending: null, roll: null, winner: null, seq: 0,
+  return { players, turn: first, turnNo: 1, actions: 2, phase: 'play', pending: null, roll: null, winner: null, seq: 0, capUsed: false, events: [],
     log: [`${names[first]} won the coin flip and goes first.`] };
 }
 
@@ -44,57 +54,96 @@ function apply(s0, p, a, rng = Math.random) {
   const s = structuredClone(s0);
   const me = s.players[p], opp = s.players[1 - p];
   const say = t => { s.log.push(t); if (s.log.length > 60) s.log.shift(); };
+  const ev = e => s.events.push(e);
   const at = (arr, i) => { if (!Number.isInteger(i) || !arr[i]) throw new Error('That card is gone.'); return arr[i]; };
   const who = () => { if (a.who !== 0 && a.who !== 1) throw new Error('Bad player.'); return s.players[a.who]; };
   const step = () => { if (a.d !== 1 && a.d !== -1) throw new Error('Bad amount.'); return a.d; };
-  const spend = () => {
+  const spend = n => {
     if (s.turn !== p) throw new Error('Not your turn.');
-    if (s.actions < 1) throw new Error('No Actions left.');
-    s.actions--;
+    if (s.actions < n) throw new Error(n > 1 ? `That costs ${n} Actions.` : 'No Actions left.');
+    s.actions -= n;
   };
-  const draw = pl => { if (pl.deck.length) pl.hand.push(pl.deck.shift()); else say(`${pl.name}'s deck is empty.`); };
+  const draw = pi => {
+    const pl = s.players[pi];
+    if (pl.deck.length) { pl.hand.push(pl.deck.shift()); ev({ k: 'draw', p: pi }); } else say(`${pl.name}'s deck is empty.`);
+  };
+  const gain = (pi, key, n) => { // meters only; returns the real change
+    const t = s.players[pi];
+    if (key === 'goof' && n > 0) n += modSum(s, pi, 'goofBonus');
+    const before = t[key];
+    t[key] = Math.max(0, t[key] + n);
+    const d = t[key] - before;
+    if (d > 0 && key === 'goof') t.stats.goof += d;
+    if (d > 0 && key === 'bore') s.players[1 - pi].stats.bore += d;
+    if (d) ev({ k: 'meter', p: pi, key, n: d });
+    return d;
+  };
+  const runOps = (pi, ops, c) => {
+    for (const [what, whom, n] of ops || []) {
+      const ti = whom === 'opp' ? 1 - pi : pi, t = s.players[ti];
+      if (what === 'goof' || what === 'bore') { const d = gain(ti, what, n); say(`${c.name}: ${t.name} ${d >= 0 ? '+' : ''}${d} ${METERS[what]}.`); }
+      else if (what === 'draw') { for (let k = 0; k < n; k++) draw(ti); say(`${c.name}: ${t.name} draws ${n}.`); }
+      else if (what === 'actions' && s.turn === ti) { s.actions = Math.max(0, s.actions + n); say(`${c.name}: ${n > 0 ? '+' : ''}${n} Action${Math.abs(n) > 1 ? 's' : ''}.`); }
+    }
+  };
+  const hurt = (pi, i) => { const f = s.players[pi].field[i]; f.hp--; ev({ k: 'hit', p: pi, i, ko: f.hp <= 0 }); };
   const cull = pl => { pl.field = pl.field.filter(f => f.hp > 0 || (say(`${CARD[f.id].name} was defeated.`), false)); };
-  const bore = (target, by, n) => { target.bore += n; by.stats.bore += n; };
 
   if (s.phase === 'over') throw new Error('The game is over.');
   if (s.phase === 'defend' && a.type !== 'defend') throw new Error('Waiting for a defender.');
   s.roll = null;
+  s.events = [];
 
   switch (a.type) {
     case 'play': {
       const id = at(me.hand, a.i), c = CARD[id];
-      spend();
+      spend(playCost(s, p, c));
       me.hand.splice(a.i, 1);
-      if (c.type === 'character') me.field.push({ id, hp: c.hp });
-      else me.effects.push(c.type === 'bit' ? { id, turns: c.dur } : { id });
+      if (c.type === 'character') { me.field.push({ id, hp: c.hp, t: s.turnNo }); ev({ k: 'play', p, zone: 'field', i: me.field.length - 1 }); }
+      else { me.effects.push(c.type === 'bit' ? { id, turns: c.dur } : { id }); ev({ k: 'play', p, zone: 'fx', i: me.effects.length - 1 }); ev({ k: 'cast', p, id }); }
       say(`${me.name} played ${c.name}.`);
+      runOps(p, c.onPlay, c);
       break;
     }
     case 'attack': {
-      const c = CARD[at(me.field, a.i).id];
-      spend();
+      const f = at(me.field, a.i), c = CARD[f.id];
+      if (!canAttack(s, f)) throw new Error(`${c.name} can't attack the turn it's played.`);
+      spend(attackCost(s, p));
       if (opp.field.length) { s.phase = 'defend'; s.pending = { i: a.i }; say(`${c.name} attacks! ${opp.name} picks a defender.`); }
-      else { bore(opp, me, c.atk); say(`${c.name} attacks directly: ${opp.name} +${c.atk} Boredom.`); }
+      else {
+        const n = statsOf(s, p, f).atk;
+        ev({ k: 'attack', p, i: a.i });
+        gain(1 - p, 'bore', n);
+        say(`${c.name} attacks directly: ${opp.name} +${n} Boredom.`);
+      }
       break;
     }
     case 'defend': {
       if (s.phase !== 'defend' || s.turn === p) throw new Error('Nothing to defend.');
-      const atk = opp, af = at(atk.field, s.pending.i), df = at(me.field, a.i);
-      const ac = CARD[af.id], dc = CARD[df.id];
-      const die = 1 + Math.floor(rng() * 20), total = die + ac.atk, hit = total >= dc.def;
-      if (hit) { df.hp--; bore(me, atk, ac.atk); } else af.hp--;
-      s.roll = { seq: s.seq + 1, die, atk: ac.atk, def: dc.def, total, hit, a: af.id, d: df.id, aHp: af.hp, dHp: df.hp, by: 1 - p };
-      say(`Rolled ${die} + ${ac.atk} = ${total} vs ${dc.def} DEF: ` + (hit
-        ? `breaks through! ${dc.name} -1 HP, ${me.name} +${ac.atk} Boredom.`
+      const ai = 1 - p, af = at(opp.field, s.pending.i), df = at(me.field, a.i);
+      const ac = CARD[af.id], dc = CARD[df.id], A = statsOf(s, ai, af), D = statsOf(s, p, df);
+      const roll = () => 1 + Math.floor(rng() * 20);
+      const rolls = dc.disadv ? [roll(), roll()] : [roll()], die = Math.min(...rolls), total = die + A.atk, hit = total >= D.def;
+      ev({ k: 'attack', p: ai, i: s.pending.i });
+      if (hit) { hurt(p, a.i); gain(p, 'bore', A.atk); } else hurt(ai, s.pending.i);
+      s.roll = { seq: s.seq + 1, die, rolls, atk: A.atk, def: D.def, total, hit, a: af.id, d: df.id, aHp: af.hp, dHp: df.hp, by: ai };
+      say(`Rolled ${rolls.length > 1 ? `${rolls.join(' & ')}, kept ${die}` : die} + ${A.atk} = ${total} vs ${D.def} DEF: ` + (hit
+        ? `breaks through! ${dc.name} -1 HP, ${me.name} +${A.atk} Boredom.`
         : `blocked! ${ac.name} -1 HP.`));
-      cull(atk); cull(me);
+      if (hit) runOps(ai, ac.onBreak, ac);
+      cull(opp); cull(me);
       s.phase = 'play'; s.pending = null;
       break;
     }
     case 'ability': {
-      const c = a.i === -1 ? CARD[me.captain] : CARD[at(me.field, a.i).id];
-      spend();
-      say(`${me.name} used ${c.name}: "${c.text}"`);
+      const cap = a.i === -1, c = cap ? CARD[me.captain] : CARD[at(me.field, a.i).id];
+      if (!c.ability) throw new Error(`${c.name} has no ability to use.`);
+      if (cap && c.once && s.capUsed) throw new Error(`${c.name}'s ability is once per turn.`);
+      spend(1);
+      if (cap) s.capUsed = true;
+      say(`${me.name} used ${c.name}'s ability.`);
+      ev({ k: 'cast', p, id: c.id });
+      runOps(p, c.ability, c);
       break;
     }
     case 'end': {
@@ -104,25 +153,31 @@ function apply(s0, p, a, rng = Math.random) {
         say(`${CARD[e.id].name} wore off.`);
         return false;
       });
-      s.turn = 1 - p; s.turnNo++; s.actions = 2;
-      draw(opp);
+      s.turn = 1 - p; s.turnNo++; s.actions = 2; s.capUsed = false;
+      draw(1 - p);
       say(`${opp.name}'s turn.`);
+      ev({ k: 'turn', p: 1 - p });
+      for (const c of sources(s, 1 - p)) runOps(1 - p, c.onTurnStart, c);
+      for (const c of sources(s, p)) runOps(p, c.onOppTurnStart, c);
       break;
     }
-    // ---- manual tools for applying card text ----
+    // ---- manual tools for card text the effect data doesn't cover ----
     case 'adjust': {
       const t = who(), d = step();
       if (a.key === 'actions') { s.actions = Math.max(0, s.actions + d); say(`${me.name} set Actions to ${s.actions}.`); break; }
       if (!METERS[a.key]) throw new Error('Bad meter.');
+      const before = t[a.key];
       t[a.key] = Math.max(0, t[a.key] + d);
+      if (t[a.key] === before) break;
       if (d > 0 && a.key === 'goof') t.stats.goof++;
       if (d > 0 && a.key === 'bore') s.players[1 - a.who].stats.bore++;
+      if (a.key !== 'points') ev({ k: 'meter', p: a.who, key: a.key, n: d });
       say(`${me.name} set ${t.name}'s ${METERS[a.key]} to ${t[a.key]}.`);
       break;
     }
     case 'hp': {
-      const t = who(), f = at(t.field, a.i);
-      f.hp = Math.max(0, f.hp + step());
+      const t = who(), f = at(t.field, a.i), d = step();
+      if (d < 0 && f.hp > 0) hurt(a.who, a.i); else f.hp += d > 0 ? 1 : 0;
       say(`${me.name} set ${CARD[f.id].name}'s HP to ${f.hp}.`);
       cull(t);
       break;
@@ -142,15 +197,15 @@ function apply(s0, p, a, rng = Math.random) {
       say(`${me.name} removed ${CARD[item.id ?? item].name}${zone === 'hand' ? ' from their hand' : ''}.`);
       break;
     }
-    case 'draw': draw(me); say(`${me.name} drew a card.`); break;
+    case 'draw': draw(p); say(`${me.name} drew a card.`); break;
     default: throw new Error('Unknown action.');
   }
 
   // Scoring: a meter reaching 5 scores a Point and resets to 0; overflow is lost.
   for (const [i, pl] of s.players.entries()) {
     const other = s.players[1 - i];
-    if (pl.goof >= 5) { pl.goof = 0; pl.points++; say(`${pl.name} hit 5 Goofiness: +1 Point!`); }
-    if (pl.bore >= 5) { pl.bore = 0; other.points++; say(`${pl.name} hit 5 Boredom: ${other.name} +1 Point!`); }
+    if (pl.goof >= 5) { pl.goof = 0; pl.points++; ev({ k: 'point', p: i }); say(`${pl.name} hit 5 Goofiness: +1 Point!`); }
+    if (pl.bore >= 5) { pl.bore = 0; other.points++; ev({ k: 'point', p: 1 - i }); say(`${pl.name} hit 5 Boredom: ${other.name} +1 Point!`); }
   }
   const won = [s.turn, 1 - s.turn].find(i => s.players[i].points >= 5);
   if (won !== undefined) { s.phase = 'over'; s.winner = won; say(`${s.players[won].name} wins!`); }

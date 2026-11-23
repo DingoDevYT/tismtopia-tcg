@@ -150,6 +150,7 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
 .st.def .i { color: #3b7ddc; }
 .st.hp .i { color: #27a866; }
 .st.hp.hurt b { color: #e5535d; }
+.st.buff b { color: var(--good); }
 .card .tag { align-self: flex-start; display: flex; align-items: center; gap: 1.4cqw; padding: 1.3cqw 3.6cqw 1.3cqw 2.8cqw; border-radius: 99px; font-size: 5.8cqw; font-weight: 800; color: var(--tint); background: rgba(255, 255, 255, .94); }
 .card .tag .i { width: 5.6cqw; height: 5.6cqw; }
 .card .foot { display: flex; justify-content: space-between; padding: 0 1cqw; font-size: 3.8cqw; font-weight: 800; letter-spacing: .3cqw; text-transform: uppercase; color: var(--name); opacity: .7; }
@@ -267,6 +268,79 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
 .coach .row2 > * { flex: none; }
 .coach-target { position: relative; z-index: 3; outline: 3px solid var(--glow); outline-offset: 4px; border-radius: 16px; animation: coach 1.1s ease-in-out infinite; }
 @keyframes coach { 50% { outline-color: transparent; } }
+
+/* ---------- battle feel: one-shot classes added by app.js, plus hover/tilt ---------- */
+#fx { position: fixed; inset: 0; z-index: 50; pointer-events: none; overflow: hidden; }
+.hand .card { transition: transform .15s, translate .18s, scale .18s; }
+.hand .card:hover { translate: 0 -18px; scale: 1.07; z-index: 4; }
+.field .card { transition: translate .15s; }
+.field .card:hover { translate: 0 -4px; }
+.card.glow .frame { animation: glow 1.6s ease-in-out infinite; }
+@keyframes glow { 50% { box-shadow: inset 0 0 0 2.4cqw #f4f6fa, 0 0 0 3px var(--glow), 0 0 30px var(--glow); } }
+.card.zoom { transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transition: transform .12s ease-out; }
+.card.zoom .frame::before { content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none; border-radius: inherit;
+  background: radial-gradient(circle at var(--mx, 50%) var(--my, 25%), rgba(255, 255, 255, .55), transparent 50%); mix-blend-mode: soft-light; }
+
+.card.slam { animation: slam .55s cubic-bezier(.2, .9, .3, 1.25); z-index: 3; }
+@keyframes slam { 0% { transform: translateY(-50px) scale(1.4); opacity: 0; } 60% { transform: scale(.95); opacity: 1; } 100% { transform: none; } }
+.card.lunge-up { animation: lungeUp .52s cubic-bezier(.4, 0, .3, 1); z-index: 5; }
+.card.lunge-down { animation: lungeDown .52s cubic-bezier(.4, 0, .3, 1); z-index: 5; }
+@keyframes lungeUp { 0% { transform: none; } 15% { transform: translateY(8px) scale(.97); } 45% { transform: translateY(-56px) scale(1.1); } 100% { transform: none; } }
+@keyframes lungeDown { 0% { transform: none; } 15% { transform: translateY(-8px) scale(.97); } 45% { transform: translateY(56px) scale(1.1); } 100% { transform: none; } }
+.card.hurt { animation: shake .45s; }
+.card.hurt .frame, .card.ko .frame { animation: redFlash .45s; }
+@keyframes shake { 10%, 50%, 90% { transform: translateX(-7px); } 30%, 70% { transform: translateX(7px); } }
+@keyframes redFlash { 30% { filter: brightness(1.35) saturate(1.6); box-shadow: 0 0 0 3px var(--accent), 0 0 28px var(--accent); } }
+.card.ko { animation: ko .7s forwards; }
+@keyframes ko { 20% { transform: translateX(7px) rotate(3deg); } 40% { transform: translateX(-5px) rotate(-2deg); } 100% { transform: scale(.55) rotate(-12deg) translateY(20px); opacity: 0; filter: grayscale(1); } }
+.card.drawn { animation: drawn .6s cubic-bezier(.2, .9, .3, 1); }
+@keyframes drawn { from { translate: 140px 60px; opacity: 0; } }
+.fx.pop, .bump { animation: pop .5s cubic-bezier(.2, 1.6, .4, 1); }
+@keyframes pop { 0% { scale: .4; opacity: .4; } 60% { scale: 1.25; opacity: 1; } 100% { scale: 1; } }
+.big.enter { animation: victoryIn .9s cubic-bezier(.2, 1.5, .4, 1); }
+@keyframes victoryIn { from { scale: .2; rotate: -8deg; opacity: 0; } }
+
+.d20.rolling { animation: tumble .72s cubic-bezier(.3, .6, .4, 1); }
+@keyframes tumble { from { rotate: -540deg; scale: .5; } }
+.d20.land { animation: land .45s cubic-bezier(.2, 1.7, .4, 1); }
+@keyframes land { from { scale: 1.35; } }
+.d20 ~ * { transition: opacity .25s; }
+.d20.rolling ~ * { opacity: 0; }
+
+.dim.enter { animation: fadeIn .2s ease-out; }
+.sheet.enter { animation: sheetIn .3s cubic-bezier(.2, .9, .3, 1); }
+.card.zoom.enter { animation: zoomIn .32s cubic-bezier(.2, 1.3, .4, 1); }
+.toast.enter { animation: zoomIn .3s cubic-bezier(.2, 1.4, .4, 1); }
+@keyframes fadeIn { from { opacity: 0; } }
+@keyframes sheetIn { from { translate: 0 60px; opacity: 0; } }
+@keyframes zoomIn { from { scale: .8; opacity: 0; } }
+
+.floater { position: fixed; translate: -50% 0; font-size: 18px; font-weight: 800; white-space: nowrap; text-shadow: 0 2px 0 #fff, 0 0 10px #fff; animation: floatUp 1.25s ease-out forwards; }
+.floater.dmg { font-size: 26px; color: var(--accent); }
+.floater.goof { color: #f0941c; }
+.floater.bore { color: #67779a; }
+@keyframes floatUp { 0% { opacity: 0; transform: translateY(12px) scale(.5); } 15% { opacity: 1; transform: translateY(0) scale(1.2); } 30% { transform: scale(1); } 100% { opacity: 0; transform: translateY(-50px); } }
+.banner { position: fixed; left: 0; right: 0; top: 40%; display: grid; place-items: center; animation: sweep 1.5s cubic-bezier(.2, .8, .2, 1) forwards; }
+.banner span { padding: 4px 80px; font-family: Yellowtail, cursive; font-size: 60px; line-height: 1.2; color: var(--accent); text-shadow: 0 3px 0 #fff;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .92) 25%, rgba(255, 255, 255, .92) 75%, transparent); }
+.banner.gold span { color: #e0a000; }
+@keyframes sweep { 0% { opacity: 0; transform: translateX(-35%) skewX(-14deg); } 18%, 70% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateX(35%) skewX(-14deg); } }
+.splash { position: fixed; left: 50%; top: 46%; translate: -50% -50%; animation: splash 1.4s cubic-bezier(.2, .9, .3, 1) forwards; }
+.splash .card { --cw: 200px; }
+@keyframes splash { 0% { opacity: 0; transform: scale(.35) rotate(-10deg); } 16% { opacity: 1; transform: scale(1.06) rotate(2deg); } 26% { transform: scale(1) rotate(0); } 72% { opacity: 1; transform: none; } 100% { opacity: 0; transform: scale(.85) translateY(-40px); } }
+.coinflip { position: fixed; inset: 0; display: grid; place-content: center; justify-items: center; gap: 18px; background: rgba(40, 46, 70, .35); animation: hold 2.3s forwards; }
+.coinflip .coin { width: 120px; height: 120px; display: grid; place-items: center; border-radius: 50%; color: #fff;
+  background: radial-gradient(circle at 35% 30%, #fff1b0, var(--gold) 55%, #c98a00); box-shadow: 0 12px 30px rgba(0, 0, 0, .25), inset 0 0 0 6px rgba(255, 255, 255, .35);
+  animation: flip 1.25s cubic-bezier(.3, .7, .4, 1); }
+.coinflip .coin .i { width: 56%; height: 56%; }
+.coinflip b { font-size: 26px; color: #fff; text-shadow: 0 2px 10px rgba(0, 0, 0, .45); animation: rise .45s 1.15s both; }
+@keyframes flip { 0% { transform: translateY(70px) rotateY(0); } 50% { transform: translateY(-90px) rotateY(900deg); } 100% { transform: none rotateY(1800deg); } }
+@keyframes hold { 0%, 82% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes rise { from { opacity: 0; transform: translateY(12px); } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+  .card.zoom { transform: none; }
+}
 
 /* ---------- desktop: queried on the screen's own width, so mockup frames get the same layout ---------- */
 .screen { container: app / inline-size; }
