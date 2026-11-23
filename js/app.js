@@ -124,7 +124,7 @@ const MY = '.side:nth-child(4)';
 const TUT = [
   { text: 'Welcome to Tismtopia! Be the first to score 5 Points. This quick battle shows you how.', next: true },
   { text: 'This is you: your Captain card and your meters. Gold coins are Points. Goofiness (orange): fill it to 5 to score. Boredom (grey): if yours hits 5, your opponent scores.', sel: `${MY} .hud`, next: true },
-  { text: 'Every turn you get 2 Actions. Playing a card, attacking and using an ability cost 1 each.', sel: '.pips', next: true },
+  { text: "Every turn you gain 2 Actions. Playing a card costs 1, and each move shows its cost. Actions you don't spend are saved for next turn (up to 5), so you can save up for big moves.", sel: '.pips', next: true },
   { text: 'Tap VC Goblin in your hand, then tap Play.', sel: () => (ui.zoom ? '.dim [data-a*=\'"play"\']' : '.hand .card[data-id="c_vc_goblin"]'), done: g => g.players[0].field.length > 0 },
   { text: 'VC Goblin says "When played: +1 Goofiness", so your orange bar just went up. Card text runs by itself.', sel: `${MY} .meter.goof`, next: true },
   { text: 'Characters attack with moves, each costing Actions. Tap VC Goblin on the field and use Mic Spam (1 Action). Nobody is blocking, so its power goes straight to their Boredom.',
@@ -176,11 +176,13 @@ function botMove() {
     const hc = B.hand.findIndex(id => CARD[id].type === 'character'), canPlay = hc >= 0 && B.field.length < 3;
     // Every move it can afford right now; attacks score by power per Action, abilities are a fallback.
     const moves = all.flatMap(i => CARD[B.field[i].id].moves.map((mv, m) => ({ i, m, mv, c: moveCost(g, 1, mv) })))
-      .filter(x => x.c <= n && (x.mv.ability || canAttack(g, B.field[x.i])));
+      .filter(x => !moveBlock(g, 1, B.field[x.i], x.m));
+    const boost = moves.find(x => x.mv.ability && x.c === 0); // free Action-givers first
     const attacks = moves.filter(x => !x.mv.ability), abil = moves.find(x => x.mv.ability);
     const spell = B.hand.findIndex(id => CARD[id].type !== 'character' && playCost(g, 1, CARD[id]) <= n);
     const cap = CARD[B.captain];
-    if (n >= 2 && canPlay) a = { type: 'play', i: hc };
+    if (boost) a = { type: 'attack', i: boost.i, m: boost.m };
+    else if (n >= 2 && canPlay) a = { type: 'play', i: hc };
     else if (attacks.length) { const x = attacks[best(attacks.map((_, k) => k), k => attacks[k].mv.power / attacks[k].c + attacks[k].mv.power * 0.1)]; a = { type: 'attack', i: x.i, m: x.m }; }
     else if (spell >= 0) a = { type: 'play', i: spell };
     else if (n && canPlay) a = { type: 'play', i: hc };
@@ -240,9 +242,9 @@ function zoomGame(z) {
     // One button per move; greyed out when it can't be used right now.
     const bonus = statsOf(game, w, item).bonus;
     const acts = c.moves.map((mv, m) => {
-      const n = moveCost(game, me, mv), why = n > game.actions ? 'Not enough Actions' : !mv.ability && !canAttack(game, item) ? 'Can attack next turn' : '';
-      const label = `<span class="mb-name">${mv.name}</span>${mv.ability ? '' : `<span class="mb-pow">${mv.power + bonus}</span>`}${cost(n)}`;
-      return why ? `<button class="btn move-btn" disabled title="${why}">${label}</button>` : btn({ type: 'attack', i: z.i, m }, label, `move-btn${m === 0 ? ' primary' : ''}`);
+      const n = moveCost(game, me, mv), why = moveBlock(game, me, item, m);
+      const label = `<span class="mb-name">${mv.name}${why ? `<small>${why}</small>` : ''}</span>${mv.ability ? '' : `<span class="mb-pow">${mv.power + bonus}</span>`}${n ? cost(n) : '<span class="cost">Free</span>'}`;
+      return why ? `<button class="btn move-btn" disabled>${label}</button>` : btn({ type: 'attack', i: z.i, m }, label, `move-btn${m === 0 ? ' primary' : ''}`);
     });
     rows = (mine && live ? `<div class="row2">${acts.join('')}</div>` : '')
       + `<div class="row2">${stepper(`HP ${item.hp}`, { type: 'hp', who: w, i: z.i, d: -1 }, { type: 'hp', who: w, i: z.i, d: 1 })}${remove}</div>`;

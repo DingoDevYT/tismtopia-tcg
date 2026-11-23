@@ -36,7 +36,7 @@ const ICON = Object.fromEntries(Object.entries({
 }).map(([k, d]) => [k, `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`]));
 
 // A Character move, Pokemon style: Action pips, name, power (or "Ability"), effect text underneath.
-const renderMove = (mv, bonus = 0) => `<div class="move"><div class="mv-top"><span class="mv-cost">${ICON.action.repeat(mv.cost)}</span><b>${mv.name}</b>${mv.ability
+const renderMove = (mv, bonus = 0) => `<div class="move"><div class="mv-top"><span class="mv-cost">${mv.cost ? ICON.action.repeat(mv.cost) : '<em>Free</em>'}</span><b>${mv.name}</b>${mv.ability
   ? '<span class="mv-tag">Ability</span>' : `<span class="mv-pow${bonus > 0 ? ' buff' : ''}">${mv.power + bonus}</span>`}</div>${mv.text ? `<div class="mv-text">${mv.text}</div>` : ''}</div>`;
 
 // c = card data (null = face-down). o: { cls, hp, def, bonus (live values; buffs show green), turns, style, attrs }
@@ -45,18 +45,17 @@ function renderCard(c, o = {}) {
   if (!c) return `<div class="card back${cls}"${style}><div class="frame"></div></div>`;
   const kind = kindOf(c), hp = o.hp ?? c.hp, turns = o.turns ?? c.dur, def = o.def ?? c.def;
   const art = c.art ? `<img src="${c.art}" alt="">` : `<span class="ph">${ICON[c.type]}</span>`;
+  // Characters read like Pokemon cards: HP top right, DEF as a shield on the art, moves on one panel.
   const isChar = c.type === 'character';
+  const hpTag = isChar ? `<span class="hp${hp < c.hp ? ' hurt' : ''}"><i>HP</i>${hp}</span>` : '';
+  const defTag = isChar ? `<span class="defb${def > c.def ? ' buff' : ''}" title="Defense">${ICON.def}<b>${def}</b></span>` : '';
   const body = isChar
     ? `${c.text ? `<div class="text passive">${c.text}</div>` : ''}<div class="moves">${c.moves.map(mv => renderMove(mv, o.bonus)).join('')}</div>`
-    : `<div class="text">${c.text}</div>`;
-  const foot = isChar
-    ? `<div class="stats"><span class="st def${def > c.def ? ' buff' : ''}">${ICON.def}<i>DEF</i><b>${def}</b></span><span class="st hp${hp < c.hp ? ' hurt' : ''}">${ICON.hp}<i>HP</i><b>${hp}</b></span></div>`
-    : `<div class="tag">${c.type === 'bit' ? `${ICON.time}${turns} turn${turns > 1 ? 's' : ''}` : c.type === 'evil' ? `${ICON.forever}Forever` : `${ICON.captain}${c.style}`}</div>`;
+    : `<div class="text">${c.text}</div><div class="tag">${c.type === 'bit' ? `${ICON.time}${turns} turn${turns > 1 ? 's' : ''}` : c.type === 'evil' ? `${ICON.forever}Forever` : `${ICON.captain}${c.style}`}</div>`;
   return `<div class="card k-${kind}${cls}"${style} data-id="${c.id}"><div class="frame">
-    <div class="head"><span class="name">${c.name}</span><span class="type">${ICON[kind]}</span></div>
-    <div class="art">${art}</div>
+    <div class="head"><span class="name">${c.name}</span>${hpTag}<span class="type">${ICON[kind]}</span></div>
+    <div class="art">${art}${defTag}</div>
     ${body}
-    ${foot}
     <div class="foot"><span>${LABEL[kind]}</span><span>TISM ${c.no}</span></div>
   </div></div>`;
 }
@@ -73,7 +72,7 @@ const pick = (who, zone, i) => `data-act="card" data-who="${who}" data-zone="${z
 function renderHud(p, who = 'me') {
   return `<div class="hud">${renderCard(CARD[p.captain], { cls: 'cap', attrs: pick(who, 'cap', 0) })}
     <div class="meters neu" data-act="sheet" data-s="adjust" tabindex="0" role="button" aria-label="${esc(p.name)}: meters, log and manual tools">
-      <div class="m-top"><b>${esc(p.name)}</b>${coins(p.points)}</div>${meter('goof', p.goof)}${meter('bore', p.bore)}</div></div>`;
+      <div class="m-top"><b>${esc(p.name)}</b>${p.bank ? `<span class="bank" title="Actions saved for next turn">${ICON.action}${p.bank}</span>` : ''}${coins(p.points)}</div>${meter('goof', p.goof)}${meter('bore', p.bore)}</div></div>`;
 }
 
 // stat(f) -> { def, bonus } with modifiers applied (game.js statsOf); omitted in the mockups.

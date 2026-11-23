@@ -97,6 +97,34 @@ s = apply(s, 0, { type: 'attack', i: li, m: 1 });
 s = apply(s, 1, { type: 'defend', i: 0 }, seq(0.99, 0.99, 0.9)); // vs Larry: two d20s, then tails
 assert(s.roll.hit && s.events.filter(e => e.k === 'hit' && e.p === 1).length === 1, 'Rubberband tails: 1 HP');
 
+// ---- Action economy: carry-over, cap, once-per-turn, extra-Action cards ----
+let e = newGame([STARTER, STARTER], ['A', 'B'], fixed(0.1));
+e.players[0].hand = ['c_booster', 'b_energy', 'b_caffeine'];
+e = apply(e, 0, { type: 'end' });            // A saves both Actions
+e = apply(e, 1, { type: 'end' });            // B saves 2 too
+assert(e.turn === 0 && e.actions === 4, 'unused Actions carry over: 2 saved + 2');
+e = apply(e, 0, { type: 'end' }); e = apply(e, 1, { type: 'end' });
+assert(e.actions === MAX_ACTIONS, 'start-of-turn Actions capped at ' + MAX_ACTIONS);
+e = apply(e, 0, { type: 'play', i: 0 });     // Server Booster (5 -> 4)
+e = apply(e, 0, { type: 'attack', i: 0, m: 0 }); // Boost: free, +1
+assert(e.actions === 5, 'Boost: free +1 Action');
+throws(() => apply(e, 0, { type: 'attack', i: 0, m: 0 }), 'Boost is once per turn');
+assert(moveBlock(e, 0, e.players[0].field[0], 0) === 'Used this turn', 'move shows why it is blocked');
+e = apply(e, 0, { type: 'play', i: 0 });     // Energy Drink: -1 +2
+assert(e.actions === 6, 'Energy Drink: net +1, can exceed the cap');
+e = apply(e, 0, { type: 'play', i: 0 });     // Caffeine IV (3 turns)
+const left0 = e.actions;
+e = apply(e, 0, { type: 'end' }); e = apply(e, 1, { type: 'end' });
+assert(e.actions === Math.min(MAX_ACTIONS, left0 + 2) + 1, 'Caffeine IV: +1 at the start of your next turn');
+e = apply(e, 0, { type: 'attack', i: 0, m: 0 });
+assert(e.players[0].field[0].once[0] === e.turnNo, 'Boost usable again on a new turn');
+e = apply(e, 0, { type: 'end' }); e = apply(e, 1, { type: 'end' });
+assert(e.players[0].effects.every(x => x.id !== 'b_caffeine') || e.players[0].effects.find(x => x.id === 'b_caffeine').turns === 1, 'Caffeine IV ticks down');
+let pu = newGame([{ ...STARTER, captain: 'cap_poweruser' }, STARTER], ['P', 'B'], fixed(0.1));
+assert(pu.actions === 3, 'Power User: 3 Actions on the very first turn');
+pu = apply(pu, 0, { type: 'end' }); pu = apply(pu, 1, { type: 'end' });
+assert(pu.actions === Math.min(MAX_ACTIONS, 3 + 2) + 1, 'Power User: +1 every turn on top of saved Actions');
+
 // ---- captain passives on fresh games ----
 let c = newGame([{ ...STARTER, captain: 'cap_clown' }, { ...STARTER, captain: 'cap_mod' }], ['C', 'M'], fixed(0.1));
 c.players[0].hand = ['b_voice_crack', 'e_slowmode'];

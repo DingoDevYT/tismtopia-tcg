@@ -2,6 +2,7 @@
 // Card effects come from card data (key at the top of cards.js); the manual actions cover anything else.
 // Each new state carries `events` describing what just happened, which the UI animates.
 const MAX_COPIES = 3;
+const MAX_ACTIONS = 5; // unused Actions carry over; you start a turn with at most this many (card bonuses can go past it)
 const METERS = { goof: 'Goofiness', bore: 'Boredom', points: 'Points' };
 
 const expand = cards => Object.entries(cards).flatMap(([id, n]) => Array(n).fill(id));
@@ -38,18 +39,26 @@ const statsOf = (s, pi, f) => ({ def: CARD[f.id].def + modSum(s, pi, 'def'), bon
 const moveCost = (s, pi, mv) => mv.cost + (mv.ability ? 0 : modSum(s, 1 - pi, 'oppAttackCost'));
 const playCost = (s, pi, c) => 1 + (c.type === 'evil' ? modSum(s, 1 - pi, 'oppEvilCost') : 0);
 const canAttack = (s, f) => !(CARD[f.id].sick && f.t === s.turnNo);
-// Can this Character use any move right now with the Actions left?
-const canUseAny = (s, pi, f) => (CARD[f.id].moves || []).some(mv => moveCost(s, pi, mv) <= s.actions && (mv.ability || canAttack(s, f)));
+// Why move m of field card f can't be used right now ('' = it can).
+function moveBlock(s, pi, f, m) {
+  const mv = CARD[f.id].moves?.[m];
+  if (!mv) return 'No such move.';
+  if (moveCost(s, pi, mv) > s.actions) return 'Not enough Actions';
+  if (!mv.ability && !canAttack(s, f)) return 'Can attack next turn';
+  if (mv.once && f.once?.[m] === s.turnNo) return 'Used this turn';
+  return '';
+}
+const canUseAny = (s, pi, f) => (CARD[f.id].moves || []).some((_, m) => !moveBlock(s, pi, f, m));
 
 function newGame(decks, names, rng = Math.random) {
   const players = [0, 1].map(i => {
     const deck = shuffle(expand(decks[i].cards), rng);
     return { name: names[i], captain: decks[i].captain, deck: deck.slice(5), hand: deck.slice(0, 5), field: [], effects: [],
-      points: 0, goof: 0, bore: 0, stats: { goof: 0, bore: 0 } };
+      points: 0, goof: 0, bore: 0, bank: 0, stats: { goof: 0, bore: 0 } };
   });
   const first = rng() < 0.5 ? 0 : 1;
   // The first player skips their opening draw: they simply start with 5 cards.
-  return { players, turn: first, turnNo: 1, actions: 2, phase: 'play', pending: null, roll: null, winner: null, seq: 0, capUsed: false, events: [],
+  return { players, turn: first, turnNo: 1, actions: 2 + (CARD[decks[first].captain].mod?.actions || 0), phase: 'play', pending: null, roll: null, winner: null, seq: 0, capUsed: false, events: [],
     log: [`${names[first]} won the coin flip and goes first.`] };
 }
 
@@ -126,6 +135,8 @@ function apply(s0, p, a, rng = Math.random) {
     case 'attack': { // use one of a Character's moves: a.i = field position, a.m = move index
       const f = at(me.field, a.i), c = CARD[f.id], mv = c.moves?.[a.m], self = { p, i: a.i };
       if (!mv) throw new Error('No such move.');
+      if (mv.once && f.once?.[a.m] === s.turnNo) throw new Error(`${mv.name} is once per turn.`);
+      if (mv.once) f.once = { ...f.once, [a.m]: s.turnNo };
       if (mv.ability) {
         spend(moveCost(s, p, mv));
         say(`${c.name} used ${mv.name}.`);
@@ -185,9 +196,14 @@ function apply(s0, p, a, rng = Math.random) {
         say(`${CARD[e.id].name} wore off.`);
         return false;
       });
-      s.turn = 1 - p; s.turnNo++; s.actions = 2; s.capUsed = false;
+      // Leftover Actions are saved for your next turn; the new player gets 2 plus whatever they saved (capped), plus passives.
+      me.bank = s.actions;
+      s.turn = 1 - p; s.turnNo++; s.capUsed = false;
+      const saved = opp.bank || 0;
+      s.actions = Math.min(MAX_ACTIONS, saved + 2) + modSum(s, 1 - p, 'actions');
+      opp.bank = 0;
       draw(1 - p);
-      say(`${opp.name}'s turn.`);
+      say(`${opp.name}'s turn${saved ? ` (${saved} Action${saved > 1 ? 's' : ''} saved, starts with ${s.actions})` : ''}.`);
       ev({ k: 'turn', p: 1 - p });
       for (const c of sources(s, 1 - p)) runOps(1 - p, c.onTurnStart, c);
       for (const c of sources(s, p)) runOps(p, c.onOppTurnStart, c);
