@@ -80,7 +80,7 @@ const POL = {
   },
 };
 
-function play(decks, pols, cap = 200) {
+function play(decks, pols, cap = 200, track) {
   let s = newGame(decks, ['A', 'B'], rng);
   const st = { first: s.turn, attacks: 0, hits: 0, direct: 0, supers: 0, kos: 0 };
   for (let steps = 0; s.phase !== 'over' && s.turnNo < cap && steps < 5000; steps++) {
@@ -89,6 +89,7 @@ function play(decks, pols, cap = 200) {
     s.events = [];
     const n = tryAct(s, p, a) || tryAct(s, p, END);
     if (!n) throw new Error('stuck on ' + JSON.stringify(a));
+    track?.(s, n);
     for (const e of n.events) {
       if (e.k === 'attack') { if (e.roll) { st.attacks++; if (e.roll.hit) st.hits++; } else st.direct++; }
       if (e.k === 'cast' && CARD[e.id].type === 'captain') st.supers++;
@@ -109,6 +110,28 @@ function randomDeck(items = Math.floor(rng() * 11)) {
   const d = { captain: pick(CAPTAINS).id, cards };
   if (deckProblems(d).length) throw new Error(deckProblems(d).join('; '));
   return d;
+}
+
+// CARDS=1 node tools/sim.js <games> <seed> [knockout] [HP scale]: random-deck greedy games, per-card stats as JSON (combine with tools/simcards.js).
+if (process.env.CARDS) {
+  const out = { games: 0, turns: 0, firstWins: 0, cards: {} };
+  const C = id => (out.cards[id] ||= { deck: 0, deckWins: 0, played: 0, playedWins: 0, plays: 0, kos: 0, life: 0, lifeN: 0, dmg: 0, attacks: 0, blocked: 0 });
+  for (let g = 0; g < N; g++) {
+    const decks = [randomDeck(), randomDeck()], born = [{}, {}], playedIn = [new Set(), new Set()];
+    const r = play(decks, [POL.greedy, POL.greedy], 200, (s0, n) => {
+      for (const e of n.events) {
+        if (e.k === 'play') { const id = e.zone === 'field' ? n.players[e.p].field[e.i]?.id : n.players[e.p].effects[e.i]?.id; if (!id) continue; C(id).plays++; playedIn[e.p].add(id); if (e.zone === 'field') (born[e.p][id] ||= []).push(n.turnNo); }
+        if (e.k === 'hit' && e.ko) { const id = s0.players[e.p].field[e.i]?.id; if (!id) continue; C(id).kos++; const t = born[e.p][id]?.shift(); if (t != null) { C(id).life += n.turnNo - t; C(id).lifeN++; } }
+        if (e.k === 'attack') { const id = s0.players[e.p].field[e.i]?.id; if (!id) continue; const c = C(id); c.attacks++;
+          const d = e.direct ? n.events.filter(m => m.k === 'meter' && m.key === 'bore' && m.p === 1 - e.p).reduce((x, m) => x + m.n, 0) : e.roll?.dmg || 0; c.dmg += d; if (!e.direct && !e.roll?.hit) c.blocked++; }
+      }
+    });
+    if (r.winner < 0) continue;
+    out.games++; out.turns += r.turns; out.firstWins += r.winner === r.first;
+    decks.forEach((d, i) => { const won = r.winner === i ? 1 : 0; for (const id of Object.keys(d.cards)) { const c = C(id); c.deck++; c.deckWins += won; if (playedIn[i].has(id)) { c.played++; c.playedWins += won; } } (out.caps ||= {})[d.captain] ||= [0, 0]; out.caps[d.captain][0]++; out.caps[d.captain][1] += won; });
+  }
+  process.stdout.write(JSON.stringify(out));
+  process.exit(0);
 }
 
 const pct = x => (100 * x).toFixed(0).padStart(3) + '%';
