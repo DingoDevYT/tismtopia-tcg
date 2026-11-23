@@ -662,7 +662,7 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
 .wheel-stage { grid-column: 1 / -1; width: 100%; min-height: calc(100% - 20px); display: grid; align-content: center; justify-items: center; gap: 18px; padding: 10px 0 24px; overflow: hidden; position: relative;
   background: radial-gradient(70% 55% at 50% 45%, color-mix(in srgb, var(--pc) 45%, #fff), transparent 75%); transition: background .4s; }
 .wheel { position: relative; width: 100%; height: min(470px, 62vh); perspective: 1100px; touch-action: pan-y; }
-.wheel .slot { position: absolute; left: 50%; top: 50%; width: min(250px, 58vw); aspect-ratio: 560 / 960; transform: translate(-50%, -50%) translateX(calc(var(--o) * 78%)) translateZ(calc(var(--a) * -260px)) rotateY(calc(var(--o) * -32deg)) scale(calc(1 - var(--a) * .18));
+.wheel .slot { --p: calc(var(--o) + var(--drag, 0)); position: absolute; left: 50%; top: 50%; width: min(250px, 58vw); aspect-ratio: 560 / 960; transform: translate(-50%, -50%) translateX(calc(var(--p) * 78%)) translateZ(calc(var(--a) * -260px)) rotateY(calc(var(--p) * -32deg)) scale(calc(1 - var(--a) * .18));
   transition: transform .45s cubic-bezier(.2, .9, .3, 1), filter .45s, opacity .45s; z-index: calc(10 - var(--a)); filter: brightness(calc(1 - var(--a) * .25)); opacity: calc(1 - var(--a) * .35); border: 0; padding: 0; background: none; cursor: pointer; }
 .wheel .slot .pack { width: 100%; }
 .wheel .slot.center .pack { animation: packFloat 2.6s ease-in-out infinite alternate; box-shadow: 0 24px 40px rgba(0, 0, 0, .35), 0 0 0 3px rgba(255, 255, 255, .7); }
@@ -741,3 +741,5 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
 .fav.on { color: #ffb400; text-shadow: 0 0 6px rgba(255, 180, 0, .6); }
 .coll-cell.locked .card { filter: grayscale(1) brightness(.35) contrast(.8); opacity: .65; }
 .coll-tools .chip { padding: 5px 11px; font-size: 12px; min-height: 0; }
+.wheel.dragging .slot { transition: none; }
+.wheel-name { transition: opacity .2s; }

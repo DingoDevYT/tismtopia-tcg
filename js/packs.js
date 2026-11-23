@@ -84,8 +84,8 @@ function viewOpen() {
 }
 
 Object.assign(ACTS, {
-  'wheel-step'(d) { ui.packIdx = (ui.packIdx || 0) + Number(d.d); },
-  'wheel-to'(d) { if (Date.now() - lastSwipe < 350) return false; ui.packIdx = Number(d.i); },
+  'wheel-step'(d) { wheelGo((ui.packIdx || 0) + Number(d.d)); return false; },
+  'wheel-to'(d) { if (Date.now() - lastSwipe < 350) return false; wheelGo(Number(d.i)); return false; },
   'pick-pack'(d) { if (Date.now() - lastSwipe < 350) return false; ui.open = openPack(d.p); ui.view = 'open'; }, // a swipe isn't a tap
   'tear-now'() { tearOpen(); return false; },
   'start-reveal'() { ui.open.stage = 'reveal'; ui.open.i = 0; },
@@ -140,12 +140,27 @@ document.addEventListener('pointerup', e => {
   drag = null;
 });
 
-// Swipe the wheel left/right.
+// Wheel moves update the existing packs in place so the CSS transition animates them (re-rendering would snap).
+function wheelGo(idx) {
+  const n = PACKS.length; ui.packIdx = idx; const cur = ((idx % n) + n) % n, pk = PACKS[cur];
+  document.querySelectorAll('.wheel .slot').forEach((el, i) => {
+    let o = i - cur; if (o > n / 2) o -= n; if (o < -n / 2) o += n;
+    el.style.setProperty('--o', o); el.style.setProperty('--a', Math.abs(o)); el.classList.toggle('center', o === 0); el.dataset.act = o === 0 ? 'pick-pack' : 'wheel-to';
+  });
+  const st = $app.querySelector('.wheel-stage'); if (!st) return render();
+  st.style.setProperty('--pc', pk.colour);
+  st.querySelector('.wheel-name').textContent = pk.name;
+  st.querySelectorAll('.wheel-dots i').forEach((d, i) => d.classList.toggle('on', i === cur));
+  st.querySelector('.wheel-open').dataset.p = pk.id;
+}
+// Swipe: the packs follow your finger, then ease to the nearest one.
 let wheelX = null, lastSwipe = 0;
-document.addEventListener('pointerdown', e => { if (ui.view === 'packs' && e.target.closest?.('.wheel')) wheelX = e.clientX; });
+document.addEventListener('pointerdown', e => { const w = e.target.closest?.('.wheel'); if (ui.view === 'packs' && w && !e.target.closest('.wheel-arrow')) { wheelX = { x: e.clientX, w, slotW: w.querySelector('.slot').getBoundingClientRect().width * 0.78 }; } });
+document.addEventListener('pointermove', e => { if (!wheelX) return; const d = (e.clientX - wheelX.x) / wheelX.slotW; if (Math.abs(e.clientX - wheelX.x) > 6) { wheelX.w.classList.add('dragging'); wheelX.w.style.setProperty('--drag', d); } });
 document.addEventListener('pointerup', e => {
-  if (wheelX == null) return; const dx = e.clientX - wheelX; wheelX = null;
-  if (Math.abs(dx) > 40) { lastSwipe = Date.now(); ui.packIdx = (ui.packIdx || 0) + (dx < 0 ? 1 : -1); render(); }
+  if (!wheelX) return; const { w, slotW, x } = wheelX, dx = e.clientX - x; wheelX = null;
+  w.classList.remove('dragging'); w.style.setProperty('--drag', 0);
+  if (Math.abs(dx) > 30) { lastSwipe = Date.now(); const steps = Math.round(dx / slotW) || Math.sign(dx); wheelGo((ui.packIdx || 0) - steps); }
 });
 
 // ---------------- collection: every card, what you own, favourites, search / filter / sort ----------------
