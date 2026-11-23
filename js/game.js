@@ -107,7 +107,7 @@ function apply(s0, p, a, rng = Math.random) {
       if (what === 'hp') {
         const pos = a1 === 'self' ? ctx.self : ctx.target, f = pos && s.players[pos.p].field[pos.i];
         if (!f || f.hp <= 0) continue;
-        for (let k = 0; k < a2; k++) hurt(pos.p, pos.i);
+        f.lastHit = a2; for (let k = 0; k < a2; k++) hurt(pos.p, pos.i);
         say(`${c.name}: ${CARD[f.id].name} -${a2} HP.`);
         continue;
       }
@@ -124,7 +124,7 @@ function apply(s0, p, a, rng = Math.random) {
     const pi = s.players.indexOf(pl);
     pl.field = pl.field.filter(f => {
       if (f.hp > 0) return true;
-      const c = CARD[f.id], ko = f.sac ? 0 : c.ko ?? 3;
+      const c = CARD[f.id], ko = f.sac || c.ko === 0 ? 0 : f.lastHit || 1; // Boredom = the defeating hit's damage
       say(`${c.name} was ${f.sac ? 'sacrificed' : 'defeated'}${ko ? `: ${pl.name} +${ko} Boredom` : ''}.`);
       if (ko) gain(pi, 'bore', ko);
       return false;
@@ -180,7 +180,7 @@ function apply(s0, p, a, rng = Math.random) {
       const ac = CARD[af.id], dc = CARD[df.id], mv = ac.moves[s.pending.m];
       const power = mv.power + statsOf(s, ai, af).bonus, armor = statsOf(s, p, df).def, dmg = Math.max(0, power - armor), hit = dmg > 0;
       ev({ k: 'attack', p: ai, i: s.pending.i, target: { p, i: a.i }, move: mv.name, roll: { atk: power, def: armor, dmg, hit } });
-      for (let k = 0; k < dmg; k++) hurt(p, a.i);
+      df.lastHit = dmg; for (let k = 0; k < dmg; k++) hurt(p, a.i);
       s.roll = { seq: s.seq + 1, atk: power, def: armor, dmg, hit, a: af.id, d: df.id, by: ai };
       say(`${mv.name} hits ${dc.name} for ${power}${armor ? ` (armour ${armor})` : ''}: ` + (hit ? `${dmg} damage. ${me.name} -1 Creativity, ${opp.name} +1 Creativity.` : 'all blocked!'));
       if (hit) {
@@ -251,7 +251,7 @@ function apply(s0, p, a, rng = Math.random) {
     }
     case 'hp': {
       const t = who(), f = at(t.field, a.i), d = step();
-      if (d < 0 && f.hp > 0) hurt(a.who, a.i); else f.hp += d > 0 ? 1 : 0;
+      if (d < 0 && f.hp > 0) { f.lastHit = 1; hurt(a.who, a.i); } else f.hp += d > 0 ? 1 : 0;
       say(`${me.name} set ${CARD[f.id].name}'s HP to ${f.hp}.`);
       cull(t);
       break;

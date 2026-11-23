@@ -4,6 +4,7 @@
 const fs = require('fs'), path = require('path'), os = require('os');
 const root = path.join(__dirname, '..');
 const ART = process.env.TISM_ART || path.join(os.homedir(), 'Downloads', 'arte TismTopia');
+const ROLE_ADJ = { Tank: { hp: 3, def: 2 }, Bruiser: { hp: 1 }, 'Glass Cannon': { hp: -1, def: -2 }, Fodder: { hp: -1, def: -2 }, Engine: { def: -1 } };
 const DMG_BONUS = 1; // balance knob: every attack move does this much more than its drafted power, so armour doesn't cancel small hits
 const META = ['source', 'note', 'owner', 'folder', 'error', 'check', 'changes', 'evidence', 'artIssues', 'extraArt', 'baseId', 'suggestedArt', 'from', 'no', 'art', 'crop'];
 
@@ -29,6 +30,8 @@ for (const d of drafts) {
   const hitWord = t => t && t.replace(/[Bb]reak-through/g, m => (m[0] === 'B' ? 'Hit' : 'hit')).replace(/breaks through/g, 'lands a hit');
   c.text = hitWord(c.text); for (const m of c.moves || []) m.text = hitWord(m.text);
   delete c.main; // no Main Characters: Characters have roles instead
+  const adj = ROLE_ADJ[c.role]; // balance knob: role decides toughness, so Tanks and Glass Cannons feel different
+  if (adj && c.type === 'character') { c.hp = Math.max(1, c.hp + (adj.hp || 0)); c.def = Math.min(16, Math.max(8, c.def + (adj.def || 0))); }
   for (const m of c.moves || []) if (!m.ability && m.power != null) m.power += DMG_BONUS;
   if (c.disadv && c.text) c.text = c.text.replace(/Attacks against .*? roll twice and keep the lower\./, 'Tough: +1 armour.');
   owner[c.id] = r?.owner || d.owner || '';
