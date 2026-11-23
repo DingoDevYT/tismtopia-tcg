@@ -48,12 +48,31 @@ const renderMove = (mv, bonus = 0) => `<div class="move"><div class="mv-top"><sp
   ? '<span class="mv-tag">Ability</span>' : `<span class="mv-pow${bonus > 0 ? ' buff' : ''}">${mv.power + bonus}</span>`}</div>${mv.text ? `<div class="mv-text">${mv.text}</div>` : ''}</div>`;
 
 // c = card data (null = face-down). o: { cls, hp, def, bonus (live values; buffs show green), turns, style, attrs }
+// Character cards take their art's main colour: averaged once per image (saturated pixels count most), then cached.
+const TONE = {};
+const hsl = (r, g, b) => { r /= 255; g /= 255; b /= 255; const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn;
+  if (!d) return [0, 0]; const h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; return [Math.round(h * 60 + 360) % 360, Math.round(100 * d / (1 - Math.abs(2 * l - 1)))]; };
+function tone(img) {
+  const src = img.getAttribute('src');
+  if (!(src in TONE)) {
+    try {
+      const cv = document.createElement('canvas'), x = cv.getContext('2d'); cv.width = cv.height = 24;
+      x.drawImage(img, 0, 0, 24, 24);
+      const d = x.getImageData(0, 0, 24, 24).data; let r = 0, g = 0, b = 0, w = 0;
+      for (let i = 0; i < d.length; i += 4) { const mx = Math.max(d[i], d[i + 1], d[i + 2]), mn = Math.min(d[i], d[i + 1], d[i + 2]), k = (mx ? (mx - mn) / mx : 0) ** 2 * (mx / 255) * (d[i + 3] / 255) + 0.002; r += d[i] * k; g += d[i + 1] * k; b += d[i + 2] * k; w += k; }
+      const [h, s] = hsl(r / w, g / w, b / w), S = Math.max(40, Math.min(80, s));
+      TONE[src] = s < 10 ? '' : `--frame:linear-gradient(180deg,hsl(${h} ${S}% 82%),hsl(${h} ${S}% 52%));--tint:hsl(${h} ${S}% 30%)`; // grey art keeps the default blue
+    } catch { TONE[src] = ''; }
+  }
+  if (TONE[src]) img.closest('.frame')?.setAttribute('style', TONE[src]);
+}
+
 function renderCard(c, o = {}) {
   const cls = o.cls ? ' ' + o.cls : '', style = (o.style ? ` style="${o.style}"` : '') + (o.attrs ? ' ' + o.attrs : '');
   if (!c) return `<div class="card back${cls}"${style}><div class="frame"></div></div>`;
   const kind = kindOf(c), hp = o.hp ?? c.hp, turns = o.turns ?? c.dur, def = o.def ?? c.def;
   // Art lives only on computers that ran tools/apply-cards.js; elsewhere the image fails and the placeholder underneath shows.
-  const art = `<span class="ph">${ICON[c.type]}</span>${c.art ? `<img src="${c.art}" alt="" onerror="this.remove()"${cropStyle(c.crop)}>` : ''}`;
+  const art = `<span class="ph">${ICON[c.type]}</span>${c.art ? `<img src="${c.art}" alt="" onerror="this.remove()"${c.type === 'character' && !c.main ? ' onload="tone(this)"' : ''}${cropStyle(c.crop)}>` : ''}`;
   // Characters read like Pokemon cards: HP top right, DEF as a shield on the art, moves on one panel.
   const isChar = c.type === 'character';
   const hpTag = isChar ? `<span class="hp${hp < c.hp ? ' hurt' : ''}"><i>HP</i>${hp}</span>` : '';
@@ -61,7 +80,8 @@ function renderCard(c, o = {}) {
   const body = isChar
     ? `${c.text ? `<div class="text passive">${c.text}</div>` : ''}<div class="moves">${c.moves.map(mv => renderMove(mv, o.bonus)).join('')}</div>`
     : `<div class="text">${c.text}</div><div class="tag">${c.type === 'bit' ? `${ICON.time}${turns} turn${turns > 1 ? 's' : ''}` : c.type === 'evil' ? `${ICON.forever}Forever` : `${ICON.captain}${c.style}`}</div>`;
-  return `<div class="card k-${kind}${cls}"${style} data-id="${c.id}"><div class="frame">
+  const tv = c.type === 'character' && !c.main && TONE[c.art];
+  return `<div class="card k-${kind}${cls}"${style} data-id="${c.id}"><div class="frame"${tv ? ` style="${tv}"` : ''}>
     <div class="head"><span class="name">${c.name}</span>${hpTag}<span class="type">${ICON[kind]}</span></div>
     <div class="art">${art}${defTag}</div>
     ${body}

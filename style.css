@@ -544,3 +544,21 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
 .meter.goof { --glow: #f0941c; } .meter.bore { --glow: #67779a; }
 .meter.hl { animation: meterGlow 1.4s ease-out; border-radius: 10px; }
 @keyframes meterGlow { 0%, 55% { box-shadow: 0 0 0 3px var(--glow), 0 0 22px var(--glow); background: color-mix(in srgb, var(--glow) 18%, transparent); } 100% { box-shadow: none; } }
+
+/* Bits: a bright "instant" ticket: bold stripes, dashed inner edge, round icon badge, centred text. */
+.k-bit .frame { background: repeating-linear-gradient(135deg, rgba(255, 255, 255, .25) 0 3cqw, transparent 3cqw 6cqw), var(--frame);
+  box-shadow: inset 0 0 0 2cqw #fff7dc, inset 0 0 0 2.6cqw #f2aa2c, 0 2.5cqw 6cqw rgba(40, 48, 72, .28); }
+.k-bit .frame::before { content: ''; position: absolute; inset: 3.6cqw; border: .7cqw dashed rgba(163, 95, 0, .5); border-radius: 3.6cqw; pointer-events: none; }
+.k-bit .name { text-align: center; }
+.k-bit .art, .card.mini.k-bit .art { width: 44%; height: auto; aspect-ratio: 1; align-self: center; border-radius: 50%; box-shadow: 0 0 0 1.2cqw #fff7dc, 0 0 0 2cqw #f2aa2c; }
+.k-bit .text { display: flex; align-items: center; justify-content: center; text-align: center; font-weight: 700; }
+.k-bit .tag { align-self: center; }
+/* Evils: dark and ominous: black-violet face, glowing magenta edge, hexagon art, light text. */
+.k-evil { --frame: radial-gradient(120% 70% at 50% 100%, #6b1f4a, #1d1230 70%); --tint: #d24b8a; --name: #f3e9ff; }
+.k-evil .frame { background: var(--frame); box-shadow: inset 0 0 0 2.4cqw #2a1838, inset 0 0 0 2.9cqw #d24b8a, 0 0 4cqw rgba(210, 75, 138, .45), 0 2.5cqw 6cqw rgba(20, 10, 30, .45); }
+.k-evil .art { clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%); border-radius: 0; box-shadow: none; }
+.k-evil .ph { background: radial-gradient(circle, #43285c, #1d1230); color: #d24b8a; }
+.k-evil .ph .i { opacity: .85; }
+.k-evil .text { color: #f1e6ff; background: rgba(255, 255, 255, .07); border: .5cqw solid rgba(210, 75, 138, .5); }
+.k-evil .tag { color: #ffd0e6; background: rgba(210, 75, 138, .22); }
+.k-evil .foot { color: #d9c5f0; }
