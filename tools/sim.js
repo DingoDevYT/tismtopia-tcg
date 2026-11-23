@@ -4,9 +4,9 @@
 const fs = require('fs'), vm = require('vm'), path = require('path');
 const root = path.join(__dirname, '..');
 const ctx = vm.createContext({ structuredClone, console });
-vm.runInContext(['js/cards-data.js', 'js/cards.js', 'js/game.js'].map(f => fs.readFileSync(path.join(root, f), 'utf8')).join('\n').replace(/const BORE_MAX = \d+;/, m => (process.argv[4] ? `const BORE_MAX = ${+process.argv[4]};` : m)).replace(/const HP_SCALE = [\d.]+;/, m => (process.argv[5] ? `const HP_SCALE = ${+process.argv[5]};` : m))
-  + '\nthis.E = { CARDS, CAPTAINS, STARTERS, CARD, newGame, apply, deckProblems, statsOf, DECK_SIZE };', ctx);
-const { CARDS, CAPTAINS, STARTERS, CARD, newGame, apply, deckProblems, statsOf, DECK_SIZE } = ctx.E;
+vm.runInContext(['js/cards-data.js', 'js/cards.js', 'js/game.js'].map(f => fs.readFileSync(path.join(root, f), 'utf8')).join('\n').replace(/const BORE_MAX = \d+;/, m => (process.argv[4] ? `const BORE_MAX = ${+process.argv[4]};` : m)).replace(/const HP_SCALE = [\d.]+;/, m => (process.argv[5] ? `const HP_SCALE = ${+process.argv[5]};` : m)).replace(/const DECK_SIZE = \d+;/, m => (process.env.DECK ? `const DECK_SIZE = ${+process.env.DECK};` : m))
+  + '\nthis.E = { CARDS, CAPTAINS, STARTERS, CARD, newGame, apply, deckProblems, statsOf, DECK_SIZE, maxHp, baseArmor };', ctx);
+const { CARDS, CAPTAINS, STARTERS, CARD, newGame, apply, deckProblems, statsOf, DECK_SIZE, maxHp, baseArmor } = ctx.E;
 
 const N = +(process.argv[2] || 200);
 let seed = +(process.argv[3] || 1);
@@ -64,6 +64,21 @@ const POL = {
     const big = o.filter(a => kind(s, a) === 'attack' && mv(s, a).cost === Math.max(...CARD[me.field[a.i].id].moves.filter(m => !m.ability).map(m => m.cost)));
     return o.find(a => kind(s, a) === 'ability') || big[0] || o.find(a => kind(s, a) === 'character') || END;
   },
+  // Plays the toughest Character first (HP + armour), then attacks with its best move.
+  tankfirst: (s, p) => {
+    const o = options(s), plays = o.filter(a => kind(s, a) === 'character');
+    if (plays.length) return plays.reduce((b, a) => { const t = id => maxHp(CARD[id]) + baseArmor(CARD[id]) * 3; return t(s.players[p].hand[a.i]) > t(s.players[p].hand[b.i]) ? a : b; });
+    const atk = o.filter(a => kind(s, a) === 'attack'); return atk.length ? atk.reduce((b, a) => (mv(s, a).power > mv(s, b).power ? a : b)) : o.find(a => kind(s, a) === 'ability') || END;
+  },
+  // Never plays Items/Evils: Characters and attacks only.
+  aggro: byOrder(['attack', 'character', 'ability']),
+  // Saves Actions until it can afford its biggest attack, otherwise just builds the board.
+  banker: (s, p) => {
+    const o = options(s), atk = o.filter(a => kind(s, a) === 'attack'), big = atk.filter(a => mv(s, a).cost >= 2);
+    if (big.length) return big.reduce((b, a) => (mv(s, a).power > mv(s, b).power ? a : b));
+    const ch = o.find(a => kind(s, a) === 'character'); if (ch && s.actions > 2) return ch;
+    return s.actions >= 4 && atk.length ? atk[0] : END;
+  },
   // One-step lookahead: tries each move, scores the result (attacks as hit/miss weighted by the real odds), ends the turn when nothing beats banking.
   greedy: (s, p) => {
     let best = END, bestV = val(tryAct(s, p, END), p) + 0.5 * s.actions;
@@ -97,7 +112,7 @@ function play(decks, pols, cap = 200, track) {
     }
     s = n; s.log = [];
   }
-  return { winner: s.phase === 'over' ? s.winner : -1, turns: s.turnNo, ...st };
+  return { winner: s.phase === 'over' ? s.winner : -1, turns: s.turnNo, deckout: s.players.some(p => p.fatigue), ...st };
 }
 
 function randomDeck(items = Math.floor(rng() * 11)) {
@@ -110,6 +125,28 @@ function randomDeck(items = Math.floor(rng() * 11)) {
   const d = { captain: pick(CAPTAINS).id, cards };
   if (deckProblems(d).length) throw new Error(deckProblems(d).join('; '));
   return d;
+}
+
+// MATRIX=1 node tools/sim.js <games per cell> <seed>: strategy vs strategy win rates as JSON.
+if (process.env.MATRIX) {
+  const names = Object.keys(POL), w = {}, g = {};
+  for (const a of names) for (const b of names) { if (a === b) continue; const k = a + '|' + b; w[k] = 0; g[k] = 0;
+    for (let i = 0; i < N; i++) { const sw = i % 2, r = play(sw ? [STARTERS[1], STARTERS[0]] : [STARTERS[0], STARTERS[1]], [POL[a], POL[b]]); if (r.winner < 0) continue; g[k]++; w[k] += r.winner === 0; } }
+  process.stdout.write(JSON.stringify({ names, w, g })); process.exit(0);
+}
+
+// FOCUS=<cardId> node tools/sim.js <games> <seed>: win rate of a random deck with 0, 1, 2 or 3 copies of one card vs random decks without it.
+if (process.env.FOCUS) {
+  const id = process.env.FOCUS, res = [0, 1, 2, 3].map(() => ({ g: 0, w: 0 }));
+  const strip = d => { const n = d.cards[id] || 0; delete d.cards[id]; for (let i = 0; i < n; i++) { for (let t = 0; t < 200; t++) { const c = pick(CARDS); if (c.id !== id && (d.cards[c.id] || 0) < 3) { d.cards[c.id] = (d.cards[c.id] || 0) + 1; break; } } } return d; };
+  for (let g = 0; g < N; g++) {
+    const k = g % 4, a = strip(randomDeck()), b = strip(randomDeck());
+    for (let i = 0; i < k; i++) { const ids = Object.keys(a.cards); const out = ids[Math.floor(rng() * ids.length)]; if (--a.cards[out] <= 0) delete a.cards[out]; }
+    if (k) a.cards[id] = k;
+    const seat = g % 2, rr = play(seat ? [b, a] : [a, b], [POL.greedy, POL.greedy]); if (rr.winner < 0) continue;
+    res[k].g++; res[k].w += rr.winner === seat;
+  }
+  process.stdout.write(JSON.stringify({ id, res })); process.exit(0);
 }
 
 // ROUNDROBIN=<decks.json> node tools/sim.js <games per pairing> <seed>: every deck vs every deck, seats alternated.
@@ -166,7 +203,7 @@ if (process.env.CARDS) {
       }
     });
     if (r.winner < 0) continue;
-    out.games++; out.turns += r.turns; out.firstWins += r.winner === r.first;
+    out.games++; out.turns += r.turns; out.firstWins += r.winner === r.first; out.deckouts = (out.deckouts || 0) + (r.deckout ? 1 : 0);
     decks.forEach((d, i) => { const won = r.winner === i ? 1 : 0; for (const id of Object.keys(d.cards)) { const c = C(id); c.deck++; c.deckWins += won; if (playedIn[i].has(id)) { c.played++; c.playedWins += won; } } (out.caps ||= {})[d.captain] ||= [0, 0]; out.caps[d.captain][0]++; out.caps[d.captain][1] += won; });
   }
   process.stdout.write(JSON.stringify(out));
