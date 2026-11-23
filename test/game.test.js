@@ -1,7 +1,7 @@
 // Self-check for the rules engine. Run: node test/game.test.js
 const fs = require('fs'), vm = require('vm'), path = require('path');
 const load = files => files.map(f => fs.readFileSync(path.join(__dirname, '..', f), 'utf8')).join('\n');
-const src = load(['test/fixture-cards.js', 'js/cards.js', 'js/game.js']).replace('const BORE_MAX = 10;', 'const BORE_MAX = 99;');
+const src = load(['test/fixture-cards.js', 'js/cards.js', 'js/game.js']).replace('const BORE_MAX = 10;', 'const BORE_MAX = 99;').replace('const HP_SCALE = 1.2;', 'const HP_SCALE = 2;');
 
 // The real generated cards: both free starters must be legal and every Character usable.
 vm.runInNewContext(load(['js/cards-data.js', 'js/cards.js', 'js/game.js']) + `

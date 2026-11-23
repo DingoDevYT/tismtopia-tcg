@@ -29,8 +29,8 @@
 const BORE_MAX = 10;
 // Fixed-damage combat: a move's power is its damage. Printed HP is multiplied by HP_SCALE; printed DEF becomes armour
 // (damage blocked per hit): DEF 8-10 -> 0, 11-13 -> 1, 14-16 -> 2. "Tough" Characters (disadv) get +1 armour. tools/sim.js tries other HP_SCALEs.
-const HP_SCALE = 2;
-const maxHp = c => c.hp * HP_SCALE;
+const HP_SCALE = 1.2;
+const maxHp = c => Math.round(c.hp * HP_SCALE);
 const baseArmor = c => Math.max(0, Math.round((c.def - 10) / 3)) + (c.disadv ? 1 : 0); // Boredom that knocks you out; tools/sim.js tries other values
 const DECK_SIZE = 20; // shortcut: the rules don't set a deck size yet, change once decided
 
@@ -39,7 +39,7 @@ const STARTER = STARTERS[0];
 
 const RULES = [
   ['Goal', `Bore your opponent out. Reach ${BORE_MAX} Boredom and you lose. Boredom is your health; Creativity is your hype, and you spend it.`],
-  ['Your turn', "Draw 1 card (the first player skips this on turn one). You gain 2 Actions; any you don't spend are saved for your next turn, up to 5. Playing a card costs 1 Action unless it says otherwise. Each Character move costs what's printed next to it. End your turn whenever."],
+  ['Your turn', "Draw 1 card (the first player skips this on turn one; the second player starts with 6 cards instead of 5). You gain 2 Actions; any you don't spend are saved for your next turn, up to 5. Playing a card costs 1 Action unless it says otherwise. Each Character move costs what's printed next to it. End your turn whenever."],
   ['Moves', 'Each move shows its Action cost on the left and its damage on the right.'],
   ['Combat', "Pick one of your Character's attacks. Your opponent picks which of their Characters blocks it. The blocker takes the attack's damage minus its armour (the shield number). If any damage gets through, the attack's extra effect happens, your opponent loses 1 Creativity and you gain 1. No Characters to block? The full damage goes straight to their Boredom."],
   ['Defeated', 'A Character at 0 HP leaves the field and its owner gains 2 Boredom (some cards say otherwise). Sacrificing your own Character costs no Boredom.'],

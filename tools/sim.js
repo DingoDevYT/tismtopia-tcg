@@ -4,7 +4,7 @@
 const fs = require('fs'), vm = require('vm'), path = require('path');
 const root = path.join(__dirname, '..');
 const ctx = vm.createContext({ structuredClone, console });
-vm.runInContext(['js/cards-data.js', 'js/cards.js', 'js/game.js'].map(f => fs.readFileSync(path.join(root, f), 'utf8')).join('\n').replace(/const BORE_MAX = \d+;/, m => (process.argv[4] ? `const BORE_MAX = ${+process.argv[4]};` : m)).replace(/const HP_SCALE = \d+;/, m => (process.argv[5] ? `const HP_SCALE = ${+process.argv[5]};` : m))
+vm.runInContext(['js/cards-data.js', 'js/cards.js', 'js/game.js'].map(f => fs.readFileSync(path.join(root, f), 'utf8')).join('\n').replace(/const BORE_MAX = \d+;/, m => (process.argv[4] ? `const BORE_MAX = ${+process.argv[4]};` : m)).replace(/const HP_SCALE = [\d.]+;/, m => (process.argv[5] ? `const HP_SCALE = ${+process.argv[5]};` : m))
   + '\nthis.E = { CARDS, CAPTAINS, STARTERS, CARD, newGame, apply, deckProblems, statsOf, DECK_SIZE };', ctx);
 const { CARDS, CAPTAINS, STARTERS, CARD, newGame, apply, deckProblems, statsOf, DECK_SIZE } = ctx.E;
 
@@ -31,7 +31,7 @@ const END = { type: 'end' };
 // Board score from p's side, for the lookahead bot.
 function val(s, p) {
   if (s.phase === 'over') return s.winner === p ? 1e6 : -1e6;
-  const side = x => x.goof * 0.6 - x.bore * 2.5 + x.field.reduce((n, f) => n + 1.5 + f.hp * 0.8, 0) + x.hand.length * 0.6 + x.effects.length;
+  const side = x => x.goof * 0.6 - x.bore * 2.5 + x.field.reduce((n, f) => n + 1.5 + f.hp * 0.8, 0) + x.hand.length * 0.6 + x.effects.length * 2.2;
   return side(s.players[p]) - side(s.players[1 - p]) + (s.turn === p ? s.actions : s.players[p].bank) * 0.5;
 }
 // Chance this attack breaks through (attacks on an empty field always land).
