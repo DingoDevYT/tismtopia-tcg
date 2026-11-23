@@ -11,7 +11,8 @@ const CAPTAINS = [
 ];
 
 const CARDS = [
-{"id":"item_wifi_password","type":"bit","name":"Stolen WiFi Password","cost":1,"dur":1,"text":"Grim stole it, raccoon style. Draw 2 cards.","onPlay":[["draw","me",2]]},
+{"id":"item_wifi_password","type":"bit","name":"Stolen WiFi Password","cost":1,"dur":1,"text":"Grim stole it, raccoon style. Draw 3 cards.","onPlay":[["draw","me",3]]},
+{"id":"item_brain_dump","type":"bit","dur":1,"cost":1,"name":"Brain Dump","text":"Everyone dumps their ideas in the group chat at 3am. Draw 3 cards.","onPlay":[["draw","me",3]]},
 {"id":"item_here_comes_sun","type":"bit","name":"Here Comes the Sun","cost":1,"dur":1,"text":"Atlas walks in singing. Gain 3 Creativity.","onPlay":[["goof","me",3]]},
 {"id":"item_u2_flyover","type":"bit","name":"U-2 Flyover","cost":0,"dur":1,"text":"A spy plane passes overhead. +1 Action this turn.","onPlay":[["actions","me",1]]},
 {"id":"item_hidden_blade","type":"bit","name":"Hidden Blade","cost":2,"dur":1,"text":"Stabbed through the neck in front of the whole court. Opponent +2 Boredom, you lose 1 Creativity.","onPlay":[["bore","opp",2],["goof","me",-1]]},
@@ -93,25 +94,6 @@ const STARTERS = [
   "captain": "captain_anonagon",
   "cards": {
    "item_wifi_password": 1,
-   "item_u2_flyover": 1,
-   "item_bee_swarm": 1,
-   "item_nap_time": 1,
-   "item_butter": 1,
-   "item_wont_let_rest": 1,
-   "item_anxious_duo": 1,
-   "item_nicer_mondays": 1,
-   "jangle_bee_boy": 2,
-   "lord_osric_hayden": 2,
-   "jegg_abigaia": 2,
-   "jangle_chi_chi": 2,
-   "scrunge_alek": 2,
-   "jegg_anxio": 2
-  }
- },
- {
-  "name": "All-Stars B",
-  "captain": "captain_xee",
-  "cards": {
    "item_here_comes_sun": 1,
    "item_hidden_blade": 1,
    "item_reasonable_take": 1,
@@ -120,6 +102,26 @@ const STARTERS = [
    "item_deity_form": 1,
    "item_pollen_season": 1,
    "item_entity_form": 1,
+   "jangle_bee_boy": 2,
+   "lord_osric_hayden": 2,
+   "jegg_abigaia": 2,
+   "jangle_chi_chi": 2,
+   "scrunge_alek": 2,
+   "jegg_anxio": 1
+  }
+ },
+ {
+  "name": "All-Stars B",
+  "captain": "captain_xee",
+  "cards": {
+   "item_brain_dump": 1,
+   "item_u2_flyover": 1,
+   "item_bee_swarm": 1,
+   "item_nap_time": 1,
+   "item_butter": 1,
+   "item_wont_let_rest": 1,
+   "item_anxious_duo": 1,
+   "item_nicer_mondays": 1,
    "jimmy_arhakoth": 2,
    "anonagon_jeremy": 2,
    "scrunge_acer": 2,
