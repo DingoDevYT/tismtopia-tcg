@@ -124,7 +124,7 @@ function apply(s0, p, a, rng = Math.random) {
     const pi = s.players.indexOf(pl);
     pl.field = pl.field.filter(f => {
       if (f.hp > 0) return true;
-      const c = CARD[f.id], ko = f.sac ? 0 : c.ko ?? 2;
+      const c = CARD[f.id], ko = f.sac ? 0 : c.ko ?? 3;
       say(`${c.name} was ${f.sac ? 'sacrificed' : 'defeated'}${ko ? `: ${pl.name} +${ko} Boredom` : ''}.`);
       if (ko) gain(pi, 'bore', ko);
       return false;

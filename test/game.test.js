@@ -89,7 +89,7 @@ s.players[0].field[1].hp = 1;
 const boreA = s.players[0].bore;
 s = apply(s, 0, { type: 'attack', i: 1, m: 1 });
 s = apply(s, 1, { type: 'defend', i: 0 }); // Reply Guy: B is back to 0 Creativity, so Lurker gives armour 2: 2 damage; Night Owl's self damage defeats it
-assert(s.roll.dmg === 2 && !s.players[0].field.some(f => f.id === 'c_night_owl') && s.players[0].bore === boreA + 2, 'self damage can defeat the attacker; its owner gains 2 Boredom');
+assert(s.roll.dmg === 2 && !s.players[0].field.some(f => f.id === 'c_night_owl') && s.players[0].bore === boreA + 3, 'self damage can defeat the attacker; its owner gains 3 Boredom');
 s.players[1].goof = 5; // switches off B's Lurker armour for the coin-flip checks
 s = apply(s, 0, { type: 'attack', i: 0, m: 1 }); // VC Goblin Unmute Scream; heads -> +2 Boredom
 s = apply(s, 1, { type: 'defend', i: 0 }, fixed(0.2));
@@ -149,7 +149,7 @@ m = apply(m, 1, { type: 'adjust', who: 0, key: 'goof', d: 1 });
 assert(m.players[0].goof === 10, 'Goofiness fills to 10');
 const mb = m.players[1].bore;
 m = apply(m, 1, { type: 'hp', who: 1, i: 0, d: -1 });
-assert(m.players[1].field.length === 0 && m.players[1].bore === mb + 2, 'HP 0 removes the card and its owner gains 2 Boredom');
+assert(m.players[1].field.length === 0 && m.players[1].bore === mb + 3, 'HP 0 removes the card and its owner gains 3 Boredom');
 throws(() => apply(m, 1, { type: 'adjust', who: '__proto__', key: 'goof', d: 1 }), 'bad player index');
 throws(() => apply(m, 1, { type: 'adjust', who: 0, key: 'hand', d: 1 }), 'bad meter');
 throws(() => apply(m, 1, { type: 'adjust', who: 0, key: 'goof', d: 50 }), 'bad amount');
