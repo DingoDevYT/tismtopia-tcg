@@ -743,3 +743,14 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
 .coll-tools .chip { padding: 5px 11px; font-size: 12px; min-height: 0; }
 .wheel.dragging .slot { transition: none; }
 .wheel-name { transition: opacity .2s; }
+
+/* ---------- card viewer ---------- */
+.viewer { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; align-content: center; gap: 14px; padding: 16px; }
+.viewer-bg { position: absolute; inset: 0; background: rgba(10, 12, 25, .72); backdrop-filter: blur(6px); }
+.viewer-card { position: relative; perspective: 1000px; }
+.viewer .card.view { --cw: min(330px, 78vw); touch-action: none; cursor: grab; transition: transform .35s cubic-bezier(.2, .9, .3, 1.2); }
+.viewer .card.view.held { animation: none; transition: transform .05s; cursor: grabbing; }
+.viewer-info { position: relative; width: min(360px, 92vw); display: grid; gap: 8px; padding: 14px 16px; border-radius: 18px; }
+.viewer-top { display: flex; align-items: center; gap: 8px; font-size: 17px; }
+.viewer-top b { flex: 1; }
+.viewer-info .chips { display: flex; flex-wrap: wrap; gap: 6px; }

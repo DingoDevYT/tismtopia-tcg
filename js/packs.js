@@ -78,9 +78,9 @@ function viewOpen() {
       <p class="open-hint">Drag to tilt · flick to the side for the next card (${o.i + 1}/${o.cards.length})</p></div>`;
   }
   return `${header('Your pulls')}
-    <div class="pull-grid">${o.cards.map(p => `<div class="pull">${renderCard(p.finish === 'full' ? { ...CARD[p.id], crop: null } : CARD[p.id], { cls: FINISH_CLS[p.finish], attrs: tappable('zoom', `data-id="${p.id}"`) })}${p.isNew ? '<span class="new">NEW</span>' : ''}<small>${RARITY_NAME[p.rarity]}${p.finish !== 'normal' ? ` · ${FINISH_NAME[p.finish]}` : ''}</small></div>`).join('')}</div>
+    <div class="pull-grid">${o.cards.map(p => `<div class="pull">${renderCard(p.finish === 'full' ? { ...CARD[p.id], crop: null } : CARD[p.id], { cls: FINISH_CLS[p.finish], attrs: tappable('view-card', `data-id="${p.id}" data-f="${p.finish}"`) })}${p.isNew ? '<span class="new">NEW</span>' : ''}<small>${RARITY_NAME[p.rarity]}${p.finish !== 'normal' ? ` · ${FINISH_NAME[p.finish]}` : ''}</small></div>`).join('')}</div>
     <div class="row2" style="margin:16px"><button class="btn primary" data-act="pick-pack" data-p="${o.pack}">Open another</button><button class="btn" data-act="go" data-to="packs">Done</button></div>
-    ${overlay()}`;
+    ${overlay()}${viewer()}`;
 }
 
 Object.assign(ACTS, {
@@ -185,13 +185,42 @@ function viewCollection() {
     <div class="chips">Sort: ${chip('sort', 'no', 'Number')}${chip('sort', 'rarity', 'Rarity')}${chip('sort', 'name', 'Name')}${chip('sort', 'copies', 'Copies')}</div>
   </div>
   <div class="grid coll-grid">${list.map(c => { const n = owned(c.id), f = bestFinish(c.id);
-    return `<div class="cell coll-cell${n ? '' : ' locked'}">${renderCard(n && f === 'full' ? { ...c, crop: null } : c, { cls: n ? FINISH_CLS[f] : '', attrs: tappable('zoom', `data-id="${c.id}"`) })}
+    return `<div class="cell coll-cell${n ? '' : ' locked'}">${renderCard(n && f === 'full' ? { ...c, crop: null } : c, { cls: n ? FINISH_CLS[f] : '', attrs: tappable('view-card', `data-id="${c.id}"`) })}
       <div class="coll-meta"><span class="rar r-${c.rarity || 'C'}">${c.rarity || 'C'}</span><span>${n ? '×' + n : 'Not owned'}</span>
       <button class="fav${favs.has(c.id) ? ' on' : ''}" data-act="fav" data-id="${c.id}" aria-label="${favs.has(c.id) ? 'Unfavourite' : 'Favourite'} ${esc(c.name)}">★</button></div></div>`; }).join('') || '<p class="muted center">No cards match.</p>'}</div>
-  ${overlay()}`;
+  ${overlay()}${viewer()}`;
 }
 Object.assign(ACTS, {
   'coll-set'(d) { ui.coll[d.k] = d.v; },
   fav(d) { favs.has(d.id) ? favs.delete(d.id) : favs.add(d.id); store.set('favs', [...favs]); },
 });
 document.addEventListener('input', e => { if (e.target.id === 'coll-search') { ui.coll.q = e.target.value; const at = e.target.selectionStart; render(); const el = document.getElementById('coll-search'); el?.setSelectionRange(at, at); } });
+
+// ---------------- card viewer: full screen, finger-tilt 3D, switch between the finishes you own ----------------
+function viewer() {
+  const v = ui.viewer; if (!v) return '';
+  const c = CARD[v.id], n = owned(v.id), f = v.finish, have = ['normal', 'rev', 'holo', 'full'].filter(k => coll[v.id]?.f?.[k] || k === f);
+  return `<div class="viewer"><div class="viewer-bg" data-act="close-viewer"></div>
+    <div class="viewer-card">${renderCard(f === 'full' ? { ...c, crop: null } : c, { cls: `zoom view sway ${n ? FINISH_CLS[f] : ''}` })}</div>
+    <div class="viewer-info neu">
+      <div class="viewer-top"><b>${esc(c.name)}</b><span class="rar r-${c.rarity || 'C'}">${RARITY_NAME[c.rarity || 'C']}</span>
+        <button class="fav${favs.has(v.id) ? ' on' : ''}" data-act="fav" data-id="${v.id}" aria-label="Favourite">★</button></div>
+      <small class="muted">${n ? `You own ${n}` : 'Not owned yet'} · drag the card to tilt it</small>
+      ${n ? `<div class="chips">${have.map(k => `<button class="chip${k === f ? ' on' : ''}" data-act="viewer-finish" data-f="${k}">${k === 'normal' ? 'Normal' : FINISH_NAME[k]}${coll[v.id]?.f?.[k] ? ` ×${coll[v.id].f[k]}` : ''}</button>`).join('')}</div>` : ''}
+      <button class="btn wide" data-act="close-viewer">Close</button>
+    </div></div>`;
+}
+Object.assign(ACTS, {
+  'view-card'(d) { ui.viewer = { id: d.id, finish: d.f || bestFinish(d.id) }; },
+  'viewer-finish'(d) { ui.viewer.finish = d.f; },
+  'close-viewer'() { ui.viewer = null; },
+});
+// Finger / mouse tilt on the viewer card (no flick: it springs back).
+let vdrag = null;
+document.addEventListener('pointerdown', e => { const el = e.target.closest?.('.viewer .card'); if (!el) return; vdrag = { el, r: el.getBoundingClientRect() }; el.classList.add('held'); el.setPointerCapture?.(e.pointerId); vtilt(e); });
+document.addEventListener('pointermove', e => { if (vdrag) vtilt(e); });
+document.addEventListener('pointerup', () => { if (!vdrag) return; vdrag.el.classList.remove('held'); for (const k of ['--rx', '--ry', '--mx', '--my', '--fx', '--fy', '--fc', '--co']) vdrag.el.style.removeProperty(k); vdrag = null; });
+function vtilt(e) {
+  const { el, r } = vdrag, x = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)), y = Math.max(0, Math.min(1, (e.clientY - r.top) / r.height));
+  for (const [k, v] of Object.entries({ '--ry': (x - 0.5) * 44 + 'deg', '--rx': (0.5 - y) * 36 + 'deg', '--mx': x * 100 + '%', '--my': y * 100 + '%', '--fx': x, '--fy': y, '--fc': Math.min(1, Math.hypot(x - 0.5, y - 0.5) * 2), '--co': 1 })) el.style.setProperty(k, v);
+}
