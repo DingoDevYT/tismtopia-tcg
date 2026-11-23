@@ -6,25 +6,30 @@
 <title>Tismtopia TCG · Mockups</title>
 <link rel="stylesheet" href="style.css">
 <style>
-  body.mock { background: #2b2f3f; padding: 32px 16px 64px; }
-  .mock > h1 { color: #fff; text-align: center; font-size: 26px; font-weight: 900; }
-  .mock > p { color: #aab0c4; text-align: center; margin: 6px auto 28px; font-size: 14px; max-width: 640px; }
-  .mock > h2 { color: #fff; margin: 36px 0 18px; }
-  .cardsheet { max-width: 1180px; margin: 0 auto; padding: 28px; background: var(--bg); border-radius: 28px; display: flex; flex-wrap: wrap; gap: 28px; justify-content: center; align-items: flex-end; }
-  .cardsheet figure { display: grid; gap: 10px; justify-items: center; font-size: 13px; color: var(--muted); }
-  .cardsheet .card { --cw: 180px; }
-  .cardsheet .card.mini { --cw: 90px; }
+  body.mock { background: #24272f; padding: 32px 16px 64px; }
+  .mock > h1 { color: #fff; text-align: center; font-size: 24px; font-weight: 800; }
+  .mock > p { color: #a3a9b8; text-align: center; margin: 6px auto 0; font-size: 14px; font-weight: 500; max-width: 640px; }
+  .mock > h2 { color: #fff; margin: 40px 0 18px; }
+  .sheetbox { max-width: 1180px; margin: 0 auto; padding: 28px; background: var(--bg); border-radius: 28px; display: flex; flex-wrap: wrap; gap: 28px; justify-content: center; align-items: flex-end; }
+  .sheetbox figure { display: grid; gap: 10px; justify-items: center; font-size: 13px; color: var(--muted); }
+  .sheetbox .card { --cw: 180px; }
+  .sheetbox .card.mini { --cw: 90px; }
+  .icons figure { width: 100px; }
+  .icons .glyph { width: 56px; height: 56px; display: grid; place-items: center; border-radius: 16px; background: var(--surface); box-shadow: var(--raise-sm); color: var(--ink); }
+  .icons .glyph .i { width: 28px; height: 28px; }
   .frames { display: flex; flex-wrap: wrap; gap: 40px 28px; justify-content: center; }
   .phone { display: grid; gap: 12px; justify-items: center; }
-  .phone .screen { width: 390px; height: 844px; border-radius: 38px; box-shadow: 0 20px 50px rgba(0, 0, 0, .45), 0 0 0 8px #1a1d28; }
-  .phone figcaption { color: #dde1ee; font-size: 14px; }
+  .phone .screen { width: 390px; height: 844px; border-radius: 38px; box-shadow: 0 20px 50px rgba(0, 0, 0, .45), 0 0 0 8px #15171c; }
+  .phone figcaption { color: #d5d9e3; font-size: 14px; }
 </style>
 </head>
 <body class="mock">
 <h1>Tismtopia TCG · UI mockups</h1>
-<p>Every screen in the playtest slice, phone-first (on desktop the same layout sits centered). Built from the real <code>style.css</code> and card renderer, so the game reuses all of it. Card names and effects are placeholders.</p>
+<p>Every screen in the playtest build, phone-first (desktop shows the same layout centered). Built from the real stylesheet and card renderer, so the game reuses all of it. Card names and effects are placeholders.</p>
 <h2>Card designs</h2>
-<section class="cardsheet" id="cards"></section>
+<section class="sheetbox" id="cards"></section>
+<h2>Icons</h2>
+<section class="sheetbox icons" id="icons"></section>
 <h2>Screens</h2>
 <div class="frames" id="frames"></div>
 
@@ -36,7 +41,8 @@ const frame = (cap, html) => `<figure class="phone"><div class="screen">${html}<
 const tabbar = on => `<nav class="tabbar">${['home', 'cards', 'battle', 'rules'].map(k => `<a class="${k === on ? 'on' : ''}" aria-label="${k}">${ICON[k]}</a>`).join('')}</nav>`;
 const header = t => `<h1 class="title">${t}</h1><div class="rainbow"></div>`;
 const sheet = html => `<div class="dim"></div><div class="sheet"><div class="grab"></div>${html}</div>`;
-const stepper = v => `<div class="stepper neu"><button>−</button><span>${v}</span><button>+</button></div>`;
+const stepper = v => `<div class="stepper neu"><button aria-label="Less">−</button><span>${v}</span><button aria-label="More">+</button></div>`;
+const cost = n => `<span class="cost">${n}${ICON.action}</span>`;
 
 const DECK = { c_vc_goblin: 3, c_reply_guy: 3, c_lagger: 2, c_night_owl: 2, m_sticker: 1, b_ping: 3, b_brainrot: 2, b_voice_crack: 2, e_slowmode: 1, e_read: 1 };
 const S = {
@@ -53,17 +59,23 @@ $('cards').innerHTML = [
   ['Captain', renderCard(CARD.cap_gremlin)],
   ['Character', renderCard(CARD.c_vc_goblin)],
   ['Main Character · 1 per deck', renderCard(CARD.m_sticker)],
-  ['Bit · instant, lasts N turns', renderCard(CARD.b_brainrot)],
+  ['Bit · lasts N turns', renderCard(CARD.b_brainrot)],
   ['Evil · lasts forever', renderCard(CARD.e_slowmode)],
   ['Card back', renderCard(null)],
   ['On board / in hand', renderCard(CARD.c_lagger, { cls: 'mini' })],
   ['Damaged', renderCard(CARD.c_night_owl, { cls: 'mini', hp: 1 })],
 ].map(([cap, html]) => `<figure>${html}<figcaption>${cap}</figcaption></figure>`).join('');
 
+$('icons').innerHTML = [
+  ['character', 'Character'], ['main', 'Main Character'], ['bit', 'Bit'], ['evil', 'Evil'], ['captain', 'Captain'],
+  ['atk', 'Attack'], ['def', 'Defense'], ['hp', 'HP'], ['goof', 'Goofiness'], ['bore', 'Boredom'],
+  ['point', 'Point'], ['action', 'Action'], ['time', 'Duration'], ['forever', 'Forever'],
+].map(([k, l]) => `<figure><span class="glyph">${ICON[k]}</span><figcaption>${l}</figcaption></figure>`).join('');
+
 const cap = CARD.cap_gremlin;
 const deckList = `${header('Goof Troop')}
   <div class="captain-slot neu">${renderCard(cap, { cls: 'mini' })}<div><small>Captain</small><b>${cap.name}</b><p>${cap.text}</p><button class="btn sm">Change captain</button></div></div>
-  <div class="checks"><span>✓ ${DECK_SIZE}/${DECK_SIZE} cards</span><span>✓ Max 3 copies</span><span>✓ Main Character ×1</span></div>
+  <div class="checks"><span>${ICON.check}${DECK_SIZE}/${DECK_SIZE} cards</span><span>${ICON.check}Max 3 copies</span><span>${ICON.check}1 Main Character</span></div>
   <div class="grid g4">${Object.entries(DECK).map(([id, n]) => `<div class="cell">${renderCard(CARD[id], { cls: 'mini' })}<span class="count">×${n}</span></div>`).join('')}</div>
   <div class="bar"><button class="btn sm">Copy code</button><button class="btn sm">Import</button><button class="btn primary sm" style="margin-left:auto">Save deck</button></div>`;
 
@@ -78,8 +90,8 @@ const RULES = [
 
 $('frames').innerHTML = [
   frame('1 · Home', `
-    <div class="topbar"><div class="profile neu"><span class="avatar">⌨️</span><b>Juno</b></div></div>
-    <div class="logo">Tismtopia<span>TCG</span></div>
+    <div class="topbar"><div class="profile neu">${renderAvatar(cap)}<b>Juno</b></div></div>
+    <div class="logo"><b>Tismtopia</b><span>TRADING CARD GAME</span></div>
     <section class="hero neu">
       <div class="fan">${['cap_lurker', 'cap_gremlin', 'cap_clown'].map((id, i) => renderCard(CARD[id], { style: `--r:${(i - 1) * 9}deg;--y:${Math.abs(i - 1) * 14}px` })).join('')}</div>
       <div class="row2"><button class="btn primary">Host Battle</button><button class="btn">Join Battle</button></div>
@@ -89,8 +101,8 @@ $('frames').innerHTML = [
 
   frame('2 · Deck builder: add cards', `${header('Build Deck')}
     <div class="panel neu">
-      <div class="deckname neu-in"><b>Goof Troop</b><span class="muted">▾</span></div>
-      <div class="chips"><span class="chip on">All</span><span class="chip">Character</span><span class="chip">Bit</span><span class="chip">Evil</span><span class="chip">${ICON.search}</span></div>
+      <div class="deckname neu-in"><b>Goof Troop</b>${ICON.chevron}</div>
+      <div class="chips"><span class="chip on">All</span><span class="chip">Character</span><span class="chip">Bit</span><span class="chip">Evil</span><span class="chip" aria-label="Search">${ICON.search}</span></div>
     </div>
     <div class="grid">${CARDS.map(c => `<div class="cell">${renderCard(c)}${stepper(`${DECK[c.id] || 0}/${c.main ? 1 : 3}`)}</div>`).join('')}</div>
     <div class="bar"><b>${DECK_SIZE}/${DECK_SIZE}</b><div class="progress"><i style="width:100%"></i></div><button class="btn primary sm">View deck</button></div>`),
@@ -103,7 +115,7 @@ $('frames').innerHTML = [
 
   frame('5 · Battle lobby', `${header('Battle')}
     <div class="panel neu"><small class="lbl">Your deck</small>
-      <div class="deckpick">${renderCard(cap, { cls: 'mini' })}<div><b>Goof Troop</b><br><small>Captain: ${cap.name} · ${DECK_SIZE} cards</small></div><span>▾</span></div></div>
+      <div class="deckpick">${renderCard(cap, { cls: 'mini' })}<div><b>Goof Troop</b><br><small>Captain: ${cap.name} · ${DECK_SIZE} cards</small></div>${ICON.chevron}</div></div>
     <div class="panel neu"><small class="lbl">Host a battle</small>
       <div class="code neu-in">GOOF7Q</div>
       <p class="muted center">Waiting for a friend to join <span class="spin"></span></p>
@@ -114,18 +126,18 @@ $('frames').innerHTML = [
       <button class="btn primary wide">Join</button></div>
     ${tabbar('battle')}`),
 
-  frame('6 · Board: your turn (glow = can attack)', renderBoard(S, 0, { glow: [0, 1] }) + `<div class="toast neu">Pip played 📭 Left on Read</div>`),
+  frame('6 · Board: your turn (glow = can attack)', renderBoard(S, 0, { glow: [0, 1] }) + `<div class="toast neu">Pip played <b>Left on Read</b></div>`),
 
   frame('7 · Tap a card: zoom & actions', renderBoard(S, 0) + `<div class="dim">
     ${renderCard(CARD.c_vc_goblin, { cls: 'zoom' })}
-    <div class="row2"><button class="btn primary">⚔ Attack · 1⚡</button><button class="btn">✨ Ability · 1⚡</button></div>
+    <div class="row2"><button class="btn primary">${ICON.atk}Attack ${cost(1)}</button><button class="btn">${ICON.bit}Ability ${cost(1)}</button></div>
     <div class="row2">${stepper('HP 3')}<button class="btn sm">Close</button></div></div>`),
 
   frame('8 · Attack roll', renderBoard(S, 0) + `<div class="dim">
     <div class="duel">${renderCard(CARD.c_vc_goblin, { cls: 'mini' })}<span class="vs">VS</span>${renderCard(CARD.c_lagger, { cls: 'mini', hp: 2 })}</div>
     <div class="d20">14</div>
-    <div class="math neu">14 + <b>2 ATK</b> = <b>16</b> ≥ <b>14 DEF</b></div>
-    <div class="result neu"><b>Breaks through!</b><small>Laggy Larry −1 HP · Pip +2 😴 Boredom</small></div>
+    <div class="math neu">14 + <b>2 ATK</b> = <b>16</b> vs <b>14 DEF</b></div>
+    <div class="result neu"><b>Breaks through!</b><small>Laggy Larry −1 ${ICON.hp} · Pip +2 ${ICON.bore}</small></div>
     <button class="btn primary">Continue</button></div>`),
 
   frame('9 · Defending (opponent\'s view)', renderBoard(S, 1) + sheet(`
@@ -137,25 +149,25 @@ $('frames').innerHTML = [
   frame('10 · Manual adjust (apply card effects by hand)', renderBoard(S, 0) + sheet(`<h2>Adjust</h2>
     <p class="muted center" style="margin-bottom:12px">Card effects are applied by hand. Every change shows in both players' log.</p>
     ${S.players.map(p => `<div class="adj neu-in"><b>${p.name}</b>
-      <div class="adj-row"><span>😂 Goofiness</span>${stepper(p.goof)}</div>
-      <div class="adj-row"><span>😴 Boredom</span>${stepper(p.bore)}</div>
-      <div class="adj-row"><span>⭐ Points</span>${stepper(p.points)}</div></div>`).join('')}
-    <div class="row2"><button class="btn">Draw a card</button><button class="btn">+1 Action</button></div>`)),
+      <div class="adj-row"><span><span class="goof">${ICON.goof}</span>Goofiness</span>${stepper(p.goof)}</div>
+      <div class="adj-row"><span><span class="bore">${ICON.bore}</span>Boredom</span>${stepper(p.bore)}</div>
+      <div class="adj-row"><span><span class="point">${ICON.point}</span>Points</span>${stepper(p.points)}</div></div>`).join('')}
+    <div class="row2"><button class="btn">Draw a card</button><button class="btn">${ICON.action}+1 Action</button></div>`)),
 
   frame('11 · Victory', `<div class="victory">
-    <div class="avatar xl">⌨️</div><small>vs. Pip (The Lurker)</small>
+    ${renderAvatar(cap, ' xl')}<small>vs. Pip (The Lurker)</small>
     <h1 class="big">Victory!</h1><div class="rainbow"></div>
     <div class="stats-list neu-in">
-      <div><span>Your points</span><div class="pts">${dots(5)}</div></div>
-      <div><span>Pip's points</span><div class="pts">${dots(3)}</div></div>
+      <div><span>Your points</span>${coins(5)}</div>
+      <div><span>Pip's points</span>${coins(3)}</div>
       <div><span>Turns played</span><b>14</b></div>
-      <div><span>Boredom inflicted</span><b>17 😴</b></div>
-      <div><span>Goofiness built</span><b>11 😂</b></div>
+      <div><span>Boredom inflicted</span><b style="color:#7a89a5">${ICON.bore}<span style="color:var(--ink)">17</span></b></div>
+      <div><span>Goofiness built</span><b style="color:#f0941c">${ICON.goof}<span style="color:var(--ink)">11</span></b></div>
     </div>
     <div class="row2"><button class="btn primary">Rematch</button><button class="btn">Home</button></div></div>`),
 
   frame('12 · How to play', `${header('How to Play')}
-    <div class="scroll">${RULES.map(([h, t], i) => `<details class="acc neu"${i < 3 ? ' open' : ''}><summary>${h}</summary><p>${t}</p></details>`).join('')}</div>
+    <div class="scroll">${RULES.map(([h, t], i) => `<details class="acc neu"${i < 3 ? ' open' : ''}><summary>${h}${ICON.chevron}</summary><p>${t}</p></details>`).join('')}</div>
     ${tabbar('rules')}`),
 ].join('');
 </script>
