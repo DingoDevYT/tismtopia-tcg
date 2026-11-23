@@ -10,6 +10,9 @@ const dec = JSON.parse(fs.readFileSync(path.join(root, 'review', 'decisions.json
 const drafts = fs.readdirSync(path.join(root, 'review', 'drafts')).filter(f => f.endsWith('.json'))
   .flatMap(f => JSON.parse(fs.readFileSync(path.join(root, 'review', 'drafts', f), 'utf8')));
 fs.mkdirSync(path.join(root, 'art', 'local'), { recursive: true });
+// Balance/design rewrites of already-accepted cards (review/proposals/*.json, arrays of full cards) replace the accepted text; art stays.
+const pdir = path.join(root, 'review', 'proposals'), prop = {};
+if (fs.existsSync(pdir)) for (const f of fs.readdirSync(pdir).filter(f => f.endsWith('.json'))) for (const c of JSON.parse(fs.readFileSync(path.join(pdir, f), 'utf8'))) prop[c.id] = c;
 
 const owner = {}, cards = [];
 for (const d of drafts) {
@@ -17,7 +20,7 @@ for (const d of drafts) {
   // shortcut: lore Bits/Evils go in unless denied, so the starters have some before they're reviewed; require 'accepted' once they are.
   const item = d.type === 'bit' || d.type === 'evil';
   if (item ? r?.status === 'denied' : r?.status !== 'accepted') continue;
-  const c = structuredClone(r?.card || d);
+  const c = structuredClone(prop[d.id] || r?.card || d);
   if (c.type === 'captain' && !d.id.startsWith('captain_')) continue; // old OC captains: Captains are the people now
   for (const k of META) delete c[k];
   c.id = d.id;
