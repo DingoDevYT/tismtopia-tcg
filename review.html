@@ -32,6 +32,9 @@
   #thumbs { width: 100%; display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
   #thumbs button { aspect-ratio: 1; border-radius: 12px; overflow: hidden; box-shadow: var(--raise-sm); background: var(--surface); padding: 0; }
   #thumbs button.on { box-shadow: 0 0 0 3px var(--glow); }
+  #thumbs button.bad { opacity: .45; box-shadow: 0 0 0 2px var(--accent); }
+  #thumbs button.extra { outline: 2px dashed var(--muted); outline-offset: -2px; }
+  #based { line-height: 1.5; }
   #thumbs img { width: 100%; height: 100%; object-fit: cover; display: block; }
   #form { overflow-y: auto; padding: 16px 18px 24px; border-left: 1px solid var(--sd); display: grid; gap: 10px; align-content: start; }
   #form label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
@@ -77,16 +80,22 @@ const artCache = {};
 const statusOf = id => decisions[id]?.status || 'pending';
 const shown = () => drafts.filter(d => filter === 'all' || statusOf(d.id) === filter);
 const artUrl = (folder, file) => `/arte/${encodeURIComponent(folder)}/${file.split('/').map(encodeURIComponent).join('/')}`;
+const pathUrl = p => `/arte/${p.split('/').map(encodeURIComponent).join('/')}`; // p is relative to the art root ("folder/file")
+// The chosen art: art.path (any folder, relative to the art root) or the older art.file (inside the card's own folder).
+const chosenUrl = () => (work.art.path ? pathUrl(work.art.path) : work.art.file ? artUrl(work.d.folder, work.art.file) : null);
 // Draft text comes from a bot reading chat notes: escape every string before it reaches innerHTML.
 const safe = v => typeof v === 'string' ? esc(v) : Array.isArray(v) ? v.map(safe) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, safe(x)])) : v;
-const META = ['source', 'note', 'owner', 'folder', 'error'];
+const META = ['source', 'note', 'owner', 'folder', 'error', 'check', 'changes', 'evidence', 'artIssues', 'extraArt', 'baseId', 'suggestedArt'];
 const cardOf = d => Object.fromEntries(Object.entries(d).filter(([k]) => !META.includes(k)));
 
 async function getJSON(url) { const r = await fetch(url, { cache: 'no-store' }); if (!r.ok) throw new Error(`${url}: ${r.status}`); return r.json(); }
 async function art(folder) { return (artCache[folder] ??= getJSON(`/api/art?folder=${encodeURIComponent(folder)}`).catch(() => [])); }
 
 async function boot() {
-  [drafts, decisions] = await Promise.all([getJSON('/api/drafts'), getJSON('/api/review')]);
+  const [d0, dec, extra] = await Promise.all([getJSON('/api/drafts'), getJSON('/api/review'), getJSON('/review/extra-art.json').catch(() => ({}))]);
+  // Misfiled art the bots traced back to a character (review/extra-art.json) joins that card's picker.
+  drafts = d0.map(d => (extra[d.id] ? { ...d, extraArt: [...new Set([...(d.extraArt || []), ...extra[d.id]])] } : d));
+  decisions = dec;
   if (!drafts.some(d => d.id === currentId)) currentId = shown()[0]?.id ?? drafts[0]?.id ?? null;
   open(currentId);
 }
@@ -97,7 +106,13 @@ function open(id) {
   if (!d) { work = null; return draw(); }
   const dec = decisions[id];
   work = { d, card: structuredClone(dec?.card || cardOf(d)), art: structuredClone(dec?.art || { file: null, x: 50, y: 50, zoom: 1 }), note: dec?.note || '' };
-  art(d.folder).then(files => { if (work?.d === d && !work.art.file && files.length) { work.art.file = files[0]; draw(); } });
+  art(d.folder).then(files => {
+    if (work?.d !== d || work.art.file || work.art.path) return;
+    const s = d.suggestedArt; // variants name the image they were drafted from
+    if (s && s.includes('/')) work.art.path = s; else if (s && files.includes(s)) work.art.file = s;
+    else if (files.length) work.art.file = files[0]; else if (d.extraArt?.length) work.art.path = d.extraArt[0];
+    draw();
+  });
   draw(true);
 }
 
@@ -113,7 +128,7 @@ function drawPreview() {
   if (work.d.error) return ($('#preview').innerHTML = `<p class="err">${esc(work.d.error)}</p>`);
   try {
     const c = safe(work.card);
-    $('#preview').innerHTML = renderCard({ ...c, no: 'NEW', art: work.art.file ? artUrl(work.d.folder, work.art.file) : null, crop: work.art });
+    $('#preview').innerHTML = renderCard({ ...c, no: 'NEW', art: chosenUrl(), crop: work.art });
   } catch (e) { $('#preview').innerHTML = `<p class="err">Can't draw this card: ${esc(e.message)}. Fix it in the JSON below.</p>`; }
   $('#zoom').value = work.art.zoom;
   hookCrop();
@@ -122,8 +137,16 @@ function drawPreview() {
 async function drawThumbs() {
   if (!work) return ($('#thumbs').innerHTML = '');
   const files = await art(work.d.folder);
-  $('#based').textContent = `${work.d.folder}${work.d.note ? ` · ${work.d.note}` : ''} · ${files.length} image${files.length === 1 ? '' : 's'}`;
-  $('#thumbs').innerHTML = files.map(f => `<button class="${f === work.art.file ? 'on' : ''}" data-file="${esc(f)}" title="${esc(f)}"><img loading="lazy" src="${artUrl(work.d.folder, f)}" alt=""></button>`).join('') || '<p class="muted">No images in this folder.</p>';
+  // Fact-check results from the round-2 bots: what changed, chat evidence (line numbers in the #arte export), art warnings.
+  const d = work.d, bad = new Set((d.artIssues || []).map(a => a.file));
+  $('#based').innerHTML = `${esc(d.folder)} · ${files.length} image${files.length === 1 ? '' : 's'}${d.note ? `<br>${esc(d.note)}` : ''}`
+    + (d.check ? `<br><b class="${d.check === 'ok' ? '' : 'err'}">${d.check === 'ok' ? 'Checked: matches the chat' : d.check === 'new' ? 'New card' : 'Fixed'}</b>${d.changes ? `: ${esc(d.changes)}` : ''}` : '')
+    + ((d.evidence || []).length ? `<br><small>${d.evidence.map(e => `L${esc(e.line)} “${esc(e.quote)}”`).join(' · ')}</small>` : '')
+    + ((d.artIssues || []).length ? `<br><span class="err">Art warnings: ${d.artIssues.map(a => `${esc(a.file)} (${esc(a.problem)})`).join('; ')}</span>` : '');
+  // Own folder first, then art the bots found for this character in other folders (marked with a dashed border).
+  const own = files.map(f => `<button class="${!work.art.path && f === work.art.file ? 'on' : ''}${bad.has(f) ? ' bad' : ''}" data-file="${esc(f)}" title="${esc(f)}${bad.has(f) ? ' (flagged)' : ''}"><img loading="lazy" src="${artUrl(work.d.folder, f)}" alt=""></button>`);
+  const extra = (d.extraArt || []).map(p => `<button class="extra${work.art.path === p ? ' on' : ''}" data-path="${esc(p)}" title="From another folder: ${esc(p)}"><img loading="lazy" src="${pathUrl(p)}" alt=""></button>`);
+  $('#thumbs').innerHTML = own.concat(extra).join('') || '<p class="muted">No images found for this character.</p>';
 }
 
 const field = (label, key, type = 'text', extra = '') => `<label>${label}<input data-k="${key}" type="${type}" value="${esc(work.card[key] ?? '')}" ${extra}></label>`;
@@ -152,7 +175,7 @@ function draw(all) { drawQueue(); drawPreview(); if (all) { drawThumbs(); drawFo
 // Crop by dragging the art window and zooming with the wheel or slider.
 function hookCrop() {
   const a = $('#preview .art');
-  if (!a || !work.art.file) return;
+  if (!a || !(work.art.file || work.art.path)) return;
   let start = null;
   a.onpointerdown = e => { start = { x: e.clientX, y: e.clientY, cx: work.art.x, cy: work.art.y }; try { a.setPointerCapture(e.pointerId); } catch { /* synthetic event */ } a.classList.add('dragging'); };
   a.onpointermove = e => {
@@ -186,10 +209,11 @@ function decide(status) {
 function step(dir) { const list = shown(), i = list.findIndex(d => d.id === currentId); const n = list[(i + dir + list.length) % list.length]; if (n) open(n.id); }
 
 document.addEventListener('click', e => {
-  const t = e.target.closest('[data-id],[data-file],[data-decide],[data-f],#reload,#resetCrop,#applyJson');
+  const t = e.target.closest('[data-id],[data-file],[data-path],[data-decide],[data-f],#reload,#resetCrop,#applyJson');
   if (!t) return;
   if (t.dataset.id) open(t.dataset.id);
-  else if (t.dataset.file) { Object.assign(work.art, { file: t.dataset.file, x: 50, y: 50, zoom: 1 }); drawPreview(); drawThumbs(); }
+  else if (t.dataset.file) { work.art = { file: t.dataset.file, x: 50, y: 50, zoom: 1 }; drawPreview(); drawThumbs(); }
+  else if (t.dataset.path) { work.art = { path: t.dataset.path, x: 50, y: 50, zoom: 1 }; drawPreview(); drawThumbs(); }
   else if (t.dataset.decide) decide(t.dataset.decide);
   else if (t.dataset.f) { filter = t.dataset.f; document.querySelectorAll('[data-f]').forEach(c => c.classList.toggle('on', c === t)); const l = shown(); if (!l.some(d => d.id === currentId)) open(l[0]?.id); else drawQueue(); }
   else if (t.id === 'reload') boot();
