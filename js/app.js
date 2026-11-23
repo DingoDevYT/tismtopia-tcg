@@ -126,15 +126,15 @@ const TC = CARD[Object.keys(STARTER.cards).find(id => !CARD[id].sick && CARD[id]
 const TM = TC.moves.find(m => m.cost === 1 && !m.ability);
 const TUT = [
   { text: `Welcome to Tismtopia! Bore your opponent out: whoever reaches ${BORE_MAX} Boredom loses. This quick battle shows you how.`, next: true },
-  { text: 'This is you: your Captain card and your meters. Boredom (grey) is your health: fill it up and you lose. Goofiness (orange) is your hype: land hits to build it, then spend it on your Captain\'s Super (the marked notch).', sel: `${MY} .hud`, next: true },
+  { text: 'This is you: your Captain card and your meters. Boredom (grey) is your health: fill it up and you lose. Creativity (orange) is your hype: land hits to build it, then spend it on your Captain\'s Super (the marked notch).', sel: `${MY} .hud`, next: true },
   { text: "Every turn you gain 2 Actions. Playing a card costs 1, and each move shows its cost. Actions you don't spend are saved for next turn (up to 5), so you can save up for big moves.", sel: '.pips', next: true },
   { text: `Tap ${TC.name} in your hand, then tap Play.`, sel: () => (ui.zoom ? '.dim [data-a*=\'"play"\']' : `.hand .card[data-id="${TC.id}"]`), done: g => g.players[0].field.length > 0 },
   { text: `Characters attack with moves, each costing Actions. Tap ${TC.name} on the field and use ${TM.name} (1 Action). Nobody is blocking, so its power goes straight to their Boredom.`,
     sel: () => (ui.zoom ? '.dim [data-a*=\'"attack"\']' : `${MY} .field .card`), done: g => g.players[1].bore > 0 },
   { text: "Their Boredom went up by the attack's power. You're out of Actions, so tap End Turn.", sel: '[data-act=end]', done: g => g.turn === 1 },
   { text: "The bot's turn. The attacker always picks which Character to hit, then rolls a d20 and adds the attack's power: if that reaches the target's DEF, it breaks through.", done: g => g.turn === 0 && g.turnNo > 2 },
-  { text: 'Breaking through costs the target 1 HP, gives its owner Boredom equal to the power and knocks off 1 of their Goofiness. A blocked attack does nothing.', next: true },
-  { text: 'Bits are instant and last a few turns. Evils stay until removed. Tap your Captain to use its Super once you have enough Goofiness, or your meters for the log, manual fixes, or to leave.', next: true },
+  { text: 'Breaking through costs the target 1 HP, gives its owner Boredom equal to the power and knocks off 1 of their Creativity. A blocked attack does nothing.', next: true },
+  { text: 'Items are instant and last a few turns. Evils stay until removed. Tap your Captain to use its Super once you have enough Creativity, or your meters for the log, manual fixes, or to leave.', next: true },
   { text: "That's the basics! Finish this battle against the bot, then build your own deck.", next: 'Got it' },
 ];
 
@@ -146,7 +146,7 @@ function coach() {
   return `<div class="coach neu"><p>${s.text}</p><div class="row2"><button class="btn sm" data-act="tut-skip">Skip tutorial</button>${s.next ? `<button class="btn sm primary" data-act="tut-next">${s.next === true ? 'Next' : s.next}</button>` : ''}</div></div>`;
 }
 
-// ---------------- bot: adds a Character, attacks with its strongest, plays Bits/Evils, uses abilities, blocks with its toughest ----------------
+// ---------------- bot: adds a Character, attacks with its strongest, plays Items/Evils, uses abilities, blocks with its toughest ----------------
 // shortcut: greedy, no lookahead; fine for practice, not a real opponent.
 const BOT_DECK = STARTERS[1];
 const best = (idx, score) => idx.reduce((b, i) => (score(i) > score(b) ? i : b), idx[0]);
@@ -202,7 +202,7 @@ function viewOver() {
       <div><span>${esc(opp.name)}'s Boredom</span><b>${opp.bore}/${BORE_MAX}</b></div>
       <div><span>Turns played</span><b>${g.turnNo}</b></div>
       <div><span>Boredom inflicted</span><b><span class="bore-i">${ICON.bore}</span>${mine.stats.bore}</b></div>
-      <div><span>Goofiness built</span><b><span class="goof-i">${ICON.goof}</span>${mine.stats.goof}</b></div>
+      <div><span>Creativity built</span><b><span class="goof-i">${ICON.goof}</span>${mine.stats.goof}</b></div>
     </div>
     <div class="row2"><button class="btn primary" data-act="rematch"${conn || bot ? '' : ' disabled'}>Rematch</button><button class="btn" data-act="leave">Home</button></div></div>
     ${ui.toast ? `<div class="toast neu">${esc(ui.toast)}</div>` : ''}`;
@@ -214,7 +214,7 @@ function overlay() {
     <div class="grid caps">${CAPTAINS.map(c => renderCard(c, { cls: c.id === deck().captain ? 'picked' : '', attrs: tappable('captain', `data-id="${c.id}"`) })).join('')}</div>
     <button class="btn wide" data-act="close">Close</button>`);
   if (ui.sheet === 'adjust' && game) return adjustSheet();
-  if (ui.sheet?.startsWith('fx:') && game) { // phone: a side's active Bits/Evils, full size
+  if (ui.sheet?.startsWith('fx:') && game) { // phone: a side's active Items/Evils, full size
     const who = ui.sheet.slice(3), t = game.players[who === 'me' ? me : 1 - me];
     return sheet(`<h2>${who === 'me' ? 'Your' : `${esc(t.name)}'s`} effects</h2>
       <div class="grid fxs">${t.effects.map((e, i) => renderCard(CARD[e.id], { turns: e.turns, attrs: pick(who, 'fx', i) })).join('')}</div>
@@ -229,7 +229,7 @@ function zoomGame(z) {
   const w = z.who === 'me' ? me : 1 - me, t = game.players[w];
   if (z.zone === 'cap') {
     const c = CARD[t.captain], can = w === me && game.turn === me && game.phase === 'play' && c.ability && t.goof >= (c.goof || 0) && !(c.once && game.capUsed);
-    return `<div class="dim" data-act="close">${renderCard(c, { cls: 'zoom' })}<div class="row2">${can ? btn({ type: 'ability', i: -1 }, `${ICON.main}Super: ${c.goof} Goofiness`, 'primary') : ''}
+    return `<div class="dim" data-act="close">${renderCard(c, { cls: 'zoom' })}<div class="row2">${can ? btn({ type: 'ability', i: -1 }, `${ICON.main}Super: ${c.goof} Creativity`, 'primary') : ''}
       <button class="btn" data-act="sheet" data-s="adjust">Meters, log &amp; tools</button></div><button class="btn sm" data-act="close">Close</button></div>`;
   }
   const item = { hand: t.hand, field: t.field, fx: t.effects }[z.zone]?.[z.i];
@@ -250,14 +250,14 @@ function zoomGame(z) {
     rows = (mine && live ? `<div class="row2">${acts.join('')}</div>` : '')
       + `<div class="row2">${stepper(`HP ${item.hp}`, { type: 'hp', who: w, i: z.i, d: -1 }, { type: 'hp', who: w, i: z.i, d: 1 })}${remove}</div>`;
   }
-  if (z.zone === 'fx') rows = `<div class="row2">${item.turns != null ? stepper(`${item.turns} turn${item.turns > 1 ? 's' : ''}`, { type: 'turns', who: w, i: z.i, d: -1 }, { type: 'turns', who: w, i: z.i, d: 1 }) : ''}${remove}</div>`;
+  if (z.zone === 'fx') rows = `<div class="row2">${!mine && live && c.type === 'evil' ? btn({ type: 'cleanse', i: z.i }, `Cleanse ${cost(2)}`, 'primary') : ''}${item.turns != null ? stepper(`${item.turns} turn${item.turns > 1 ? 's' : ''}`, { type: 'turns', who: w, i: z.i, d: -1 }, { type: 'turns', who: w, i: z.i, d: 1 }) : ''}${remove}</div>`;
   const stats = z.zone === 'field' ? statsOf(game, w, item) : {};
   return `<div class="dim" data-act="close">${renderCard(c, { cls: 'zoom', hp: item.hp, turns: item.turns, ...stats })}${rows}<button class="btn sm" data-act="close">Close</button></div>`;
 }
 
 function adjustSheet() {
   const g = game, cap = CARD[g.players[me].captain], live = g.turn === me && g.phase === 'play' && cap.ability && g.players[me].goof >= (cap.goof || 0) && !(cap.once && g.capUsed);
-  const meters = [['goof', 'Goofiness', 'goof'], ['bore', 'Boredom', 'bore']];
+  const meters = [['goof', 'Creativity', 'goof'], ['bore', 'Boredom', 'bore']];
   return sheet(`<h2>Adjust</h2><p class="muted center" style="margin-bottom:12px">Card text runs by itself. Use these for anything it misses; both players see every change.</p>
     ${[me, 1 - me].map(w => `<div class="adj neu-in"><b>${esc(g.players[w].name)}${w === me ? ' (you)' : ''}</b>
       ${meters.map(([icon, label, key]) => `<div class="adj-row"><span><span class="${icon}">${ICON[icon]}</span>${label}</span>${stepper(g.players[w][key],
@@ -434,7 +434,7 @@ function postAnimate(ev, prev, s) {
       const h = hudEl(e.p), n = nudges.get(h) || 0;
       nudges.set(h, n + 24);
       flash(h?.querySelector(`.meter.${e.key}`), 'bump', 600); flash(h?.querySelector(`.meter.${e.key}`), 'hl', 1400);
-      floatText(h?.querySelector('.meters'), `${e.n > 0 ? '+' : ''}${e.n} ${e.key === 'goof' ? 'Goofiness' : 'Boredom'}`, e.key, n);
+      floatText(h?.querySelector('.meters'), `${e.n > 0 ? '+' : ''}${e.n} ${e.key === 'goof' ? 'Creativity' : 'Boredom'}`, e.key, n);
     }
     if (e.k === 'draw' && e.p === me) flash($app.querySelector('.hand .card:last-child'), 'drawn', 650);
     if (e.k === 'turn') banner(e.p === me ? 'Your turn' : `${esc(s.players[e.p].name)}'s turn`, 'turn');

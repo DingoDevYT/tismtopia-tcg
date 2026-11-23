@@ -22,11 +22,11 @@ function steps(list, where, noHp) {
     if (what === 'flip') { steps(a1, `${where} > flip heads`, noHp); if (a2 !== undefined) steps(a2, `${where} > flip tails`, noHp); continue; }
     if (what === 'sac') { if (noHp) errs.push(`${where}: sac only works inside a Character's moves`); continue; }
     if (what === 'hp') {
-      if (noHp) errs.push(`${where}: hp steps only work inside a Character's moves (Bits/Evils have no target)`);
+      if (noHp) errs.push(`${where}: hp steps only work inside a Character's moves (Items/Evils have no target)`);
       else if (!['target', 'self'].includes(a1) || !int(a2, 1, 3)) errs.push(`${where}: hp step must be ["hp","target"|"self",1-3]`);
       continue;
     }
-    if (!['goof', 'bore', 'draw', 'actions'].includes(what)) { errs.push(`${where}: unknown step "${what}" (allowed: goof, bore, draw, actions, hp, sac, flip)`); continue; }
+    if (!['goof', 'bore', 'draw', 'actions', 'purge'].includes(what)) { errs.push(`${where}: unknown step "${what}" (allowed: goof, bore, draw, actions, purge, hp, sac, flip)`); continue; }
     if (!['me', 'opp'].includes(a1)) errs.push(`${where}: "${what}" needs "me" or "opp"`);
     if (!Number.isInteger(a2) || a2 === 0 || Math.abs(a2) > 4) errs.push(`${where}: "${what}" amount must be a whole number from -4 to 4, not 0`);
   }
@@ -79,7 +79,7 @@ for (const [n, c] of cards.entries()) {
   } else if (item) {
     if (!str(c.text, 140)) errs.push(`${at}: needs text describing the effect`);
     if (c.cost !== undefined && !int(c.cost, 0, 3)) errs.push(`${at}: cost must be 0-3 Actions (default 1)`);
-    if (c.type === 'bit' && !int(c.dur, 1, 3)) errs.push(`${at}: a Bit needs dur 1-3 (how many of your turns it lasts)`);
+    if (c.type === 'bit' && !int(c.dur, 1, 3)) errs.push(`${at}: an Item needs dur 1-3 (how many of your turns it lasts)`);
     if (c.type === 'evil' && c.dur !== undefined) errs.push(`${at}: Evils last forever, so no dur`);
     for (const k of ['onPlay', 'onTurnStart', 'onOppTurnStart']) steps(c[k], `${at} ${k}`, true);
     mod(c.mod, `${at} mod`);

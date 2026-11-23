@@ -1,6 +1,6 @@
 // Render helpers shared by the mockups and the game. Each returns an HTML string.
 const esc = s => String(s).replace(/[&<>"']/g, ch => `&#${ch.charCodeAt(0)};`);
-const LABEL = { captain: 'Captain', character: 'Character', main: 'Main Character', bit: 'Bit', evil: 'Evil' };
+const LABEL = { captain: 'Captain', character: 'Character', main: 'Main Character', bit: 'Item', evil: 'Evil' };
 const kindOf = c => (c.main ? 'main' : c.type);
 
 // Custom icon set, 24x24. Filled glyphs unless wrapped in G() (outlined).
@@ -90,8 +90,8 @@ function renderCard(c, o = {}) {
 }
 
 const renderAvatar = (c, cls = '') => `<span class="avatar${cls}">${ICON.captain}${c.art ? `<img src="${c.art}" alt="" onerror="this.remove()">` : ''}</span>`;
-// Boredom is health (lose at BORE_MAX); Goofiness is hype up to 10, with the Captain's Super cost marked on the bar.
-const meter = (k, v, max, sup) => `<div class="meter ${k}"><span>${ICON[k]}${k === 'goof' ? 'Goofiness' : 'Boredom'}</span><b>${v}/${max}</b>
+// Boredom is health (lose at BORE_MAX); Creativity is hype up to 10, with the Captain's Super cost marked on the bar.
+const meter = (k, v, max, sup) => `<div class="meter ${k}"><span>${ICON[k]}${k === 'goof' ? 'Creativity' : 'Boredom'}</span><b>${v}/${max}</b>
   <div class="mbar">${Array.from({ length: max }, (_, i) => `<i class="${i < v ? 'on' : ''}${i === sup - 1 ? ' sup' : ''}"></i>`).join('')}</div></div>`;
 
 // Clickable bits carry data-act="card" + who/zone/i; the app reads them with one delegated click handler.
@@ -110,7 +110,7 @@ function renderField(p, glow = [], who = 'me', stat) {
   return `<div class="field">${cards}${'<div class="slot"></div>'.repeat(Math.max(0, 3 - p.field.length))}</div>`;
 }
 
-// Active Bits/Evils: a pool of small readable cards (desktop); on phones an "Effects" button opens them in a sheet.
+// Active Items/Evils: a pool of small readable cards (desktop); on phones an "Effects" button opens them in a sheet.
 const renderFx = (p, who = 'me') => `<div class="effects">${p.effects.length ? `<button class="fx-open" data-act="sheet" data-s="fx:${who}">${ICON.bit}Effects<b>${p.effects.length}</b></button>` : ''}
   <div class="fx-pool">${p.effects.map((e, i) => renderCard(CARD[e.id], { cls: 'mini fxc', turns: e.turns, attrs: pick(who, 'fx', i) })).join('')}</div></div>`;
 

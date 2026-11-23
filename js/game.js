@@ -3,8 +3,8 @@
 // Each new state carries `events` describing what just happened, which the UI animates.
 const MAX_COPIES = 3;
 const MAX_ACTIONS = 5; // unused Actions carry over; you start a turn with at most this many (card bonuses can go past it)
-const METERS = { goof: 'Goofiness', bore: 'Boredom' };
-const GOOF_MAX = 10; // Goofiness is a hype meter you spend; it stops filling here
+const METERS = { goof: 'Creativity', bore: 'Boredom' };
+const GOOF_MAX = 10; // Creativity is a hype meter you spend; it stops filling here
 
 const expand = cards => Object.entries(cards).flatMap(([id, n]) => Array(n).fill(id));
 
@@ -31,11 +31,11 @@ function deckProblems(d) {
   return out;
 }
 
-// Everything of a player's that can carry effects: Captain, Characters in play, active Bits and Evils.
+// Everything of a player's that can carry effects: Captain, Characters in play, active Items and Evils.
 const sources = (s, pi) => { const p = s.players[pi]; return [CARD[p.captain], ...p.field.map(f => CARD[f.id]), ...p.effects.map(e => CARD[e.id])]; };
 const modSum = (s, pi, key) => sources(s, pi).reduce((n, c) =>
   n + (c.mod?.[key] && modOn(s, pi, c) ? c.mod[key] : 0), 0);
-// mod.if: 'noGoof' = while you have 0 Goofiness; any other word = while you have another Character of that group on the field.
+// mod.if: 'noGoof' = while you have 0 Creativity; any other word = while you have another Character of that group on the field.
 const modOn = (s, pi, c) => { const w = c.mod.if, F = s.players[pi].field; return !w || (w === 'noGoof' ? !s.players[pi].goof : F.filter(f => CARD[f.id].group === w && f.id !== c.id).length > 0); };
 // A Character's live numbers: DEF with modifiers, and `bonus` power added to each of its attacks.
 const statsOf = (s, pi, f) => ({ def: CARD[f.id].def + modSum(s, pi, 'def'), bonus: modSum(s, pi, 'atk') });
@@ -47,7 +47,7 @@ function moveBlock(s, pi, f, m) {
   const mv = CARD[f.id].moves?.[m];
   if (!mv) return 'No such move.';
   if (moveCost(s, pi, mv) > s.actions) return 'Not enough Actions';
-  if ((mv.goof || 0) > s.players[pi].goof) return 'Not enough Goofiness';
+  if ((mv.goof || 0) > s.players[pi].goof) return 'Not enough Creativity';
   if (!mv.ability && !canAttack(s, f)) return 'Can attack next turn';
   if (mv.once && f.once?.[m] === s.turnNo) return 'Used this turn';
   return '';
@@ -113,6 +113,7 @@ function apply(s0, p, a, rng = Math.random) {
       }
       if (what === 'sac') { const f = ctx.self && s.players[ctx.self.p].field[ctx.self.i]; if (f) { f.hp = 0; f.sac = true; } continue; }
       const ti = a1 === 'opp' ? 1 - pi : pi, t = s.players[ti];
+      if (what === 'purge') { for (let k = 0; k < a2; k++) { const e = t.effects.findLastIndex(x => CARD[x.id].type === 'evil'); if (e < 0) break; say(`${c.name}: ${CARD[t.effects[e].id].name} was purged.`); t.effects.splice(e, 1); } continue; }
       if (what === 'goof' || what === 'bore') { const d = gain(ti, what, a2); say(`${c.name}: ${t.name} ${d >= 0 ? '+' : ''}${d} ${METERS[what]}.`); }
       else if (what === 'draw') { for (let k = 0; k < a2; k++) draw(ti); say(`${c.name}: ${t.name} draws ${a2}.`); }
       else if (what === 'actions' && s.turn === ti) { s.actions = Math.max(0, s.actions + a2); say(`${c.name}: ${a2 > 0 ? '+' : ''}${a2} Action${Math.abs(a2) > 1 ? 's' : ''}.`); }
@@ -149,7 +150,7 @@ function apply(s0, p, a, rng = Math.random) {
       const f = at(me.field, a.i), c = CARD[f.id], mv = c.moves?.[a.m], self = { p, i: a.i };
       if (!mv) throw new Error('No such move.');
       if (mv.once && f.once?.[a.m] === s.turnNo) throw new Error(`${mv.name} is once per turn.`);
-      if (mv.goof) { if (me.goof < mv.goof) throw new Error(`${mv.name} needs ${mv.goof} Goofiness.`); gain(p, 'goof', -mv.goof); }
+      if (mv.goof) { if (me.goof < mv.goof) throw new Error(`${mv.name} needs ${mv.goof} Creativity.`); gain(p, 'goof', -mv.goof); }
       if (mv.once) f.once = { ...f.once, [a.m]: s.turnNo };
       if (mv.ability) {
         spend(moveCost(s, p, mv));
@@ -170,7 +171,7 @@ function apply(s0, p, a, rng = Math.random) {
         if (hit) { hurt(1 - p, a.t); gain(1 - p, 'bore', power); gain(1 - p, 'goof', -1); gain(p, 'goof', 1); }
         s.roll = { seq: s.seq + 1, die, rolls, atk: power, def, total, hit, a: f.id, d: df.id, aHp: f.hp, dHp: df.hp, by: p };
         say(`${c.name} uses ${mv.name} on ${dc.name}: rolled ${rolls.length > 1 ? `${rolls.join(' & ')}, kept ${die}` : die} + ${power} = ${total} vs ${def} DEF: ` + (hit
-          ? `breaks through! ${dc.name} -1 HP, ${opp.name} +${power} Boredom and -1 Goofiness, ${me.name} +1 Goofiness.` : 'blocked!'));
+          ? `breaks through! ${dc.name} -1 HP, ${opp.name} +${power} Boredom and -1 Creativity, ${me.name} +1 Creativity.` : 'blocked!'));
         if (hit) { runOps(p, mv.onHit, c, { self, target: { p: 1 - p, i: a.t } }); runOps(p, c.onBreak, c, { self }); }
         cull(opp);
       } else {
@@ -183,18 +184,27 @@ function apply(s0, p, a, rng = Math.random) {
       cull(me);
       break;
     }
-    case 'ability': { // Captain Super: costs Goofiness (c.goof); Character abilities are moves
+    case 'ability': { // Captain Super: costs Creativity (c.goof); Character abilities are moves
       const c = CARD[me.captain];
       if (a.i !== -1 || !c.ability) throw new Error(`${c.name} has no ability to use.`);
       if (c.once && s.capUsed) throw new Error(`${c.name}'s Super is once per turn.`);
       if (s.turn !== p) throw new Error('Not your turn.');
-      if (me.goof < (c.goof || 0)) throw new Error(`${c.name}'s Super needs ${c.goof} Goofiness.`);
+      if (me.goof < (c.goof || 0)) throw new Error(`${c.name}'s Super needs ${c.goof} Creativity.`);
       gain(p, 'goof', -(c.goof || 0));
       s.capUsed = true;
       say(`${me.name} used ${c.name}'s Super!`);
       ev({ k: 'cast', p, id: c.id });
       runOps(p, c.ability, c);
       cull(me); cull(opp);
+      break;
+    }
+    case 'cleanse': { // remove one of the opponent's Evils
+      const e = at(opp.effects, a.i);
+      if (CARD[e.id].type !== 'evil') throw new Error('Only Evils can be cleansed.');
+      spend(2);
+      opp.effects.splice(a.i, 1);
+      ev({ k: 'move', p, name: 'Cleanse' });
+      say(`${me.name} cleansed ${CARD[e.id].name}.`);
       break;
     }
     case 'end': {

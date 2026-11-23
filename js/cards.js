@@ -13,17 +13,18 @@
 //   ['flip', headsSteps, tailsSteps?]   flip a coin and run one list
 // Card-level extras:
 //   mod: passive while the card is in play (a Captain's always is):
-//     atk: +n power on your attacks   def: +n DEF for your Characters (`if: 'noGoof'`: only while you have 0 Goofiness)
+//     atk: +n power on your attacks   def: +n DEF for your Characters (`if: 'noGoof'`: only while you have 0 Creativity)
 //     oppAttackCost / oppEvilCost: extra Actions your opponent pays to attack / play Evils
-//     goofBonus: extra Goofiness whenever you gain some
+//     goofBonus: extra Creativity whenever you gain some
 //     actions: +n Actions at the start of each of your turns
 //   sick: can't attack the turn it's played.  disadv: attacks against it roll twice and keep the lower.
 //   once: (Captains) ability usable once per turn.
 //   ['sac'] (Character moves only): this Character leaves the field after the effect.
-//   cost (Bits/Evils): Actions to play, 0-3, default 1.  group (Characters): e.g. 'Butter'; mod.if: 'Butter' = only while you have another Butter on the field.
+//   cost (Items/Evils): Actions to play, 0-3, default 1.  group (Characters): e.g. 'Butter'; mod.if: 'Butter' = only while you have another Butter on the field.
 //   Negative amounts lower meters: ['goof','opp',-2], ['bore','me',-1].
-//   goof (moves): also costs this much Goofiness.  ko (Characters): Boredom its owner gains when it's defeated (default 2, 0 = none).
-//   Captains: ability = their Super, goof = its Goofiness cost, once = once per turn.
+//   goof (moves): also costs this much Creativity.  ko (Characters): Boredom its owner gains when it's defeated (default 2, 0 = none).
+//   Captains: ability = their Super, goof = its Creativity cost, once = once per turn.
+//   ['purge','opp'|'me',n]: remove that player's n newest Evils.
 // Anything these can't express still works by hand from the Adjust panel.
 const BORE_MAX = 10; // Boredom that knocks you out; tools/sim.js tries other values
 const DECK_SIZE = 20; // shortcut: the rules don't set a deck size yet, change once decided
@@ -32,13 +33,13 @@ const DECK_SIZE = 20; // shortcut: the rules don't set a deck size yet, change o
 const STARTER = STARTERS[0];
 
 const RULES = [
-  ['Goal', `Bore your opponent out. Reach ${BORE_MAX} Boredom and you lose. Boredom is your health; Goofiness is your hype, and you spend it.`],
+  ['Goal', `Bore your opponent out. Reach ${BORE_MAX} Boredom and you lose. Boredom is your health; Creativity is your hype, and you spend it.`],
   ['Your turn', "Draw 1 card (the first player skips this on turn one). You gain 2 Actions; any you don't spend are saved for your next turn, up to 5. Playing a card costs 1 Action unless it says otherwise. Each Character move costs what's printed next to it. End your turn whenever."],
   ['Moves', 'Each move shows its cost on the left and its power (+N) on the right. Power is added to your d20 roll, and on a break-through your opponent gains that much Boredom. A break-through does 1 HP unless the move says more.'],
-  ['Combat', "Pick one of your Character's attacks and which enemy Character to hit. Roll a d20 and add the power. If it reaches the target's DEF, it breaks through: the target loses 1 HP, your opponent gains Boredom equal to the power and loses 1 Goofiness, and you gain 1 Goofiness. If not, nothing happens. No Characters to hit? The power goes straight to their Boredom."],
+  ['Combat', "Pick one of your Character's attacks and which enemy Character to hit. Roll a d20 and add the power. If it reaches the target's DEF, it breaks through: the target loses 1 HP, your opponent gains Boredom equal to the power and loses 1 Creativity, and you gain 1 Creativity. If not, nothing happens. No Characters to hit? The power goes straight to their Boredom."],
   ['Defeated', 'When one of your Characters runs out of HP it leaves the field and you gain 2 Boredom (some cards say otherwise). Sacrificing your own Character costs no Boredom.'],
-  ['Goofiness', 'Gain it by landing break-throughs and from card effects (up to 10). Spend it on moves that cost Goofiness and on your Captain\'s Super. Your Captain card shows the Super and how much Goofiness it needs.'],
-  ['Card types', 'Characters stay on the field to attack and defend. Bits are instant and last a set number of turns. Evils last forever unless removed.'],
+  ['Creativity', 'Gain it by landing break-throughs and from card effects (up to 10). Spend it on moves that cost Creativity and on your Captain\'s Super. Your Captain card shows the Super and how much Creativity it needs.'],
+  ['Card types', 'Characters stay on the field to attack and defend. Items are instant and last a set number of turns. Evils last forever, until your opponent Cleanses them (tap the Evil: 2 Actions) or a card purges them.'],
   ['Card effects', "Card text runs automatically. If something isn't covered, tap a player's bar to change meters or Actions, or tap a card to change its HP or remove it. Both players see every change in the log."],
   ['Deck rules', `${DECK_SIZE} cards plus 1 Captain. Max 3 copies of a card, max 1 of each Main Character.`],
 ];

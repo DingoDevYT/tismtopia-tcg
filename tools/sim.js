@@ -21,6 +21,7 @@ function options(s) {
   const T = s.players[1 - p].field.map((_, t) => t);
   me.field.forEach((f, i) => CARD[f.id].moves.forEach((mv, m) => (T.length && !mv.ability ? T.map(t => ({ type: 'attack', i, m, t })) : [{ type: 'attack', i, m }]).forEach(a => out.push(a))));
   if (CARD[me.captain].ability) out.push({ type: 'ability', i: -1 });
+  s.players[1 - p].effects.forEach((e, i) => CARD[e.id].type === 'evil' && out.push({ type: 'cleanse', i }));
   return out.filter(a => tryAct(s, p, a));
 }
 const kind = (s, a) => a.type === 'play' ? CARD[s.players[s.turn].hand[a.i]].type
@@ -141,7 +142,7 @@ for (const [label, d0, d1] of [['Starter A vs B (greedy mirror)', STARTERS[0], S
 }
 
 const G = N * 10;
-console.log(`\n== Random legal decks (${G} games, greedy vs greedy, random Captain, 0-10 Bits/Evils) ==`);
+console.log(`\n== Random legal decks (${G} games, greedy vs greedy, random Captain, 0-10 Items/Evils) ==`);
 const card = {}, cap = {}, mix = {};
 const add = (m, k, won) => { const a = (m[k] ||= { g: 0, w: 0 }); a.g++; a.w += won; };
 for (let g = 0; g < G; g++) {
@@ -156,7 +157,7 @@ for (let g = 0; g < G; g++) {
 }
 const show = (m, min = 1) => Object.entries(m).filter(([, a]) => a.g >= min).map(([k, a]) => [k, a.w / a.g, a.g]).sort((x, y) => y[1] - x[1]);
 console.log('Captains:'); for (const [k, r, g] of show(cap)) console.log(`  ${CARD[k].name.padEnd(14)} ${pct(r)}  (${g} decks)  ${CARD[k].text}`);
-console.log('Win rate by number of Bits/Evils in the deck:'); for (const [k, r, g] of show(mix).sort((x, y) => x[0] - y[0])) console.log(`  ${String(k).padStart(2)}: ${pct(r)} (${g})`);
+console.log('Win rate by number of Items/Evils in the deck:'); for (const [k, r, g] of show(mix).sort((x, y) => x[0] - y[0])) console.log(`  ${String(k).padStart(2)}: ${pct(r)} (${g})`);
 const cs = show(card, 40), line = ([k, r, g]) => { const c = CARD[k]; return `  ${pct(r)} (${g}) ${c.name} [${c.type}${c.def ? ` DEF${c.def} HP${c.hp}` : ''}${c.moves ? ' ' + c.moves.map(m => `${m.name} c${m.cost}${m.ability ? ' abil' : ` p${m.power}`}`).join(', ') : ''}]${c.text ? ' ' + c.text : ''}`; };
 console.log('Best cards (win rate when in the deck):'); cs.slice(0, 12).forEach(x => console.log(line(x)));
 console.log('Worst cards:'); cs.slice(-12).forEach(x => console.log(line(x)));
