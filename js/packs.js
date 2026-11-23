@@ -33,7 +33,7 @@ function openPack(packId) {
   const cards = SLOTS.map(t => {
     let r = roll(t); while (!pool(r).length) r = { UR: 'R', R: 'U', U: 'C', C: 'C' }[r];
     const list = pool(r), c = list[Math.floor(Math.random() * list.length)];
-    return { id: c.id, rarity: r, finish: roll(FINISH[r]), isNew: false };
+    return { id: c.id, rarity: r, finish: c.type === 'character' ? roll(FINISH[r]) : 'normal', isNew: false }; // only Characters come in special finishes for now
   });
   cards.forEach(p => { p.isNew = !owned(p.id); const e = (coll[p.id] ||= { n: 0, f: {} }); e.n++; e.f[p.finish] = (e.f[p.finish] || 0) + 1; });
   store.set('collection', coll);
@@ -166,7 +166,7 @@ document.addEventListener('pointerup', e => {
 // ---------------- collection: every card, what you own, favourites, search / filter / sort ----------------
 let favs = new Set(store.get('favs', []));
 const RANK = { C: 0, U: 1, R: 2, UR: 3 };
-const bestFinish = id => { const f = coll[id]?.f || {}; return f.full ? 'full' : f.holo ? 'holo' : f.rev ? 'rev' : 'normal'; };
+const bestFinish = id => { if (CARD[id]?.type !== 'character') return 'normal'; const f = coll[id]?.f || {}; return f.full ? 'full' : f.holo ? 'holo' : f.rev ? 'rev' : 'normal'; };
 function viewCollection() {
   const s = (ui.coll ||= { q: '', own: 'all', type: 'all', rar: 'all', sort: 'no' }), q = s.q.trim().toLowerCase();
   let list = CARDS.filter(c => (s.own === 'all' || (s.own === 'owned' ? owned(c.id) : s.own === 'missing' ? !owned(c.id) : favs.has(c.id)))
@@ -199,7 +199,7 @@ document.addEventListener('input', e => { if (e.target.id === 'coll-search') { u
 // ---------------- card viewer: full screen, finger-tilt 3D, switch between the finishes you own ----------------
 function viewer() {
   const v = ui.viewer; if (!v) return '';
-  const c = CARD[v.id], n = owned(v.id), f = v.finish, have = ['normal', 'rev', 'holo', 'full'].filter(k => coll[v.id]?.f?.[k] || k === f);
+  const c = CARD[v.id], n = owned(v.id), f = v.finish, have = c.type === 'character' ? ['normal', 'rev', 'holo', 'full'].filter(k => coll[v.id]?.f?.[k] || k === f) : ['normal'];
   return `<div class="viewer"><div class="viewer-bg" data-act="close-viewer"></div>
     <div class="viewer-card">${renderCard(f === 'full' ? { ...c, crop: null } : c, { cls: `zoom view sway ${n ? FINISH_CLS[f] : ''}` })}</div>
     <div class="viewer-info neu">
