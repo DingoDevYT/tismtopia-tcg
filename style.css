@@ -276,10 +276,6 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
 .meter > b { font-size: 12px; }
 .meter.goof > span .i, .meter.goof > b { color: #f0941c; }
 .meter.bore > span .i, .meter.bore > b { color: #67779a; }
-.meter .mbar { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(5, 1fr); gap: 3px; }
-.meter .mbar i { height: 8px; border-radius: 4px; box-shadow: var(--inset); }
-.meter.goof .mbar i.on { background: linear-gradient(90deg, #ffbe3d, #f0941c); box-shadow: 0 0 6px rgba(240, 148, 28, .45); }
-.meter.bore .mbar i.on { background: linear-gradient(90deg, #a3b0c7, #67779a); box-shadow: none; }
 .effects { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; min-height: 24px; }
 .fx { display: inline-flex; align-items: center; gap: 5px; padding: 4px 11px 4px 8px; border-radius: 999px; font-size: 11px; background: var(--surface); box-shadow: var(--raise-sm); }
 .fx .i { width: 12px; height: 12px; }
@@ -525,8 +521,6 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
   .meter { font-size: 13px; gap: 4px 8px; }
   .meter > span .i { width: 16px; height: 16px; }
   .meter > b { font-size: 15px; }
-  .meter .mbar { gap: 4px; }
-  .meter .mbar i { height: 12px; border-radius: 6px; }
   .grid.caps { grid-template-columns: 1fr 1fr; padding: 4px 0 16px; }
   .card.zoom.k-captain { --cw: 440px; }
   .captain-slot .card, .captain-slot .slot { --cw: 260px; width: 260px; }
@@ -571,5 +565,16 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
 .k-evil .foot { color: #d9c5f0; }
 
 /* Super threshold notch on the Goofiness bar, and the ready badge. */
-.mbar i.sup { outline: 2px solid #7348c9; outline-offset: 1px; }
 .meters .ready { margin-left: auto; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 800; color: #fff; background: linear-gradient(90deg, #7348c9, #d24b8a); animation: pop .5s; }
+
+/* Meters are slider bars with the value/max on the right: Creativity flows rainbow, Boredom flows grey; the notch marks the Captain's Super cost. */
+.meter { grid-template-columns: auto 1fr auto; }
+.meter > span { grid-column: 1; }
+.meter .mbar { grid-row: 1; grid-column: 2; position: relative; height: 10px; border-radius: 99px; box-shadow: var(--inset); background: rgba(255, 255, 255, .5); }
+.meter > b { grid-row: 1; grid-column: 3; min-width: 34px; text-align: right; }
+.meter .mbar i { position: absolute; inset: 0 auto 0 0; border-radius: inherit; background-size: 200% 100%; animation: flow 3s linear infinite; }
+.meter.goof .mbar i { background-image: linear-gradient(90deg, #ff5f9e, #ffb347, #fff275, #7dff9b, #6ad5ff, #a58bff, #ff5f9e); box-shadow: 0 0 8px rgba(255, 140, 200, .55); }
+.meter.bore .mbar i { background-image: linear-gradient(90deg, #4b5160, #c3c8d3, #7c8496, #4b5160); }
+.meter .mbar u { position: absolute; top: -3px; bottom: -3px; width: 3px; margin-left: -1.5px; border-radius: 2px; background: #3b2b78; box-shadow: 0 0 0 1px #fff; }
+@keyframes flow { to { background-position: -200% 0; } }
+@container app (min-width: 900px) { .meter .mbar { height: 14px; } }

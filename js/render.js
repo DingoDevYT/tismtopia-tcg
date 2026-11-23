@@ -92,7 +92,7 @@ function renderCard(c, o = {}) {
 const renderAvatar = (c, cls = '') => `<span class="avatar${cls}">${ICON.captain}${c.art ? `<img src="${c.art}" alt="" onerror="this.remove()">` : ''}</span>`;
 // Boredom is health (lose at BORE_MAX); Creativity is hype up to 10, with the Captain's Super cost marked on the bar.
 const meter = (k, v, max, sup) => `<div class="meter ${k}"><span>${ICON[k]}${k === 'goof' ? 'Creativity' : 'Boredom'}</span><b>${v}/${max}</b>
-  <div class="mbar">${Array.from({ length: max }, (_, i) => `<i class="${i < v ? 'on' : ''}${i === sup - 1 ? ' sup' : ''}"></i>`).join('')}</div></div>`;
+  <div class="mbar"><i style="width:${Math.min(100, 100 * v / max)}%"></i>${sup ? `<u style="left:${100 * sup / max}%" title="Super: ${sup}"></u>` : ''}</div></div>`;
 
 // Clickable bits carry data-act="card" + who/zone/i; the app reads them with one delegated click handler.
 const pick = (who, zone, i) => `data-act="card" data-who="${who}" data-zone="${zone}" data-i="${i}" tabindex="0" role="button"`;
