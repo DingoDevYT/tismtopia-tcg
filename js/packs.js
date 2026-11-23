@@ -42,10 +42,18 @@ function openPack(packId) {
 
 const packArt = (p, cls = '') => `<div class="pack ${cls}" style="--pc:${p.colour}"><img src="art/local/pack-${p.id}.png" alt="" onerror="this.remove()"><div class="pack-fallback"><img src="art/logo.png" alt=""><b>${p.name}</b><small>5 cards</small></div></div>`;
 
+// Pack select: a wheel like TCG Pocket. Swipe or use the arrows; tap the centre pack (or Open) to open it.
 function viewPacks() {
-  return `${header('Open Packs')}
-  <p class="muted center">You own ${ownedCount()} of ${CARDS.length} cards. Pick a pack.</p>
-  <div class="pack-row">${PACKS.map(p => `<button class="pack-pick" data-act="pick-pack" data-p="${p.id}" aria-label="Open ${p.name}">${packArt(p)}<b>${p.name}</b></button>`).join('')}</div>`;
+  const n = PACKS.length, idx = ((ui.packIdx || 0) % n + n) % n, cur = PACKS[idx];
+  const slots = PACKS.map((pk, i) => { let o = i - idx; if (o > n / 2) o -= n; if (o < -n / 2) o += n;
+    return `<button class="slot${o === 0 ? ' center' : ''}" style="--o:${o};--a:${Math.abs(o)}" data-act="${o === 0 ? 'pick-pack' : 'wheel-to'}" data-p="${pk.id}" data-i="${i}" aria-label="${pk.name}">${packArt(pk)}</button>`; }).join('');
+  return `<div class="wheel-stage" style="--pc:${cur.colour}">
+    <p class="muted center" style="margin:0">You own ${ownedCount()} of ${CARDS.length} cards</p>
+    <div class="wheel">${slots}<button class="wheel-arrow l" data-act="wheel-step" data-d="-1" aria-label="Previous pack">‹</button><button class="wheel-arrow r" data-act="wheel-step" data-d="1" aria-label="Next pack">›</button></div>
+    <p class="wheel-name">${cur.name}</p>
+    <div class="wheel-dots">${PACKS.map((_, i) => `<i class="${i === idx ? 'on' : ''}"></i>`).join('')}</div>
+    <button class="btn primary wheel-open" data-act="pick-pack" data-p="${cur.id}">Open</button>
+  </div>`;
 }
 
 function viewOpen() {
@@ -70,7 +78,9 @@ function viewOpen() {
 }
 
 Object.assign(ACTS, {
-  'pick-pack'(d) { ui.open = openPack(d.p); ui.view = 'open'; },
+  'wheel-step'(d) { ui.packIdx = (ui.packIdx || 0) + Number(d.d); },
+  'wheel-to'(d) { if (Date.now() - lastSwipe < 350) return false; ui.packIdx = Number(d.i); },
+  'pick-pack'(d) { if (Date.now() - lastSwipe < 350) return false; ui.open = openPack(d.p); ui.view = 'open'; }, // a swipe isn't a tap
   'tear-now'() { tearOpen(); return false; },
   'next-card'() {
     const o = ui.open; if (!o || o.stage !== 'reveal') return;
@@ -100,3 +110,11 @@ document.addEventListener('pointermove', e => {
   if (p > 0.8) { tearing = null; tearOpen(); }
 });
 document.addEventListener('pointerup', () => { if (tearing) { tearing.z.style.setProperty('--tear', 0); tearing = null; } });
+
+// Swipe the wheel left/right.
+let wheelX = null, lastSwipe = 0;
+document.addEventListener('pointerdown', e => { if (ui.view === 'packs' && e.target.closest?.('.wheel')) wheelX = e.clientX; });
+document.addEventListener('pointerup', e => {
+  if (wheelX == null) return; const dx = e.clientX - wheelX; wheelX = null;
+  if (Math.abs(dx) > 40) { lastSwipe = Date.now(); ui.packIdx = (ui.packIdx || 0) + (dx < 0 ? 1 : -1); render(); }
+});
