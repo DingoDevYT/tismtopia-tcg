@@ -111,8 +111,11 @@ function renderHud(p, who = 'me') {
 }
 
 // stat(f) -> { def, bonus } with modifiers applied (game.js statsOf); omitted in the mockups.
+// A player's finish for a card in battle (holo / reverse / full art), from the finishes sent with their deck.
+const finCls = (p, id) => { const f = p?.fin?.[id]; return f && typeof FINISH_CLS !== 'undefined' && FINISH_CLS[f] ? ' ' + FINISH_CLS[f] : ''; };
+const finCard = (p, id) => (p?.fin?.[id] === 'full' ? { ...CARD[id], crop: null } : CARD[id]);
 function renderField(p, glow = [], who = 'me', stat) {
-  const cards = p.field.map((f, i) => renderCard(CARD[f.id], { hp: f.hp, ...stat?.(f), cls: 'mini' + (glow.includes(i) ? ' glow' : ''), attrs: pick(who, 'field', i) })).join('');
+  const cards = p.field.map((f, i) => renderCard(finCard(p, f.id), { hp: f.hp, ...stat?.(f), cls: 'mini' + finCls(p, f.id) + (glow.includes(i) ? ' glow' : ''), attrs: pick(who, 'field', i) })).join('');
   return `<div class="field">${cards}${'<div class="slot"></div>'.repeat(Math.max(0, 3 - p.field.length))}</div>`;
 }
 
@@ -120,10 +123,10 @@ function renderField(p, glow = [], who = 'me', stat) {
 const renderFx = (p, who = 'me') => `<div class="effects">${p.effects.length ? `<button class="fx-open" data-act="sheet" data-s="fx:${who}">${ICON.bit}Effects<b>${p.effects.length}</b></button>` : ''}
   <div class="fx-pool">${p.effects.map((e, i) => renderCard(CARD[e.id], { cls: 'mini fxc', turns: e.turns, attrs: pick(who, 'fx', i) })).join('')}</div></div>`;
 
-function renderHand(ids, sel) {
+function renderHand(ids, sel, p) {
   const mid = (ids.length - 1) / 2;
-  return `<div class="hand" style="--n:${ids.length}">${ids.map((id, i) => renderCard(CARD[id], {
-    cls: 'mini' + (i === sel ? ' sel' : ''), style: `--r:${(i - mid) * 5}deg;--y:${Math.abs(i - mid) * 5}px`, attrs: pick('me', 'hand', i),
+  return `<div class="hand" style="--n:${ids.length}">${ids.map((id, i) => renderCard(finCard(p, id), {
+    cls: 'mini' + finCls(p, id) + (i === sel ? ' sel' : ''), style: `--r:${(i - mid) * 5}deg;--y:${Math.abs(i - mid) * 5}px`, attrs: pick('me', 'hand', i),
   })).join('')}</div>`;
 }
 
@@ -141,7 +144,7 @@ function renderBoard(s, me, o = {}) {
       <button class="btn end" data-act="end"${live ? '' : ' disabled'}>End Turn</button>
     </div>
     <div class="side">${renderField(you, o.glow, 'me', stat(me))}${renderFx(you)}${renderHud(you, 'me')}</div>
-    ${renderHand(you.hand, o.sel)}
+    ${renderHand(you.hand, o.sel, you)}
   </div>`;
 }
 

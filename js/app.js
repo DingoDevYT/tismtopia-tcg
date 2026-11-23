@@ -20,6 +20,9 @@ const $app = document.getElementById('app');
 const deck = () => decks.find(d => d.id === ui.deckId) || decks[0];
 const saveDecks = () => store.set('decks', decks);
 const own = id => (typeof owned === 'function' ? owned(id) : MAX_COPIES); // collection lives in packs.js
+// Your best finish for each Character in a deck, so foils show in battle (and to your opponent).
+const finishesFor = d => (typeof bestFinish === 'function' ? Object.fromEntries(Object.keys(d.cards).map(id => [id, bestFinish(id)]).filter(([, f]) => f !== 'normal')) : {});
+const cleanFin = f => Object.fromEntries(Object.entries(f && typeof f === 'object' ? f : {}).filter(([id, v]) => CARD[id]?.type === 'character' && ['rev', 'holo', 'full'].includes(v)));
 const count = d => Object.values(d.cards).reduce((a, b) => a + b, 0);
 const json = a => esc(JSON.stringify(a));
 const cost = n => `<span class="cost">${n}${ICON.action}</span>`;
@@ -167,7 +170,7 @@ const best = (idx, score) => idx.reduce((b, i) => (score(i) > score(b) ? i : b),
 function startBot(tutorial) {
   if (!tutorial && deckProblems(deck()).length) return toast('Fix your deck first.');
   leave(true); bot = true; isHost = true; me = 0;
-  const d = tutorial ? STARTER : deck(), g = newGame([{ captain: d.captain, cards: d.cards }, BOT_DECK], [myName, 'Bot']);
+  const d = tutorial ? STARTER : deck(), g = newGame([{ captain: d.captain, cards: d.cards, finishes: finishesFor(d) }, BOT_DECK], [myName, 'Bot']);
   if (tutorial) {
     g.turn = 0; g.log = ['Tutorial battle: you go first.'];
     g.players[0].hand[0] = TC.id;
@@ -266,7 +269,7 @@ function zoomGame(z) {
   }
   if (z.zone === 'fx') rows = `<div class="row2">${!mine && live && c.type === 'evil' ? btn({ type: 'cleanse', i: z.i }, `Cleanse ${cost(2)}`, 'primary') : ''}${item.turns != null ? stepper(`${item.turns} turn${item.turns > 1 ? 's' : ''}`, { type: 'turns', who: w, i: z.i, d: -1 }, { type: 'turns', who: w, i: z.i, d: 1 }) : ''}${remove}</div>`;
   const stats = z.zone === 'field' ? statsOf(game, w, item) : {};
-  return `<div class="dim" data-act="close">${renderCard(c, { cls: 'zoom', hp: item.hp, turns: item.turns, ...stats })}${rows}<button class="btn sm" data-act="close">Close</button></div>`;
+  return `<div class="dim" data-act="close">${renderCard(finCard(t, item.id ?? item), { cls: 'zoom' + finCls(t, item.id ?? item), hp: item.hp, turns: item.turns, ...stats })}${rows}<button class="btn sm" data-act="close">Close</button></div>`;
 }
 
 function adjustSheet() {
@@ -288,7 +291,7 @@ function defendSheet() {
   const mv = ac.moves[g.pending.m], power = mv.power + A.bonus, dmg = f => Math.max(0, power - statsOf(g, me, f).def), pick = mine[pickI];
   return sheet(`<div class="attacker neu">${renderCard(ac, { cls: 'mini', hp: af.hp, ...A })}<div><small>Incoming attack</small><br><b>${ac.name}</b> uses <b>${mv.name}</b>: ${power} damage${mv.text ? `<br><small>${mv.text}</small>` : ''}</div></div>
     <h2>Pick a blocker</h2>
-    <div class="field">${mine.map((f, i) => renderCard(CARD[f.id], { cls: 'mini' + (i === pickI ? ' picked' : ''), hp: f.hp, ...statsOf(g, me, f), attrs: tappable('defpick', `data-i="${i}"`) })).join('')}</div>
+    <div class="field">${mine.map((f, i) => renderCard(finCard(g.players[me], f.id), { cls: 'mini' + finCls(g.players[me], f.id) + (i === pickI ? ' picked' : ''), hp: f.hp, ...statsOf(g, me, f), attrs: tappable('defpick', `data-i="${i}"`) })).join('')}</div>
     <p class="muted center" style="margin:10px 0 12px">${pick ? (dmg(pick) > pick.hp ? `${CARD[pick.id].name} is defeated and ${dmg(pick) - pick.hp} damage spills to your next Character (then your Boredom).` : dmg(pick) === pick.hp ? `${CARD[pick.id].name} takes ${dmg(pick)} and is defeated.` : `${CARD[pick.id].name} takes ${dmg(pick)} damage after armour.`) : 'Armour (the shield) blocks that much of each hit. Damage past a blocker’s HP spills to your next Character, then to your Boredom.'}</p>
     ${pick ? btn({ type: 'defend', i: pickI }, `Block with ${CARD[pick.id].name}`, 'primary wide') : '<button class="btn wide" disabled>Tap a Character</button>'}`, false);
 }
@@ -500,7 +503,7 @@ function peerError(err) {
 function wire(c) {
   conn = c;
   c.on('open', () => {
-    if (!isHost) c.send({ t: 'hello', name: myName, deck: { captain: deck().captain, cards: deck().cards } });
+    if (!isHost) c.send({ t: 'hello', name: myName, deck: { captain: deck().captain, cards: deck().cards, finishes: finishesFor(deck()) } });
     ui.status = 'Connected, dealing…'; render();
   });
   c.on('data', onMsg);
@@ -519,7 +522,7 @@ function onMsg(m) {
     if (m.t === 'hello' && !state) {
       const probs = deckProblems(m.deck);
       if (probs.length) { conn.send({ t: 'error', msg: `Your deck isn't legal: ${probs[0]}` }); return; }
-      guest = { name: String(m.name || 'Guest').slice(0, 20), deck: { captain: m.deck.captain, cards: m.deck.cards } };
+      guest = { name: String(m.name || 'Guest').slice(0, 20), deck: { captain: m.deck.captain, cards: m.deck.cards, finishes: cleanFin(m.deck.finishes) } };
       startGame();
     } else if (m.t === 'act' && state && m.a && typeof m.a === 'object') act(1, m.a);
     else if (m.t === 'rematch' && state?.phase === 'over') startGame();
@@ -529,7 +532,7 @@ function onMsg(m) {
 
 function startGame() {
   const d = deck();
-  setGame(newGame([{ captain: d.captain, cards: d.cards }, guest.deck], [myName, guest.name]));
+  setGame(newGame([{ captain: d.captain, cards: d.cards, finishes: finishesFor(d) }, guest.deck], [myName, guest.name]));
   conn?.send({ t: 'state', s: state });
 }
 

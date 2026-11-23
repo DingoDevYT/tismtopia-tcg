@@ -59,7 +59,7 @@ function newGame(decks, names, rng = Math.random) {
   const players = [0, 1].map(i => {
     const deck = shuffle(expand(decks[i].cards), rng), n = i === first ? 5 : 6; // going second: one extra card
     return { name: names[i], captain: decks[i].captain, deck: deck.slice(n), hand: deck.slice(0, n), field: [], effects: [],
-      goof: 0, bore: 0, bank: 0, stats: { goof: 0, bore: 0 } };
+      goof: 0, bore: 0, bank: 0, fin: decks[i].finishes || {} /* card finishes, display only */, stats: { goof: 0, bore: 0 } };
   });
   // The first player skips their opening draw: they simply start with 5 cards.
   return { players, turn: first, turnNo: 1, actions: 1 + (CARD[decks[first].captain].mod?.actions || 0) /* first turn of the game: 1 Action */, phase: 'play', pending: null, roll: null, winner: null, seq: 0, capUsed: false, events: [],
