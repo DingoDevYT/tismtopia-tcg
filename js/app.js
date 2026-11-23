@@ -190,6 +190,7 @@ function render() {
   const focus = document.activeElement?.id;
   const views = { home: viewHome, deck: viewDeck, build: viewBuild, lobby: viewLobby, rules: viewRules, game: viewGame };
   if (ui.view === 'game' && !game) ui.view = 'home';
+  $app.dataset.view = ui.view;
   $app.innerHTML = views[ui.view]() + (ui.toast && ui.view !== 'game' ? `<div class="toast neu">${esc(ui.toast)}</div>` : '');
   $app.querySelectorAll('.grid, .scroll, .sheet').forEach((el, i) => { el.scrollTop = scrolls[i] || 0; });
   if (focus) document.getElementById(focus)?.focus();
