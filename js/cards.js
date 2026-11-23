@@ -22,3 +22,20 @@ const CARDS = [
   { id: 'e_slowmode', type: 'evil', name: 'Slowmode', text: "Opponent's attacks cost 2 Actions." },
   { id: 'e_read', type: 'evil', name: 'Left on Read', text: "Start of opponent's turn: they gain +1 Boredom." },
 ];
+
+// Ready-made legal deck so new players can battle straight away.
+const STARTER = { name: 'Starter', captain: 'cap_gremlin', cards: { c_vc_goblin: 3, c_reply_guy: 3, c_lagger: 2, c_night_owl: 2, m_sticker: 1, b_ping: 3, b_brainrot: 2, b_voice_crack: 2, e_slowmode: 1, e_read: 1 } };
+
+const RULES = [
+  ['Goal', 'First to 5 Points wins. Both players start at 0 Points, 0 Goofiness and 0 Boredom.'],
+  ['Scoring', "Your Goofiness hits 5: you get 1 Point and it resets. Your opponent's Boredom hits 5: you get 1 Point and theirs resets. Meters cap at 5; extra is lost."],
+  ['Your turn', 'Draw 1 card (the first player skips this on turn one). You get 2 Actions. Playing a card, attacking or using an ability costs 1 Action each. End your turn whenever.'],
+  ['Combat', "Roll a d20 and add your Character's ATK. If it's at least the defender's DEF, the defender loses 1 HP and your opponent gains Boredom equal to your ATK. If not, your attacker loses 1 HP. No Characters to block? The ATK goes straight to Boredom."],
+  ['Card types', 'Characters stay on the field to attack and defend. Bits are instant and last a set number of turns. Evils last forever unless removed.'],
+  ['Card effects', "Apply card text by hand: tap a player's bar to change meters or Actions, tap a card to change its HP or remove it. Both players see every change in the log."],
+  ['Deck rules', `${DECK_SIZE} cards plus 1 Captain. Max 3 copies of a card, max 1 of each Main Character.`],
+];
+
+[...CAPTAINS, ...CARDS].forEach((c, i) => { c.no = String(i + 1).padStart(3, '0'); });
+// Null prototype so ids like "__proto__" from a pasted code or the network look up as missing.
+const CARD = Object.assign(Object.create(null), Object.fromEntries([...CAPTAINS, ...CARDS].map(c => [c.id, c])));

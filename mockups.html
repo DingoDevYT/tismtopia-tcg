@@ -46,7 +46,7 @@ const cost = n => `<span class="cost">${n}${ICON.action}</span>`;
 
 const DECK = { c_vc_goblin: 3, c_reply_guy: 3, c_lagger: 2, c_night_owl: 2, m_sticker: 1, b_ping: 3, b_brainrot: 2, b_voice_crack: 2, e_slowmode: 1, e_read: 1 };
 const S = {
-  turn: 0, actions: 1,
+  turn: 0, actions: 1, phase: 'play',
   players: [
     { name: 'Juno', captain: 'cap_gremlin', points: 2, goof: 3, bore: 1, deck: Array(9), hand: ['c_reply_guy', 'b_ping', 'm_sticker', 'e_slowmode', 'b_voice_crack'],
       field: [{ id: 'c_vc_goblin', hp: 3 }, { id: 'c_night_owl', hp: 1 }], effects: [{ id: 'b_brainrot', turns: 1 }] },
@@ -78,15 +78,6 @@ const deckList = `${header('Goof Troop')}
   <div class="checks"><span>${ICON.check}${DECK_SIZE}/${DECK_SIZE} cards</span><span>${ICON.check}Max 3 copies</span><span>${ICON.check}1 Main Character</span></div>
   <div class="grid g4">${Object.entries(DECK).map(([id, n]) => `<div class="cell">${renderCard(CARD[id], { cls: 'mini' })}<span class="count">×${n}</span></div>`).join('')}</div>
   <div class="bar"><button class="btn sm">Copy code</button><button class="btn sm">Import</button><button class="btn primary sm" style="margin-left:auto">Save deck</button></div>`;
-
-const RULES = [
-  ['Goal', 'First to 5 Points wins. Both players start at 0 Points, 0 Goofiness and 0 Boredom.'],
-  ['Scoring', 'Your Goofiness hits 5: you get 1 Point and it resets. Your opponent\'s Boredom hits 5: you get 1 Point and theirs resets. Meters cap at 5; extra is lost.'],
-  ['Your turn', 'Draw 1 card (the first player skips this on turn one). You get 2 Actions. Playing a card, attacking or using an ability costs 1 Action each. End your turn whenever.'],
-  ['Combat', 'Roll a d20 and add your Character\'s ATK. If it\'s at least the defender\'s DEF, the defender loses 1 HP and your opponent gains Boredom equal to your ATK. If not, your attacker loses 1 HP. No Characters to block? The ATK goes straight to Boredom.'],
-  ['Card types', 'Characters stay on the field to attack and defend. Bits are instant and last a set number of turns. Evils last forever unless removed.'],
-  ['Deck rules', `${DECK_SIZE} cards plus 1 Captain. Max 3 copies of a card, max 1 of each Main Character.`],
-];
 
 $('frames').innerHTML = [
   frame('1 · Home', `

@@ -1,6 +1,4 @@
 // Render helpers shared by the mockups and the game. Each returns an HTML string.
-[...CAPTAINS, ...CARDS].forEach((c, i) => { c.no = String(i + 1).padStart(3, '0'); });
-const CARD = Object.fromEntries([...CAPTAINS, ...CARDS].map(c => [c.id, c]));
 const esc = s => String(s).replace(/[&<>"']/g, ch => `&#${ch.charCodeAt(0)};`);
 const LABEL = { captain: 'Captain', character: 'Character', main: 'Main Character', bit: 'Bit', evil: 'Evil' };
 const kindOf = c => (c.main ? 'main' : c.type);
@@ -35,9 +33,9 @@ const ICON = Object.fromEntries(Object.entries({
   rules: G('<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 19V5M8 7h7M8 11h5"/>'),
 }).map(([k, d]) => [k, `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`]));
 
-// c = card data (null = face-down). o: { cls, hp, turns, style }
+// c = card data (null = face-down). o: { cls, hp, turns, style, attrs }
 function renderCard(c, o = {}) {
-  const cls = o.cls ? ' ' + o.cls : '', style = o.style ? ` style="${o.style}"` : '';
+  const cls = o.cls ? ' ' + o.cls : '', style = (o.style ? ` style="${o.style}"` : '') + (o.attrs ? ' ' + o.attrs : '');
   if (!c) return `<div class="card back${cls}"${style}><div class="frame"></div></div>`;
   const kind = kindOf(c), hp = o.hp ?? c.hp, turns = o.turns ?? c.dur;
   const art = c.art ? `<img src="${c.art}" alt="">` : `<span class="ph">${ICON[c.type]}</span>`;
@@ -57,41 +55,44 @@ const renderAvatar = (c, cls = '') => `<span class="avatar${cls}">${c.art ? `<im
 const coins = n => `<div class="coins" title="Points ${n}/5">${Array.from({ length: 5 }, (_, i) => `<span class="${i < n ? 'on' : ''}">${ICON.point}</span>`).join('')}</div>`;
 const meter = (k, v) => `<div class="meter ${k}" title="${k === 'goof' ? 'Goofiness' : 'Boredom'} ${v}/5">${ICON[k]}${Array.from({ length: 5 }, (_, i) => `<i class="${i < v ? 'on' : ''}"></i>`).join('')}</div>`;
 
+// Clickable bits carry data-act="card" + who/zone/i; the app reads them with one delegated click handler.
+const pick = (who, zone, i) => `data-act="card" data-who="${who}" data-zone="${zone}" data-i="${i}" tabindex="0" role="button"`;
+
 function renderHud(p) {
   const cap = CARD[p.captain];
-  return `<div class="hud neu">${renderAvatar(cap)}
+  return `<div class="hud neu" data-act="sheet" data-s="adjust" tabindex="0" role="button" aria-label="Adjust meters">${renderAvatar(cap)}
     <div class="who"><b>${esc(p.name)}</b><small>${cap.name}</small></div>
     <div class="meters">${coins(p.points)}${meter('goof', p.goof)}${meter('bore', p.bore)}</div></div>`;
 }
 
-function renderField(p, glow = []) {
-  const cards = p.field.map((f, i) => renderCard(CARD[f.id], { hp: f.hp, cls: 'mini' + (glow.includes(i) ? ' glow' : '') })).join('');
+function renderField(p, glow = [], who = 'me') {
+  const cards = p.field.map((f, i) => renderCard(CARD[f.id], { hp: f.hp, cls: 'mini' + (glow.includes(i) ? ' glow' : ''), attrs: pick(who, 'field', i) })).join('');
   return `<div class="field">${cards}${'<div class="slot"></div>'.repeat(Math.max(0, 3 - p.field.length))}</div>`;
 }
 
-const renderFx = p => `<div class="effects">${p.effects.map(e => {
+const renderFx = (p, who = 'me') => `<div class="effects">${p.effects.map((e, i) => {
   const c = CARD[e.id];
-  return `<span class="fx ${c.type}">${c.type === 'bit' ? `${ICON.time}<b>${e.turns}</b>` : ICON.forever}${c.name}</span>`;
+  return `<button class="fx ${c.type}" ${pick(who, 'fx', i)}>${c.type === 'bit' ? `${ICON.time}<b>${e.turns}</b>` : ICON.forever}${c.name}</button>`;
 }).join('')}</div>`;
 
 function renderHand(ids, sel) {
   const mid = (ids.length - 1) / 2;
   return `<div class="hand">${ids.map((id, i) => renderCard(CARD[id], {
-    cls: 'mini' + (i === sel ? ' sel' : ''), style: `--r:${(i - mid) * 5}deg;--y:${Math.abs(i - mid) * 5}px`,
+    cls: 'mini' + (i === sel ? ' sel' : ''), style: `--r:${(i - mid) * 5}deg;--y:${Math.abs(i - mid) * 5}px`, attrs: pick('me', 'hand', i),
   })).join('')}</div>`;
 }
 
 // s = game state, me = my player index. o: { glow: [my field indexes], sel: hand index }
 function renderBoard(s, me, o = {}) {
-  const you = s.players[me], opp = s.players[1 - me];
+  const you = s.players[me], opp = s.players[1 - me], live = s.turn === me && s.phase === 'play';
   return `<div class="board">
     <div class="opp-hand">${renderCard(null).repeat(opp.hand.length)}</div>
-    <div class="side">${renderHud(opp)}${renderFx(opp)}${renderField(opp)}</div>
+    <div class="side">${renderHud(opp)}${renderFx(opp, 'opp')}${renderField(opp, [], 'opp')}</div>
     <div class="mid neu">
       <div class="pile">${renderCard(null)}<span>${you.deck.length}</span></div>
       <div class="turn"><b>${s.turn === me ? 'Your turn' : `${esc(opp.name)}'s turn`}</b>
         <div class="pips">${Array.from({ length: Math.max(2, s.actions) }, (_, i) => `<i class="${i < s.actions ? 'on' : ''}">${ICON.action}</i>`).join('')}</div></div>
-      <button class="btn end"${s.turn === me ? '' : ' disabled'}>End Turn</button>
+      <button class="btn end" data-act="end"${live ? '' : ' disabled'}>End Turn</button>
     </div>
     <div class="side">${renderField(you, o.glow)}${renderFx(you)}${renderHud(you)}</div>
     ${renderHand(you.hand, o.sel)}
