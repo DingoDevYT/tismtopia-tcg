@@ -9,8 +9,8 @@ const uid = () => Math.random().toString(36).slice(2, 10);
 let decks = store.get('decks', null);
 if (!Array.isArray(decks) || !decks.length) decks = [{ id: uid(), ...structuredClone(STARTER) }];
 let myName = store.get('name', 'Player');
-const ui = { view: 'home', deckId: store.get('deck', decks[0].id), filter: 'all', zoom: null, sheet: null, defPick: null, toast: '', code: '', status: '', joinCode: '', seenRoll: 0 };
-let peer = null, conn = null, isHost = false, me = 0, game = null, guest = null, toastTimer;
+const ui = { view: 'home', deckId: store.get('deck', decks[0].id), filter: 'all', zoom: null, sheet: null, defPick: null, toast: '', code: '', status: '', joinCode: '', seenRoll: 0, tut: null };
+let peer = null, conn = null, isHost = false, me = 0, game = null, guest = null, toastTimer, bot = false, botTimer;
 
 const $app = document.getElementById('app');
 const deck = () => decks.find(d => d.id === ui.deckId) || decks[0];
@@ -49,6 +49,8 @@ function viewHome() {
     <div class="row2"><button class="btn primary" data-act="go" data-to="lobby" data-host="1">Host Battle</button><button class="btn" data-act="go" data-to="lobby">Join Battle</button></div>
   </section>
   <div class="tiles">
+    <button class="tile neu" data-act="tutorial">${ICON.school}<b>Tutorial</b><small>Learn by playing</small></button>
+    <button class="tile neu" data-act="bot">${ICON.bot}<b>Practice</b><small>Play vs the bot</small></button>
     <button class="tile neu" data-act="go" data-to="deck">${ICON.cards}<b>Deck Builder</b><small>${decks.length} deck${decks.length > 1 ? 's' : ''}</small></button>
     <button class="tile neu" data-act="go" data-to="rules">${ICON.rules}<b>How to Play</b><small>Rules</small></button>
   </div>${tabbar('home')}`;
@@ -109,7 +111,71 @@ function viewGame() {
   else if (g.roll && g.roll.seq > ui.seenRoll) html += rollOverlay();
   else html += overlay();
   const banner = g.phase === 'defend' && g.turn === me ? `Waiting for ${g.players[1 - me].name} to pick a defender…` : ui.toast;
-  return html + (banner ? `<div class="toast neu">${esc(banner)}</div>` : '');
+  return html + (banner ? `<div class="toast neu">${esc(banner)}</div>` : '') + coach();
+}
+
+// ---------------- tutorial: a guided bot battle; each step waits for `done(game)` or a Next tap ----------------
+const MY = '.side:nth-child(4)';
+const TUT = [
+  { text: 'Welcome to Tismtopia! Be the first to score 5 Points. This quick battle shows you how.', next: true },
+  { text: 'This is you. Gold coins are Points. The orange bar is Goofiness: fill it to 5 to score. The grey bar is Boredom: if yours hits 5, your opponent scores.', sel: `${MY} .hud`, next: true },
+  { text: 'Every turn you get 2 Actions. Playing a card, attacking and using an ability cost 1 each.', sel: '.pips', next: true },
+  { text: 'Tap VC Goblin in your hand, then tap Play.', sel: () => (ui.zoom ? '.dim [data-a*=\'"play"\']' : '.hand .card[data-id="c_vc_goblin"]'), done: g => g.players[0].field.length > 0 },
+  { text: 'VC Goblin says "When played: +1 Goofiness". Card effects are applied by hand: tap your bar, then press + on your Goofiness.', sel: () => (ui.sheet ? '.sheet .adj-row button:last-child' : `${MY} .hud`), done: g => g.players[0].goof > 0 },
+  { text: 'Now tap Done, then tap VC Goblin on the field and Attack. Your opponent has no Characters to block, so the hit goes straight to their Boredom.',
+    sel: () => (ui.sheet ? '.sheet [data-act=close]' : ui.zoom ? '.dim [data-a*=\'"attack"\']' : `${MY} .field .card`), done: g => g.players[1].bore > 0 },
+  { text: "Their Boredom went up by VC Goblin's ATK. You're out of Actions, so tap End Turn.", sel: '[data-act=end]', done: g => g.turn === 1 },
+  { text: "The bot's turn. When it attacks, you pick a defender. It rolls a d20 and adds its ATK: if that reaches your defender's DEF, the attack breaks through.",
+    sel: () => (game.phase !== 'defend' ? null : ui.defPick != null ? '.sheet [data-a*=\'"defend"\']' : '.sheet .field .card'), done: g => !!g.roll || (g.turn === 0 && g.turnNo > 2) },
+  { text: 'Breaking through costs the defender 1 HP and adds Boredom equal to the ATK. A blocked attack costs the attacker 1 HP instead. Tap Continue.', sel: '[data-act=seen-roll]', done: g => !(g.roll && g.roll.seq > ui.seenRoll) },
+  { text: 'Bits are instant and last a few turns. Evils stay until removed. Apply their text by hand, just like VC Goblin. Tap your bar any time for the log, manual tools, or to leave.', next: true },
+  { text: "That's the basics! Finish this battle against the bot, then build your own deck.", next: 'Got it' },
+];
+
+function coach() {
+  if (ui.tut == null || !game) return '';
+  while (TUT[ui.tut]?.done?.(game)) ui.tut++;
+  const s = TUT[ui.tut];
+  if (!s) return (ui.tut = null), '';
+  return `<div class="coach neu"><p>${s.text}</p><div class="row2"><button class="btn sm" data-act="tut-skip">Skip tutorial</button>${s.next ? `<button class="btn sm primary" data-act="tut-next">${s.next === true ? 'Next' : s.next}</button>` : ''}</div></div>`;
+}
+
+// ---------------- bot: plays Characters, attacks with its strongest, blocks with its toughest ----------------
+// shortcut: ignores Bits/Evils and card text (effects aren't automated yet); teach it once effects live in card data.
+const BOT_DECK = { ...STARTER, captain: 'cap_lurker' };
+const best = (field, score) => field.reduce((b, f, i) => (score(f) > score(field[b]) ? i : b), 0);
+
+function startBot(tutorial) {
+  if (!tutorial && deckProblems(deck()).length) return toast('Fix your deck first.');
+  leave(true); bot = true; isHost = true; me = 0;
+  const d = tutorial ? STARTER : deck(), g = newGame([{ captain: d.captain, cards: d.cards }, BOT_DECK], [myName, 'Bot']);
+  if (tutorial) {
+    g.turn = 0; g.log = ['Tutorial battle: you go first.'];
+    g.players[0].hand = ['c_vc_goblin', 'b_brainrot', 'c_reply_guy', 'e_slowmode', 'b_ping'];
+    g.players[1].hand = ['c_lagger', 'c_night_owl', 'b_ping', 'e_read', 'b_voice_crack'];
+  }
+  ui.tut = tutorial ? 0 : null;
+  game = null; setGame(g); botSoon();
+}
+
+const botSoon = () => { clearTimeout(botTimer); botTimer = setTimeout(botMove, 900); };
+
+function botMove() {
+  const g = game;
+  if (!bot || !g || g.phase === 'over') return;
+  if (g.roll && g.roll.seq > ui.seenRoll) return botSoon(); // let the human read the roll first
+  const B = g.players[1];
+  let a = null;
+  if (g.phase === 'defend' && g.turn === 0) a = { type: 'defend', i: best(B.field, f => CARD[f.id].def * 10 + f.hp) };
+  else if (g.turn === 1 && g.phase === 'play') {
+    // First Action: add a Character if there's room. Remaining Actions: attack (or play if there's nobody to attack with).
+    const hc = B.hand.findIndex(id => CARD[id].type === 'character'), canPlay = hc >= 0 && B.field.length < 3;
+    if (g.actions >= 2 && canPlay) a = { type: 'play', i: hc };
+    else if (g.actions && B.field.length) a = { type: 'attack', i: best(B.field, f => CARD[f.id].atk * 10 + f.hp) };
+    else if (g.actions && canPlay) a = { type: 'play', i: hc };
+    else a = { type: 'end' };
+  }
+  if (a && !act(1, a) && a.type !== 'end') act(1, { type: 'end' });
 }
 
 function viewOver() {
@@ -123,7 +189,7 @@ function viewOver() {
       <div><span>Boredom inflicted</span><b><span class="bore-i">${ICON.bore}</span>${mine.stats.bore}</b></div>
       <div><span>Goofiness built</span><b><span class="goof-i">${ICON.goof}</span>${mine.stats.goof}</b></div>
     </div>
-    <div class="row2"><button class="btn primary" data-act="rematch"${conn ? '' : ' disabled'}>Rematch</button><button class="btn" data-act="leave">Home</button></div></div>
+    <div class="row2"><button class="btn primary" data-act="rematch"${conn || bot ? '' : ' disabled'}>Rematch</button><button class="btn" data-act="leave">Home</button></div></div>
     ${ui.toast ? `<div class="toast neu">${esc(ui.toast)}</div>` : ''}`;
 }
 
@@ -162,7 +228,8 @@ function adjustSheet() {
     <div class="adj neu-in"><div class="adj-row"><span><span class="point">${ICON.action}</span>Actions this turn</span>${stepper(g.actions,
       { type: 'adjust', who: me, key: 'actions', d: -1 }, { type: 'adjust', who: me, key: 'actions', d: 1 })}</div></div>
     <div class="row2">${btn({ type: 'draw' }, 'Draw a card')}${live ? btn({ type: 'ability', i: -1 }, `Captain ability ${cost(1)}`) : ''}</div>
-    <small class="lbl" style="margin-top:18px">Log</small><div class="log">${g.log.slice(-15).reverse().map(l => `<p>${esc(l)}</p>`).join('')}</div>`);
+    <small class="lbl" style="margin-top:18px">Log</small><div class="log">${g.log.slice(-15).reverse().map(l => `<p>${esc(l)}</p>`).join('')}</div>
+    <div class="row2" style="margin-top:14px"><button class="btn" data-act="leave-battle">Leave battle</button><button class="btn primary" data-act="close">Done</button></div>`);
 }
 
 function defendSheet() {
@@ -193,6 +260,8 @@ function render() {
   $app.dataset.view = ui.view;
   $app.innerHTML = views[ui.view]() + (ui.toast && ui.view !== 'game' ? `<div class="toast neu">${esc(ui.toast)}</div>` : '');
   $app.querySelectorAll('.grid, .scroll, .sheet').forEach((el, i) => { el.scrollTop = scrolls[i] || 0; });
+  const sel = ui.view === 'game' && ui.tut != null && TUT[ui.tut]?.sel;
+  if (sel) $app.querySelector(typeof sel === 'function' ? sel() : sel)?.classList.add('coach-target');
   if (focus) document.getElementById(focus)?.focus();
 }
 
@@ -275,16 +344,18 @@ function setGame(s) {
   toast(s.log[s.log.length - 1]);
 }
 
-function act(p, a) { // host only
+function act(p, a) { // host (or bot game) only; returns whether the action was legal
   try { setGame(apply(game, p, a)); conn?.send({ t: 'state', s: game }); }
-  catch (e) { if (p === me) toast(e.message); else conn?.send({ t: 'error', msg: e.message }); }
+  catch (e) { if (p === me) toast(e.message); else conn?.send({ t: 'error', msg: e.message }); return false; }
+  if (bot) botSoon();
+  return true;
 }
 
 const doAction = a => (isHost ? act(0, a) : conn?.send({ t: 'act', a }));
 
 function leave(quiet) {
-  const c = conn; conn = null; c?.close(); peer?.destroy();
-  peer = null; game = null; ui.code = ''; ui.status = ''; ui.zoom = ui.sheet = null;
+  const c = conn; conn = null; c?.close(); peer?.destroy(); clearTimeout(botTimer);
+  peer = null; game = null; bot = false; ui.tut = null; ui.code = ''; ui.status = ''; ui.zoom = ui.sheet = null;
   if (!quiet) ui.view = 'home';
 }
 
@@ -337,8 +408,13 @@ const ACTS = {
   end() { ui.zoom = ui.sheet = null; doAction({ type: 'end' }); },
   defpick(d) { ui.defPick = Number(d.i); },
   'seen-roll'() { ui.seenRoll = game.roll.seq; },
-  rematch() { if (isHost) startGame(); else conn?.send({ t: 'rematch' }); },
+  rematch() { if (bot) startBot(false); else if (isHost) startGame(); else conn?.send({ t: 'rematch' }); },
   leave() { leave(); },
+  'leave-battle'() { if (confirm('Leave this battle?')) leave(); },
+  bot() { startBot(false); },
+  tutorial() { startBot(true); },
+  'tut-next'() { ui.tut = TUT[ui.tut].next === true ? ui.tut + 1 : null; },
+  'tut-skip'() { ui.tut = null; },
 };
 
 document.addEventListener('click', e => {

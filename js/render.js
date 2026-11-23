@@ -24,6 +24,8 @@ const ICON = Object.fromEntries(Object.entries({
   time: '<path d="M6 2h12v2.2c0 3-2.4 5.1-4.4 7.8 2 2.7 4.4 4.8 4.4 7.8V22H6v-2.2c0-3 2.4-5.1 4.4-7.8C8.4 9.3 6 7.2 6 4.2z"/>',
   forever: G('<path stroke-width="2.6" d="M12 12c-2-2.6-3.6-4-5.6-4a4 4 0 0 0 0 8c2 0 3.6-1.4 5.6-4s3.6-4 5.6-4a4 4 0 0 1 0 8c-2 0-3.6-1.4-5.6-4z"/>'),
   // ui
+  bot: '<circle cx="12" cy="3.6" r="1.7"/>' + G('<rect x="4" y="8" width="16" height="11.5" rx="3.5"/><path d="M12 8V5.5M9.5 12.5v2M14.5 12.5v2M2 12.5v3M22 12.5v3"/>'),
+  school: '<path d="M12 3.5L1.5 8.8 12 14l10.5-5.2z"/>' + G('<path d="M6 11.3v4.5c0 1.6 2.7 3.2 6 3.2s6-1.6 6-3.2v-4.5M21.5 9v5.5"/>'),
   check: G('<path stroke-width="3" d="M5 12.5l4.5 4.5L19 7.5"/>'),
   chevron: G('<path stroke-width="2.4" d="M6 9l6 6 6-6"/>'),
   search: G('<circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/>'),
