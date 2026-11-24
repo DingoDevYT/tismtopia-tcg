@@ -847,3 +847,6 @@ img { -webkit-user-drag: none; }
 .pre-sheet h3 { margin: 4px 0; } .pre-list { display: flex; flex-wrap: wrap; gap: 6px; }
 .pre-caps { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 8px; }
 .pre-cap { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px; border: 2px solid transparent; border-radius: 14px; background: none; cursor: pointer; font: inherit; color: inherit; } .pre-cap.on { border-color: var(--accent, #e5505a); background: rgba(229, 80, 90, .08); } .pre-cap small { font-size: 11px; text-align: center; }
+/* Collection cards tilt toward the pointer with the holo shine. */
+.coll-cell .card { transform: perspective(700px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transition: transform .15s ease-out; }
+.coll-cell .card:not(.held) { --rx: 0deg; --ry: 0deg; }

@@ -457,7 +457,7 @@ function postAnimate(ev, prev, s) {
 // Inspecting a card tilts it toward the pointer with a moving shine.
 let tiltBusy = false; // one tilt update per frame, not per pointer event
 document.addEventListener('pointermove', e => {
-  const c = e.target.closest?.('.card.zoom, .fan .card');
+  const c = e.target.closest?.('.card.zoom, .fan .card, .coll-cell .card');
   if (!c || calm || tiltBusy) return;
   tiltBusy = true; requestAnimationFrame(() => { tiltBusy = false; });
   c.classList.add('held');
@@ -465,7 +465,7 @@ document.addEventListener('pointermove', e => {
   for (const [k, v] of [['--rx', `${((0.5 - y) * 18).toFixed(1)}deg`], ['--ry', `${((x - 0.5) * 22).toFixed(1)}deg`], ['--mx', `${(x * 100).toFixed(0)}%`], ['--my', `${(y * 100).toFixed(0)}%`], ['--fx', x.toFixed(3)], ['--fy', y.toFixed(3)], ['--fc', Math.min(1, Math.hypot(x - 0.5, y - 0.5) * 2).toFixed(3)], ['--co', 1]]) c.style.setProperty(k, v);
 });
 document.addEventListener('pointerout', e => {
-  const c = e.target.closest?.('.card.zoom, .fan .card');
+  const c = e.target.closest?.('.card.zoom, .fan .card, .coll-cell .card');
   if (c && !c.contains(e.relatedTarget)) { c.classList.remove('held'); for (const k of ['--rx', '--ry', '--mx', '--my', '--fx', '--fy', '--fc', '--co']) c.style.removeProperty(k); }
 });
 
