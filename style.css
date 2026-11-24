@@ -1140,3 +1140,7 @@ img { -webkit-user-drag: none; }
 .inner-cards { animation-duration: 1.15s; animation-timing-function: ease-in-out; }
 .pack-leave .pack.body, .pack-leave .pack-shade { animation: pouchOff .5s .5s cubic-bezier(.55, 0, 1, .45) forwards !important; }
 .pack-leave .pack-back { animation: backOff .5s .5s cubic-bezier(.55, 0, 1, .45) forwards; }
+/* the flip happens in front of the stack: no shared 3D depth, so the turning card can never cut into the cards behind it */
+.from-pack .stack, .reveal .stack { transform-style: flat; }
+.from-pack .stack .stack-back { transform: translate(calc(var(--k) * 5px), calc(var(--k) * 5px)) rotate(calc(var(--k) * 1.5deg)); }
+.reveal .stack > .card, .reveal .stack > .flip-back { position: relative; z-index: 5; }
