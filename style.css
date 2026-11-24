@@ -870,3 +870,6 @@ img { -webkit-user-drag: none; }
 /* Titles: one line on every card, smaller so the longest (22 characters) fits. */
 .card .name { font-size: 6.6cqw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .card.mini .name, .card.mini.k-character .name, .card.mini.k-main .name { font-size: 7.4cqw; }
+.card .name { font-size: min(6.6cqw, calc(92cqw / var(--len, 10))); } /* long names shrink to fit one line */
+.card.mini .name, .card.mini.k-character .name, .card.mini.k-main .name { font-size: min(7.4cqw, calc(100cqw / var(--len, 10))); }
+.card .name { font-size: min(6.2cqw, calc(78cqw / var(--len, 10))); }
