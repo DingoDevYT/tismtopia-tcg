@@ -176,7 +176,7 @@ function resetHtml() {
   return `<div class="cloud-ask reset-ask">${sheet(`<h2>Reset my account?</h2>
     <p class="muted center">This wipes your progress ${cloud.user ? 'on this device and in your cloud save' : 'on this device'}, and you start again with a starter pick. It can't be undone.</p>
     <div class="adj neu-in"><b>Wiped</b><small>Your coins (back to ${fmt(START_COINS)}), every card you own, your decks, favourites, battle stats, and tutorial and tour progress.</small></div>
-    <div class="adj neu-in"><b>Kept</b><small>Your Discord sign-in, the cards you submitted and their review status, your display name and your volume setting.</small></div>
+    <div class="adj neu-in"><b>Kept</b><small>Your Discord sign-in, the cards you submitted and their review status, your display name, and your volume and dark mode settings.</small></div>
     <label class="reset-type" for="reset-type">Type RESET to confirm</label><input id="reset-type" class="input" autocomplete="off" autocapitalize="characters" spellcheck="false" value="${esc(ui.resetText || '')}">
     <div class="row2"><button class="btn" data-act="reset-cancel">Cancel</button><button class="btn primary" id="reset-go" data-act="reset-go"${resetOk() ? '' : ' disabled'}>Reset my account</button></div>`, false)}</div>`;
 }

@@ -140,3 +140,15 @@ vol.addEventListener('input', syncVolBtn); syncVolBtn();
 volBtn.addEventListener('click', () => { volBtn.setAttribute('aria-expanded', String(document.body.classList.toggle('vol-open'))); });
 document.addEventListener('pointerdown', e => { if (document.body.classList.contains('vol-open') && !e.target.closest('.vol-slider, .vol-btn')) { document.body.classList.remove('vol-open'); volBtn.setAttribute('aria-expanded', 'false'); } }, true);
 document.body.append(volBtn);
+
+// Dark mode toggle, left of the volume control. A device setting (not in the cloud save; Reset keeps it). index.html applies it before first paint.
+// The label stays "Dark mode" and aria-pressed carries the state (a toggle's label must not flip with it).
+const themeBtn = Object.assign(document.createElement('button'), { className: 'theme-btn neu', type: 'button' });
+themeBtn.setAttribute('aria-label', 'Dark mode');
+const syncTheme = () => {
+  const dark = document.documentElement.dataset.theme === 'dark';
+  themeBtn.innerHTML = dark ? ICON.sun : ICON.moon; themeBtn.setAttribute('aria-pressed', String(dark));
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#1b1f2a' : '#e9edf5');
+};
+themeBtn.addEventListener('click', () => { const t = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = t; store.set('theme', t); syncTheme(); });
+syncTheme(); document.body.append(themeBtn);

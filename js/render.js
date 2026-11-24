@@ -41,6 +41,8 @@ const ICON = Object.fromEntries(Object.entries({
   cards: G('<rect x="5" y="3" width="11" height="16" rx="2"/><path d="M19 6v13a2 2 0 0 1-2 2H8"/>'),
   battle: G('<path d="M5 5l10 10M19 5L9 15M13 17l4-4M11 17l-4-4M16 16l3 3M8 16l-3 3"/>'),
   rules: G('<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 19V5M8 7h7M8 11h5"/>'),
+  moon: G('<path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.8 6.8 0 0 0 10.5 10.5z"/>'),
+  sun: G('<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M18.7 5.3l-1.4 1.4M6.7 17.3l-1.4 1.4"/>'),
 }).map(([k, d]) => [k, `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`]));
 
 // Art crop is a focus point (x, y in %) plus zoom (>= 1), applied with CSS so the original image stays untouched.
