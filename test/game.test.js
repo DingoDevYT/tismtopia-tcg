@@ -3,11 +3,11 @@ const fs = require('fs'), vm = require('vm'), path = require('path');
 // syntax-check every browser script too, so a broken app.js can't ship (the rules tests don't load it)
 for (const f of ['js/app.js', 'js/packs.js', 'js/audio.js', 'js/render.js', 'js/cards.js', 'js/cards-data.js', 'js/game.js']) new vm.Script(fs.readFileSync(path.join(__dirname, '..', f), 'utf8'), { filename: f });
 const load = files => files.map(f => fs.readFileSync(path.join(__dirname, '..', f), 'utf8')).join('\n');
-const src = load(['test/fixture-cards.js', 'js/cards.js', 'js/game.js']).replace('const BORE_MAX = 10;', 'const BORE_MAX = 99;').replace('const HP_SCALE = 1.2;', 'const HP_SCALE = 2;');
+const src = load(['test/fixture-cards.js', 'js/cards.js', 'js/game.js']).replace('const BORE_MAX = 10;', 'const BORE_MAX = 99;').replace('const DECK_SIZE = 40;', 'const DECK_SIZE = 20;').replace('const HP_SCALE = 1.2;', 'const HP_SCALE = 2;');
 
 // The real generated cards: both free starters must be legal and every Character usable.
 vm.runInNewContext(load(['js/cards-data.js', 'js/cards.js', 'js/game.js']) + `
-if (STARTERS.length !== 2 || STARTERS.some(d => deckProblems(d).length)) throw new Error('FAIL: real starters: ' + JSON.stringify(STARTERS.map(deckProblems)));
+if (STARTERS.length < 2 || STARTERS.some(d => deckProblems(d).length)) throw new Error('FAIL: real starters: ' + JSON.stringify(STARTERS.map(deckProblems)));
 if (!CARDS.filter(c => c.type === 'character').every(c => c.moves?.length)) throw new Error('FAIL: a real Character has no moves');
 `);
 

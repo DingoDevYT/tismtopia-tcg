@@ -10,13 +10,14 @@ const RARITY_NAME = { C: 'Common', U: 'Uncommon', R: 'Rare', UR: 'Ultra Rare' };
 const FINISH_NAME = { normal: '', rev: 'Reverse Holo', holo: 'Holo', full: 'Full Art' };
 const FINISH_CLS = { normal: '', rev: 'v-rev', holo: 'v-holo', full: 'v-full v-holo' };
 
-// Everyone starts owning both free starter decks.
+// Everyone owns the free starter decks (topped up on every load, so new starters reach old saves).
 let coll = store.get('collection', null);
-if (!coll || typeof coll !== 'object') {
-  coll = {};
-  for (const s of STARTERS) for (const [id, n] of Object.entries(s.cards)) coll[id] = { n: Math.max(coll[id]?.n || 0, n), f: { normal: n } };
-  store.set('collection', coll);
+if (!coll || typeof coll !== 'object') coll = {};
+for (const s of STARTERS) for (const [id, n] of Object.entries(s.cards)) {
+  const have = coll[id]?.n || 0;
+  if (have < n) coll[id] = { n, f: { ...(coll[id]?.f || {}), normal: (coll[id]?.f?.normal || 0) + n - have } };
 }
+store.set('collection', coll);
 const owned = id => coll[id]?.n || 0;
 const ownedCount = () => CARDS.filter(c => owned(c.id)).length;
 
