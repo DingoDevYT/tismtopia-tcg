@@ -8,7 +8,7 @@ const PACKS = [
 ];
 const RARITY_NAME = { C: 'Common', U: 'Uncommon', R: 'Rare', UR: 'Ultra Rare' };
 // Stars: 0 plain common, 1 rarer card, 2 holo, 3 reverse holo, 4 full art, 5 rainbow.
-const starN = (id, f = 'normal') => ({ holo: 2, rev: 3, full: 4, rainbow: 5 }[f] ?? ((CARD[id]?.rarity || 'C') === 'C' ? 0 : 1));
+const starN = (id, f = 'normal') => ({ holo: 2, rev: 3, full: 4, rainbow: 5 }[f] ?? (CARD[id]?.type !== 'character' || (CARD[id]?.rarity || 'C') === 'C' ? 0 : 1)); // Items and Evils are always 0 stars
 const starsOf = (id, f) => { const n = starN(id, f); return n ? '★'.repeat(n) : '☆'; };
 const FINISH_NAME = { normal: '', rev: 'Reverse Holo', holo: 'Holo', full: 'Full Art', rainbow: 'Rainbow' };
 const FINISH_CLS = { normal: '', rev: 'v-rev', holo: 'v-holo', full: 'v-full v-holo', rainbow: 'v-full v-holo v-rainbow' };
