@@ -44,8 +44,9 @@ $('#grid').addEventListener('input', async e => {
   el.closest('.c').querySelector('.vars').innerHTML = vars(c); // redraw only this card
 });
 $('#save').onclick = async () => {
-  const r = await fetch('js/card-overrides.js', { method: 'PUT', body: `// Written by editor.html: per-card art, crop and rainbow full-art overrides, applied on top of cards-data.js.\nconst OVERRIDES = ${JSON.stringify(ov, null, 1)};\nfor (const c of [...CAPTAINS, ...CARDS]) Object.assign(c, OVERRIDES[c.id] || {});\n`);
-  await w.close(); $('#msg').textContent = 'Saved ' + new Date().toLocaleTimeString();
+  const r = await fetch('js/card-overrides.js', { method: 'PUT', body: `// Written by editor.html: per-card art, crop and rainbow full-art overrides, applied on top of cards-data.js.\nconst OVERRIDES = ${JSON.stringify(ov, null, 1)};\nfor (const c of [...CAPTAINS, ...CARDS]) Object.assign(c, OVERRIDES[c.id] || {});\n` });
+  if (!r.ok) return alert('Save failed (' + r.status + ')');
+  $('#msg').textContent = 'Saved ' + new Date().toLocaleTimeString();
 };
 draw();
 </script>
