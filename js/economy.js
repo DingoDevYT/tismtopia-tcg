@@ -19,8 +19,8 @@ const ownedTag = (id, f) => hasFin(id, f) ? `<span class="owned-tag">OWNED ×${c
 const FORDER = ['normal', 'holo', 'rev', 'full', 'rainbow']; // common to rare
 let sellAt = 0; const cooled = () => { const t = Date.now(); if (t - sellAt < 100) return false; sellAt = t; return true; }; // stops double-taps and spam
 const keep = id => Math.max(0, ...STARTERS.map(s => s.cards[id] || 0));
-// Account corner on every screen but battles: your name/captain, then your coins.
-const coinBar = () => `<div class="acct"><button class="profile neu" data-act="rename-me" aria-label="Change your name">${renderAvatar(CARD[deck().captain] || CAPTAINS[0])}<b>${esc(myName)}</b></button><div class="coin-bar neu">${COIN}<b>${fmt(shown)}</b></div></div>`;
+// Account corner on every screen but battles: your name/captain (opens your Profile, js/profile.js), then your coins.
+const coinBar = () => `<div class="acct"><button class="profile neu" data-act="profile" aria-label="Your profile">${renderAvatar(CARD[deck().captain] || CAPTAINS[0])}<b>${esc(myName)}</b></button><div class="coin-bar neu">${COIN}<b>${fmt(shown)}</b></div></div>`;
 
 // Daily shop: same 4 cards for everyone each day, at twice their sell value.
 function shopToday() {
@@ -105,7 +105,8 @@ let paidPhase = null;
 const renderNoPay = render;
 render = function () {
   if (ui.view === 'game' && game) {
-    if (game.phase === 'over' && paidPhase && paidPhase !== 'over') { const won = game.winner === me, pay = PAY[bot ? 'bot' : 'player'][won ? 0 : 1]; setCoins(coins + pay); ui.reward = { pay, shown: false }; }
+    if (game.phase === 'over' && paidPhase && paidPhase !== 'over') { const won = game.winner === me, pay = PAY[bot ? 'bot' : 'player'][won ? 0 : 1]; setCoins(coins + pay); ui.reward = { pay, shown: false };
+      const st = store.get('stats', {}), k = bot ? 'bot' : 'pvp'; st[k + 'Played'] = (st[k + 'Played'] || 0) + 1; if (won) st[k + 'Won'] = (st[k + 'Won'] || 0) + 1; store.set('stats', st); } // Profile stats
     paidPhase = game.phase;
   } else paidPhase = null;
   renderNoPay();
