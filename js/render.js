@@ -85,7 +85,7 @@ function renderCard(c, o = {}) {
   // Art lives only on computers that ran tools/apply-cards.js; elsewhere the image fails and the placeholder underneath shows.
   // Rainbow cards swap in the repainted art from js/rainbow.js: the cached result straight away, else processed on load (pages without it show the plain art).
   const rbw = /\bv-rainbow\b/.test(cls), rbOn = rbw && typeof RB !== 'undefined', rbUrl = rbOn && RB[c.art];
-  const art = `<span class="ph">${ICON[c.type]}</span>${c.art ? `<img src="${rbUrl || c.art}" alt="" onerror="this.remove()"${rbOn ? ` data-art="${c.art}"${rbUrl ? ' data-rb="1"' : ' onload="rainbowize(this)"'}` : c.type === 'character' && !c.main ? ' onload="tone(this)"' : ''}${cropStyle(c.crop)}>` : ''}`;
+  const art = `<span class="ph">${ICON[c.type]}</span>${c.art ? `<img src="${rbUrl || c.art}" alt="" onerror="this.remove()"${rbOn ? ` data-art="${c.art}"${rbUrl ? ' data-rb="1"' : ' onload="rainbowize(this)"'}` : c.type === 'character' && !c.main ? ' onload="tone(this)"' : ''}${cropStyle(/\bv-full\b/.test(cls) ? c.cropFull : c.crop)}>` : ''}`; // full art has its own crop (cropFull; none = cover)
   // Characters read like Pokemon cards: HP top right, DEF as a shield on the art, moves on one panel.
   const isChar = c.type === 'character';
   const hpTag = isChar ? `<span class="hp${hp < maxHp(c) ? ' hurt' : ''}"><i>HP</i>${hp}</span>` : '';
