@@ -60,7 +60,8 @@ function syncMusic() {
     if (tag !== lastReveal) {
       lastReveal = tag;
       const name = (c.finish === 'full' || c.finish === 'rainbow') ? (c.rarity === 'UR' ? 'fanfare-crown' : 'fanfare-2star') : c.rarity === 'UR' ? 'fanfare-1star' : c.rarity === 'R' || c.finish !== 'normal' ? 'fanfare-4diamond' : '';
-      if (name) fanfare(name);
+      if (o.god && o.i === 0) fanfare('fanfare-crown'); // god pack: the biggest fanfare as the first card lands
+      else if (name) fanfare(name);
     }
   }
   playLoop(musicKey());

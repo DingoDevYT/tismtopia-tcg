@@ -82,7 +82,11 @@ Object.assign(ACTS, {
     e.f[p.finish]--; e.n--; if (!e.n) delete coll[p.id]; p.sold = true;
     setCoins(coins + cardValue(p.id, p.finish)); store.set('collection', coll);
   },
-  'sell-all-pulls'() { if (!confirm('Sell all of these pulls? Some may leave you with fewer than 3 copies of a card.')) return; ui.open.cards.forEach((_, i) => ACTS['sell-pull']({ i, all: true })); },
+  'sell-all-pulls'() {
+    // warn once, naming every card that would drop below 3 copies
+    const left = {}; ui.open.cards.filter(p => !p.sold).forEach(p => { left[p.id] = (left[p.id] ?? coll[p.id]?.n ?? 0) - 1; });
+    const low = Object.entries(left).filter(([id, n]) => n < 3).map(([id, n]) => `${CARD[id].name} (${Math.max(n, keep(id))} left)`);
+    if (low.length && !confirm(`Sell all of these pulls? These would drop below 3 copies, the most a deck can use:\n\n${low.join('\n')}`)) return; ui.open.cards.forEach((_, i) => ACTS['sell-pull']({ i, all: true })); },
   buy(d) {
     const f = d.f || 'normal', price = cardValue(d.id, f) * SHOP_MARKUP; if (coins < price) { ui.toast = 'Not enough coins'; return; }
     const e = (coll[d.id] ||= { n: 0, f: {} }); e.n++; e.f[f] = (e.f[f] || 0) + 1;
@@ -215,6 +219,18 @@ function pile(id, n, cls = '', attrs = '') {
   if (!fins.length) fins.push('normal');
   return `<div class="pile" style="--n:${fins.length - 1}">${fins.map((f, k) => renderCard((f === 'full' || f === 'rainbow') ? { ...c, crop: null } : c,
     { cls: `${cls} ${FINISH_CLS[f] || ''}${k ? ' behind' : ''}`, style: `--k:${k}`, attrs: k ? '' : attrs })).join('')}</div>`;
+}
+
+// Test panel: open the game with ?dev on the end of the address. Forces the next pack, or adds coins.
+if (/[?&]dev\b/.test(location.search)) {
+  const box = Object.assign(document.createElement('div'), { className: 'dev-panel neu' });
+  box.innerHTML = '<b>Test</b>' + [['god', 'God pack'], ['rainbow', '5★ pull'], ['full', '4★ pull']].map(([k, l]) => `<button class="btn sm" data-force="${k}">${l}</button>`).join('') + '<button class="btn sm" data-coins="1">+10,000</button><small class="dev-note"></small>';
+  box.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.coins) setCoins(coins + 10000);
+    else { window.FORCE_PULL = b.dataset.force; box.querySelector('.dev-note').textContent = 'Next pack: ' + b.textContent; }
+  });
+  document.body.append(box);
 }
 
 // app.js drew the first screen before this file loaded: draw it again so the shop tab and coins show straight away.

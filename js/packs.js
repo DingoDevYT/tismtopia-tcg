@@ -37,15 +37,16 @@ const GOD_ODDS = 1 / 1000, GOD_SLOT = [[0.6, 'R'], [0.4, 'UR']]; // god pack: tw
 const FINISH = { C: [[0.06, 'holo'], [0.03, 'rev'], [0.91, 'normal']], U: [[0.08, 'holo'], [0.04, 'rev'], [0.005, 'full'], [0.875, 'normal']],
   R: [[0.15, 'holo'], [0.07, 'rev'], [0.02, 'full'], [0.76, 'normal']], UR: [[0.25, 'holo'], [0.12, 'rev'], [0.06, 'full'], [0.01, 'rainbow'], [0.56, 'normal']] }; // 5★ rainbow: Ultra Rare Characters only
 function openPack(packId) {
-  const god = Math.random() < GOD_ODDS;
+  const force = window.FORCE_PULL; window.FORCE_PULL = null; // set by the ?dev test panel
+  const god = force === 'god' || Math.random() < GOD_ODDS;
   const cards = (god ? Array(5).fill(GOD_SLOT) : SLOTS).map(t => {
     let r = roll(t); while (!pool(r, packId).length && r !== 'C') r = { UR: 'R', R: 'U', U: 'C' }[r];
     const list = pool(r, packId), c = list[Math.floor(Math.random() * list.length)];
     return { id: c.id, rarity: r, finish: c.type === 'character' ? (god ? roll([[0.45, 'holo'], [0.3, 'rev'], [0.2, 'full'], [0.05, 'rainbow']]) : roll(boosted(FINISH[r], packId))) : 'normal', isNew: false }; // only Characters come in special finishes for now
   });
+  if (force === 'rainbow' || force === 'full') { const ur = CARDS.filter(c => c.type === 'character' && c.rarity === 'UR'), c = ur[Math.floor(Math.random() * ur.length)]; cards[4] = { id: c.id, rarity: 'UR', finish: force, isNew: false }; }
   cards.forEach(p => { p.isNew = !(coll[p.id]?.f?.[p.finish] > 0); const e = (coll[p.id] ||= { n: 0, f: {} }); e.n++; e.f[p.finish] = (e.f[p.finish] || 0) + 1; });
   store.set('collection', coll);
-  if (god) ui.toast = 'GOD PACK!';
   return { pack: packId, cards, stage: 'tear', i: 0, god };
 }
 
@@ -80,8 +81,9 @@ function viewOpen() {
   if (o.stage === 'reveal') {
     const cur = o.cards[o.i], c = CARD[cur.id], rare = cur.rarity === 'R' || cur.rarity === 'UR' || cur.finish !== 'normal';
     const behind = o.cards.slice(o.i + 1).map((n, k) => `<div class="stack-back ${edgeOf(n)}" style="--k:${k + 1}"></div>`).join('');
-    return `<div class="open-stage reveal${rare ? ' rare r-' + cur.rarity : ''}" data-act="next-card">
-      ${rare ? '<div class="burst"></div>' : ''}
+    const big = cur.finish === 'rainbow' ? ' pull-5' : cur.finish === 'full' ? ' pull-4' : '';
+    return `<div class="open-stage reveal${rare ? ' rare r-' + cur.rarity : ''}${big}${o.god ? ' god' : ''}" data-act="next-card">
+      ${rare ? '<div class="burst"></div>' : ''}${big ? `<div class="big-rays"></div><p class="big-tag">${cur.finish === 'rainbow' ? '★★★★★ RAINBOW' : '★★★★ FULL ART'}</p>` : ''}${o.god && o.i === 0 ? '<p class="god-tag">GOD PACK</p>' : ''}
       <div class="stack" data-act="noop">${behind}${renderCard((cur.finish === 'full' || cur.finish === 'rainbow') ? { ...c, crop: null } : c, { cls: `zoom flick enter ${FINISH_CLS[cur.finish]}` })}</div>
       <p class="pull-tag">${cur.isNew ? '<span class="new">NEW</span>' : ''}${starsOf(cur.id, cur.finish)}${cur.finish !== 'normal' ? ` · ${FINISH_NAME[cur.finish]}` : ''}</p>
       <p class="open-hint">Drag to tilt · flick to the side for the next card (${o.i + 1}/${o.cards.length})</p></div>`;
