@@ -1,3 +1,6 @@
-# Card review workspace: drafts and decisions stay off GitHub. (Card art in art/local/ is published; add new files by name.)
+# Card review workspace: drafts and decisions stay off GitHub (review/asset-key.txt is the art key: never commit it).
 review/
+# Card art and audio: the plaintext stays on this PC. The site publishes the encrypted copies in assets/ (members only, js/assets.js):
+# after changing art or audio, run node tools/encrypt-assets.js and commit assets/.
+art/local/
 audio/local/
