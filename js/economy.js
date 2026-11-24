@@ -15,7 +15,7 @@ const cardValue = (id, f = 'normal') => (RVAL[CARD[id].rarity || 'C'] || 10) * (
 // Selling below 3 copies means you can no longer run a full set of this card in a deck.
 const lowWarn = (id, n) => `Sell ${CARD[id].name}? You'll have ${n - 1} left, and decks can use up to 3 copies of a card, so you won't be able to run a full set of it.`;
 const hasFin = (id, f) => (coll[id]?.f?.[f] || 0) > 0; // you own this exact version
-const ownedTag = (id, f) => hasFin(id, f) ? '<span class="owned-tag">OWNED</span>' : '';
+const ownedTag = (id, f) => hasFin(id, f) ? `<span class="owned-tag">OWNED ×${coll[id].f[f]}</span>` : '';
 const FORDER = ['normal', 'holo', 'rev', 'full', 'rainbow']; // common to rare
 let sellAt = 0; const cooled = () => { const t = Date.now(); if (t - sellAt < 100) return false; sellAt = t; return true; }; // stops double-taps and spam
 const keep = id => Math.max(0, ...STARTERS.map(s => s.cards[id] || 0));

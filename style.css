@@ -866,3 +866,4 @@ img { -webkit-user-drag: none; }
 /* Pack list and shop: versions you already own are dimmed and tagged. */
 .coll-cell.owned { position: relative; } .coll-cell.owned .card { opacity: .4; filter: saturate(.5); }
 .owned-tag { position: absolute; top: 38%; left: 50%; transform: translate(-50%, -50%) rotate(-12deg); z-index: 6; padding: 4px 12px; border-radius: 8px; background: rgba(30, 34, 50, .85); color: #fff; font-weight: 900; letter-spacing: .12em; font-size: 14px; pointer-events: none; }
+.owned-tag { transform: translate(-50%, -50%); background: rgba(10, 12, 20, .95); }
