@@ -122,9 +122,9 @@ document.body.append(title);
 
 // Volume slider, always in the corner (0 = off).
 const vol = Object.assign(document.createElement('input'), { type: 'range', min: 0, max: 1, step: 0.05, value: VOL, className: 'vol-slider neu' });
-vol.setAttribute('aria-label', 'Volume');
+vol.setAttribute('aria-label', 'Volume'); vol.style.setProperty('--v', VOL);
 vol.addEventListener('input', () => {
-  VOL = +vol.value; store.set('volume', VOL); unlocked = true;
+  VOL = +vol.value; store.set('volume', VOL); unlocked = true; vol.style.setProperty('--v', VOL);
   const was = musicOn; musicOn = VOL > 0;
   if (!musicOn) { Object.values(tracks).forEach(t => t.pause()); curKey = ''; fanfaring = false; }
   else if (!was) syncMusic();
