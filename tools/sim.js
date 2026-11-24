@@ -4,7 +4,10 @@
 const fs = require('fs'), vm = require('vm'), path = require('path');
 const root = path.join(__dirname, '..');
 const ctx = vm.createContext({ structuredClone, console });
-vm.runInContext(['js/cards-data.js', 'js/cards.js', 'js/game.js'].map(f => fs.readFileSync(path.join(root, f), 'utf8')).join('\n').replace(/const BORE_MAX = \d+;/, m => (process.argv[4] ? `const BORE_MAX = ${+process.argv[4]};` : m)).replace(/const HP_SCALE = [\d.]+;/, m => (process.argv[5] ? `const HP_SCALE = ${+process.argv[5]};` : m)).replace(/const DECK_SIZE = \d+;/, m => (process.env.DECK ? `const DECK_SIZE = ${+process.env.DECK};` : m))
+// VARIANT=<file.json> {cardId: {fields}} tests card changes without touching the real card data
+const VARIANT = process.env.VARIANT ? fs.readFileSync(process.env.VARIANT, 'utf8') : '{}';
+vm.runInContext(['js/cards-data.js', 'js/card-overrides.js', 'js/cards.js', 'js/game.js'].map(f => fs.readFileSync(path.join(root, f), 'utf8')).join('\n')
+  .replace('// CAPTAINS, CARDS and STARTERS come from', `for (const [id, v] of Object.entries(${VARIANT})) Object.assign([...CAPTAINS, ...CARDS].find(c => c.id === id), v);\n// CAPTAINS, CARDS and STARTERS come from`).replace(/const BORE_MAX = \d+;/, m => (process.argv[4] ? `const BORE_MAX = ${+process.argv[4]};` : m)).replace(/const HP_SCALE = [\d.]+;/, m => (process.argv[5] ? `const HP_SCALE = ${+process.argv[5]};` : m)).replace(/const DECK_SIZE = \d+;/, m => (process.env.DECK ? `const DECK_SIZE = ${+process.env.DECK};` : m))
   + '\nthis.E = { CARDS, CAPTAINS, STARTERS, CARD, newGame, apply, deckProblems, statsOf, DECK_SIZE, maxHp, baseArmor };', ctx);
 const { CARDS, CAPTAINS, STARTERS, CARD, newGame, apply, deckProblems, statsOf, DECK_SIZE, maxHp, baseArmor } = ctx.E;
 
