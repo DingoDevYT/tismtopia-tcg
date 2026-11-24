@@ -772,8 +772,9 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
 @keyframes title-pulse { 50% { opacity: .25; } }
 
 /* Rainbow full art (card.rainbow + full finish): the art becomes white linework over a rainbow foil with glitter. */
-.v-rainbow .art { background: linear-gradient(125deg, #ff6b9d, #ffd36b, #7bff9e, #6bd5ff, #b36bff, #ff6b9d); background-size: 300% 300%; animation: rainbow-shift 6s linear infinite; }
-.v-rainbow .art img { filter: grayscale(1) invert(1) contrast(3); mix-blend-mode: screen; }
-.v-rainbow .art::after { content: ''; position: absolute; inset: 0; pointer-events: none; mix-blend-mode: overlay;
+.card.v-rainbow .art { isolation: isolate; background: linear-gradient(125deg, #ff6b9d, #ffd36b, #7bff9e, #6bd5ff, #b36bff, #ff6b9d); background-size: 300% 300%; animation: rainbow-shift 6s linear infinite !important; }
+.card.v-rainbow .art img { filter: grayscale(1) invert(1) contrast(3) !important; mix-blend-mode: screen !important; }
+.card.v-rainbow .art { background-color: transparent; background-image: linear-gradient(125deg, #ff6b9d, #ffd36b, #7bff9e, #6bd5ff, #b36bff, #ff6b9d) !important; }
+.card.v-rainbow .art::after { content: ''; position: absolute; inset: 0; pointer-events: none; mix-blend-mode: overlay;
   background: radial-gradient(circle, #fff 1px, transparent 1.5px) 0 0 / 9px 9px, radial-gradient(circle, #fff 1px, transparent 1.5px) 4px 5px / 13px 13px; }
 @keyframes rainbow-shift { to { background-position: 300% 300%; } }
