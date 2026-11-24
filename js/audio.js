@@ -59,7 +59,7 @@ function syncMusic() {
     const c = o.cards[o.i], tag = o.pack + o.cards.map(x => x.id).join() + o.i;
     if (tag !== lastReveal) {
       lastReveal = tag;
-      const name = c.finish === 'full' ? (c.rarity === 'UR' ? 'fanfare-crown' : 'fanfare-2star') : c.rarity === 'UR' ? 'fanfare-1star' : c.rarity === 'R' || c.finish !== 'normal' ? 'fanfare-4diamond' : '';
+      const name = (c.finish === 'full' || c.finish === 'rainbow') ? (c.rarity === 'UR' ? 'fanfare-crown' : 'fanfare-2star') : c.rarity === 'UR' ? 'fanfare-1star' : c.rarity === 'R' || c.finish !== 'normal' ? 'fanfare-4diamond' : '';
       if (name) fanfare(name);
     }
   }

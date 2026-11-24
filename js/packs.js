@@ -7,8 +7,8 @@ const PACKS = [
   { id: 'foreseen', name: 'Foreseen Knowledge', colour: '#5b1fd6' },
 ];
 const RARITY_NAME = { C: '★', U: '★★', R: '★★★', UR: '★★★★' }; // star rarity
-const FINISH_NAME = { normal: '', rev: 'Reverse Holo', holo: 'Holo', full: 'Full Art' };
-const FINISH_CLS = { normal: '', rev: 'v-rev', holo: 'v-holo', full: 'v-full v-holo' };
+const FINISH_NAME = { normal: '', rev: 'Reverse Holo', holo: 'Holo', full: 'Full Art', rainbow: '★★★★★ Rainbow' };
+const FINISH_CLS = { normal: '', rev: 'v-rev', holo: 'v-holo', full: 'v-full v-holo', rainbow: 'v-full v-holo v-rainbow' };
 
 // Everyone owns the free starter decks (topped up on every load, so new starters reach old saves).
 let coll = store.get('collection', null);
@@ -32,13 +32,13 @@ const SLOTS = [COMMONISH, COMMONISH, COMMONISH, [[0.7, 'U'], [0.25, 'R'], [0.05,
 const GOD_ODDS = 1 / 1000, GOD_SLOT = [[0.6, 'R'], [0.4, 'UR']]; // god pack: twice TCG Pocket's 1 in 2,000, every card rare+ and foil
 // Normal is always the most likely; holo beats reverse holo beats full art at every rarity.
 const FINISH = { C: [[0.06, 'holo'], [0.03, 'rev'], [0.91, 'normal']], U: [[0.08, 'holo'], [0.04, 'rev'], [0.005, 'full'], [0.875, 'normal']],
-  R: [[0.15, 'holo'], [0.07, 'rev'], [0.02, 'full'], [0.76, 'normal']], UR: [[0.25, 'holo'], [0.12, 'rev'], [0.06, 'full'], [0.57, 'normal']] };
+  R: [[0.15, 'holo'], [0.07, 'rev'], [0.02, 'full'], [0.76, 'normal']], UR: [[0.25, 'holo'], [0.12, 'rev'], [0.06, 'full'], [0.01, 'rainbow'], [0.56, 'normal']] }; // 5★ rainbow: Ultra Rare Characters only
 function openPack(packId) {
   const god = Math.random() < GOD_ODDS;
   const cards = (god ? Array(5).fill(GOD_SLOT) : SLOTS).map(t => {
     let r = roll(t); while (!pool(r, packId).length && r !== 'C') r = { UR: 'R', R: 'U', U: 'C' }[r];
     const list = pool(r, packId), c = list[Math.floor(Math.random() * list.length)];
-    return { id: c.id, rarity: r, finish: c.type === 'character' ? (god ? roll([[0.5, 'holo'], [0.3, 'rev'], [0.2, 'full']]) : roll(boosted(FINISH[r], packId))) : 'normal', isNew: false }; // only Characters come in special finishes for now
+    return { id: c.id, rarity: r, finish: c.type === 'character' ? (god ? roll([[0.45, 'holo'], [0.3, 'rev'], [0.2, 'full'], [0.05, 'rainbow']]) : roll(boosted(FINISH[r], packId))) : 'normal', isNew: false }; // only Characters come in special finishes for now
   });
   cards.forEach(p => { p.isNew = !owned(p.id); const e = (coll[p.id] ||= { n: 0, f: {} }); e.n++; e.f[p.finish] = (e.f[p.finish] || 0) + 1; });
   store.set('collection', coll);
@@ -63,7 +63,7 @@ function viewPacks() {
 }
 
 // Edge colour of a card in the stack: foil and rares glint so you can peek before revealing.
-const edgeOf = c => c.finish === 'full' ? 'edge-full' : c.finish === 'holo' ? 'edge-holo' : c.finish === 'rev' ? 'edge-rev' : c.rarity === 'UR' || c.rarity === 'R' ? 'edge-gold' : '';
+const edgeOf = c => (c.finish === 'full' || c.finish === 'rainbow') ? 'edge-full' : c.finish === 'holo' ? 'edge-holo' : c.finish === 'rev' ? 'edge-rev' : c.rarity === 'UR' || c.rarity === 'R' ? 'edge-gold' : '';
 function viewOpen() {
   const o = ui.open, P = PACKS.find(p => p.id === o.pack);
   if (o.stage === 'tear') return `<div class="open-stage">
@@ -79,12 +79,12 @@ function viewOpen() {
     const behind = o.cards.slice(o.i + 1).map((n, k) => `<div class="stack-back ${edgeOf(n)}" style="--k:${k + 1}"></div>`).join('');
     return `<div class="open-stage reveal${rare ? ' rare r-' + cur.rarity : ''}" data-act="next-card">
       ${rare ? '<div class="burst"></div>' : ''}
-      <div class="stack" data-act="noop">${behind}${renderCard(cur.finish === 'full' ? { ...c, crop: null } : c, { cls: `zoom flick enter ${FINISH_CLS[cur.finish]}` })}</div>
+      <div class="stack" data-act="noop">${behind}${renderCard((cur.finish === 'full' || cur.finish === 'rainbow') ? { ...c, crop: null } : c, { cls: `zoom flick enter ${FINISH_CLS[cur.finish]}` })}</div>
       <p class="pull-tag">${cur.isNew ? '<span class="new">NEW</span>' : ''}${RARITY_NAME[cur.rarity]}${cur.finish !== 'normal' ? ` · ${FINISH_NAME[cur.finish]}` : ''}</p>
       <p class="open-hint">Drag to tilt · flick to the side for the next card (${o.i + 1}/${o.cards.length})</p></div>`;
   }
   return `${header('Your pulls')}
-    <div class="pull-grid">${o.cards.map(p => `<div class="pull">${renderCard(p.finish === 'full' ? { ...CARD[p.id], crop: null } : CARD[p.id], { cls: FINISH_CLS[p.finish], attrs: tappable('view-card', `data-id="${p.id}" data-f="${p.finish}"`) })}${p.isNew ? '<span class="new">NEW</span>' : ''}<small>${RARITY_NAME[p.rarity]}${p.finish !== 'normal' ? ` · ${FINISH_NAME[p.finish]}` : ''}</small></div>`).join('')}</div>
+    <div class="pull-grid">${o.cards.map(p => `<div class="pull">${renderCard((p.finish === 'full' || p.finish === 'rainbow') ? { ...CARD[p.id], crop: null } : CARD[p.id], { cls: FINISH_CLS[p.finish], attrs: tappable('view-card', `data-id="${p.id}" data-f="${p.finish}"`) })}${p.isNew ? '<span class="new">NEW</span>' : ''}<small>${RARITY_NAME[p.rarity]}${p.finish !== 'normal' ? ` · ${FINISH_NAME[p.finish]}` : ''}</small></div>`).join('')}</div>
     <div class="row2" style="margin:16px"><button class="btn primary" data-act="pick-pack" data-p="${o.pack}">Open another</button><button class="btn" data-act="go" data-to="packs">Done</button></div>
     ${overlay()}${viewer()}`;
 }
@@ -192,7 +192,7 @@ function viewCollection() {
     <div class="chips">${chip('sort', 'no', 'Number')}${chip('sort', 'rarity', 'Rarity')}${chip('sort', 'name', 'Name')}${chip('sort', 'copies', 'Copies')}</div>
   </div>
   <div class="grid coll-grid">${list.map(c => { const n = owned(c.id), f = bestFinish(c.id);
-    return `<div class="cell coll-cell${n ? '' : ' locked'}">${renderCard(n && f === 'full' ? { ...c, crop: null } : c, { cls: n ? FINISH_CLS[f] : '', attrs: tappable('view-card', `data-id="${c.id}"`) })}
+    return `<div class="cell coll-cell${n ? '' : ' locked'}">${renderCard(n && (f === 'full' || f === 'rainbow') ? { ...c, crop: null } : c, { cls: n ? FINISH_CLS[f] : '', attrs: tappable('view-card', `data-id="${c.id}"`) })}
       <div class="coll-meta"><span class="rar r-${c.rarity || 'C'}">${c.rarity || 'C'}</span><span>${n ? '×' + n : 'Not owned'}</span>
       <button class="fav${favs.has(c.id) ? ' on' : ''}" data-act="fav" data-id="${c.id}" aria-label="${favs.has(c.id) ? 'Unfavourite' : 'Favourite'} ${esc(c.name)}">★</button></div></div>`; }).join('') || '<p class="muted center">No cards match.</p>'}</div>
   ${tabbar('collection')}${overlay()}${viewer()}`;
@@ -206,9 +206,9 @@ document.addEventListener('input', e => { if (e.target.id === 'coll-search') { u
 // ---------------- card viewer: full screen, finger-tilt 3D, switch between the finishes you own ----------------
 function viewer() {
   const v = ui.viewer; if (!v) return '';
-  const c = CARD[v.id], n = owned(v.id), f = v.finish, have = c.type === 'character' ? ['normal', 'rev', 'holo', 'full'].filter(k => coll[v.id]?.f?.[k] || k === f) : ['normal'];
+  const c = CARD[v.id], n = owned(v.id), f = v.finish, have = c.type === 'character' ? ['normal', 'rev', 'holo', 'full', 'rainbow'].filter(k => coll[v.id]?.f?.[k] || k === f) : ['normal'];
   return `<div class="viewer"><div class="viewer-bg" data-act="close-viewer"></div>
-    <div class="viewer-card">${renderCard(f === 'full' ? { ...c, crop: null } : c, { cls: `zoom view sway ${n ? FINISH_CLS[f] : ''}` })}</div>
+    <div class="viewer-card">${renderCard((f === 'full' || f === 'rainbow') ? { ...c, crop: null } : c, { cls: `zoom view sway ${n ? FINISH_CLS[f] : ''}` })}</div>
     <div class="viewer-info neu">
       <div class="viewer-top"><b>${esc(c.name)}</b><span class="rar r-${c.rarity || 'C'}">${RARITY_NAME[c.rarity || 'C']}</span>
         <button class="fav${favs.has(v.id) ? ' on' : ''}" data-act="fav" data-id="${v.id}" aria-label="Favourite">★</button></div>

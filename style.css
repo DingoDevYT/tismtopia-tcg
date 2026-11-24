@@ -771,13 +771,6 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
 .title-screen.gone { opacity: 0; pointer-events: none; }
 @keyframes title-pulse { 50% { opacity: .25; } }
 
-/* Rainbow full art (card.rainbow + full finish): the art becomes white linework over a rainbow foil with glitter. */
-.card.v-rainbow .art { isolation: isolate; background: linear-gradient(125deg, #ff6b9d, #ffd36b, #7bff9e, #6bd5ff, #b36bff, #ff6b9d); background-size: 300% 300%; animation: rainbow-shift 6s linear infinite !important; }
-.card.v-rainbow .art img { filter: grayscale(1) invert(1) contrast(3) !important; mix-blend-mode: screen !important; }
-.card.v-rainbow .art { background-color: transparent; background-image: linear-gradient(125deg, #ff6b9d, #ffd36b, #7bff9e, #6bd5ff, #b36bff, #ff6b9d) !important; }
-.card.v-rainbow .art::after { content: ''; position: absolute; inset: 0; pointer-events: none; mix-blend-mode: overlay;
-  background: radial-gradient(circle, #fff 1px, transparent 1.5px) 0 0 / 9px 9px, radial-gradient(circle, #fff 1px, transparent 1.5px) 4px 5px / 13px 13px; }
-@keyframes rainbow-shift { to { background-position: 300% 300%; } }
 
 .vol-slider { width: 110px; padding: 8px 10px; border-radius: 999px; accent-color: var(--accent, #5b7cfa); }
 
@@ -827,3 +820,13 @@ img { -webkit-user-drag: none; }
 .viewer-card.copies .stack .card.behind { position: absolute; inset: 0; z-index: calc(6 - var(--k)); transform: translate(calc(var(--k) * 5px), calc(var(--k) * -5px)); filter: brightness(calc(1 - var(--k) * .08)); pointer-events: none; }
 .stack-n { position: absolute; bottom: -10px; left: 50%; transform: translateX(-50%); z-index: 9; }
 .dust { z-index: 1000; pointer-events: none; }
+
+/* 5★ Rainbow (finish "rainbow"): a full art washed in pastel rainbow foil with glitter, like a rainbow rare. */
+.card.v-rainbow .frame { background: linear-gradient(125deg, #ffb3d1, #ffe7a3, #b8ffcf, #a8e6ff, #d4b8ff, #ffb3d1) !important; background-size: 300% 300% !important; animation: rainbow-shift 8s linear infinite; }
+.card.v-rainbow .art img { filter: grayscale(1) invert(.15) brightness(1.9) contrast(1.5); }
+.card.v-rainbow .art::before, .card.v-rainbow .frame::after { content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; }
+.card.v-rainbow .art::before { z-index: 1; background: repeating-linear-gradient(125deg, #ff6fa8 0%, #ffd36b 8%, #6bffa0 16%, #6bd5ff 24%, #b06bff 32%, #ff6fa8 40%); background-size: 200% 200%; mix-blend-mode: multiply; opacity: .8; animation: rainbow-shift 8s linear infinite; }
+.card.v-rainbow .frame::after { z-index: 2; background: url("vendor/holo/img/glitter.png") center / 40% auto, linear-gradient(115deg, transparent 30%, rgba(255,255,255,.55) 48%, transparent 66%); background-size: 40% auto, 250% 250%; mix-blend-mode: screen; opacity: .55; animation: rainbow-glint 4s ease-in-out infinite; }
+@keyframes rainbow-shift { to { background-position: 300% 300%; } }
+@keyframes rainbow-glint { 50% { background-position: center, 100% 100%; } }
+.card.v-rainbow .holo__shine { display: none; }

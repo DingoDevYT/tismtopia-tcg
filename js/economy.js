@@ -1,7 +1,7 @@
 // Coins: packs cost coins, matches pay coins, cards sell for coins, and a daily shop sells a few cards.
 const PACK_PRICE = { heehn: 300, empirical: 400, foreseen: 500 }, price = pk => PACK_PRICE[pk] || 300;
 const WIN_PAY = 100, LOSS_PAY = 40; // 10-card packs resell for roughly their price on average
-const RVAL = { C: 15, U: 38, R: 90, UR: 300 }, FVAL = { normal: 1, rev: 1.5, holo: 2, full: 4 }; // a weak pack sells for about half its cost
+const RVAL = { C: 15, U: 38, R: 90, UR: 300 }, FVAL = { normal: 1, rev: 1.5, holo: 2, full: 4, rainbow: 12 }; // a weak pack sells for about half its cost
 const fmt = n => Math.round(n).toLocaleString('en-US'); // 10000 -> 10,000
 const COIN = '<img class="coin" src="art/coin.svg" alt="coins">';
 let coins = store.get('coins', 900);
@@ -14,7 +14,7 @@ const cardValue = (id, f = 'normal') => (RVAL[CARD[id].rarity || 'C'] || 10) * (
 // Starter copies come back on every load, so they can't be sold (no free-money loop).
 // Selling below 3 copies means you can no longer run a full set of this card in a deck.
 const lowWarn = (id, n) => `Sell ${CARD[id].name}? You'll have ${n - 1} left, and decks can use up to 3 copies of a card, so you won't be able to run a full set of it.`;
-const FORDER = ['normal', 'holo', 'rev', 'full']; // common to rare
+const FORDER = ['normal', 'holo', 'rev', 'full', 'rainbow']; // common to rare
 let sellAt = 0; const cooled = () => { const t = Date.now(); if (t - sellAt < 100) return false; sellAt = t; return true; }; // stops double-taps and spam
 const keep = id => Math.max(0, ...STARTERS.map(s => s.cards[id] || 0));
 // Account corner on every screen but battles: your name/captain, then your coins.
@@ -45,7 +45,7 @@ viewer = () => {
   // Every copy you own as a row of big cards, the chosen finish first.
   // One stack per finish: copies sit behind each other so only their edges show.
   const row = fs.map(([f, n]) => `<div class="stack${f === v.finish ? ' picked' : ''}" data-act="viewer-finish" data-f="${f}" style="--n:${Math.min(n, 6) - 1}">${Array.from({ length: Math.min(n, 6) }, (_, k) =>
-    renderCard(f === 'full' ? { ...CARD[v.id], crop: null } : CARD[v.id], { cls: `zoom view ${FINISH_CLS[f] || ''}${k ? ' behind' : ' picked'}`, style: `--k:${k}` })).join('')}${n > 1 ? `<span class="chip on stack-n">×${n}</span>` : ''}</div>`).join('');
+    renderCard((f === 'full' || f === 'rainbow') ? { ...CARD[v.id], crop: null } : CARD[v.id], { cls: `zoom view ${FINISH_CLS[f] || ''}${k ? ' behind' : ' picked'}`, style: `--k:${k}` })).join('')}${n > 1 ? `<span class="chip on stack-n">×${n}</span>` : ''}</div>`).join('');
   return (row ? html.replace(/<div class="viewer-card">[\s\S]*?<\/div>\s*<div class="viewer-info/, `<div class="viewer-card copies">${row}</div><div class="viewer-info`) : html).replace('<button class="btn wide" data-act="close-viewer">', sell + '<button class="btn wide" data-act="close-viewer">');
 };
 
@@ -118,7 +118,7 @@ function oddsHtml() {
     .sort((a, b) => FORDER.indexOf(b.f) - FORDER.indexOf(a.f) || a.p - b.p || a.c.no.localeCompare(b.c.no));
   const pc = p => (p * 100).toFixed(p < 0.001 ? 3 : p < 0.01 ? 2 : 1) + '%';
   return `<h3>${esc(PACKS.find(p => p.id === ui.odds)?.name || 'This pack')}: ${fmt(price(ui.odds))} coins</h3><small class="muted">Chance that any card you pull is this one, rarest first</small><div class="grid odds">${rows.map(({ c, f, p }) =>
-    `<div class="cell coll-cell">${renderCard(f === 'full' ? { ...c, crop: null } : c, { cls: FINISH_CLS[f] || '', attrs: `data-act="view-card" data-id="${c.id}" data-f="${f}"` })}<small class="chip on">${f === 'normal' ? '' : FINISH_NAME[f] + ' · '}${pc(p)}</small></div>`).join('')}</div>`;
+    `<div class="cell coll-cell">${renderCard((f === 'full' || f === 'rainbow') ? { ...c, crop: null } : c, { cls: FINISH_CLS[f] || '', attrs: `data-act="view-card" data-id="${c.id}" data-f="${f}"` })}<small class="chip on">${f === 'normal' ? '' : FINISH_NAME[f] + ' · '}${pc(p)}</small></div>`).join('')}</div>`;
 }
 const viewPacksNoOdds = viewPacks;
 viewPacks = () => viewPacksNoOdds() + (ui.odds ? `<div class="viewer"><div class="viewer-bg" data-act="odds"></div><div class="shop-sheet neu">${oddsHtml()}<button class="btn wide" data-act="odds">Close</button></div></div>` : '');
