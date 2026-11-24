@@ -211,6 +211,11 @@ throws(() => apply(m, 0, { type: 'end' }), 'no actions after game over');
   for (const c of x.A) if (c.name.length > 22) throw new Error('FAIL: name too long (max 22): ' + c.name); }
 // The browser loads these as one shared scope: two files declaring the same name breaks everything after it.
 new Function(['cards-data', 'card-overrides', 'cards', 'render', 'rainbow', 'game', 'app', 'pack-sets', 'packs', 'economy', 'audio'].map(f => fs.readFileSync(__dirname + '/../js/' + f + '.js', 'utf8')).join('\n;\n'));
+// Full art (v-full) takes its crop from cropFull, other finishes from crop; no cropFull = plain cover, as before.
+{ const x = { Image: function () {} }; vm.runInNewContext(['cards-data', 'cards', 'render'].map(f => fs.readFileSync(__dirname + '/../js/' + f + '.js', 'utf8')).join('\n;\n') + `;
+  const c = { ...CARDS.find(c => c.type === 'character'), art: 'a.png', crop: { x: 10, y: 20, zoom: 2 }, cropFull: { x: 70, y: 30, zoom: 1.5 } };
+  this.r = [renderCard(c), renderCard({ ...c, crop: null }, { cls: 'v-full v-holo' }), renderCard({ ...c, crop: null, cropFull: undefined }, { cls: 'v-full v-holo v-rainbow' })];`, x);
+  if (!x.r[0].includes('object-position:10% 20%') || !x.r[1].includes('object-position:70% 30%') || x.r[2].includes('object-position')) throw new Error('FAIL: full-art crop should come from cropFull'); }
 // Rainbow repaint (fake canvas): a dark-outlined red disc on flat grey -> grey becomes pale silver, the disc a saturated rainbow fill, nothing white.
 { const W = 120, d = new Uint8ClampedArray(W * W * 4).map((_, i) => { const p = i >> 2, e = Math.hypot(p % W - 60, (p / W | 0) - 60); return i % 4 === 3 ? 255 : e < 30 ? [220, 40, 40][i % 4] : e < 33 ? 20 : 128; });
   const x = { document: { createElement: () => ({ getContext: () => ({ drawImage() {}, getImageData: () => ({ data: d }), putImageData() {} }) }) } };
@@ -219,4 +224,9 @@ new Function(['cards-data', 'card-overrides', 'cards', 'render', 'rainbow', 'gam
   const mid = [0, 1, 2].map(j => { let s = 0; for (let k = 0; k < 64; k++) s += px(52 + k % 8, 50 + (k >> 3))[j]; return s / 64; });
   if (!corner.every(c => Math.min(...c) > 140) || corner.every(c => sat(c) < 15)) throw new Error('FAIL: rainbow background should be pale tinted silver ' + JSON.stringify(corner));
   if (!(sat(mid) > 80 && Math.min(...mid) < 200)) throw new Error('FAIL: rainbow fill should be saturated, not white ' + mid); }
+// hp op: positive = damage, negative = heal (capped at full HP)
+{ const src = fs.readFileSync(__dirname + '/../js/game.js', 'utf8'); if (!src.includes('negative = heal')) throw new Error('FAIL: hp op: negative heals'); }
+{ const x = {}; require('vm').runInNewContext(fs.readFileSync(__dirname + '/../js/cards-data.js', 'utf8') + fs.readFileSync(__dirname + '/../js/card-overrides.js', 'utf8') + ';this.A=[...CAPTAINS,...CARDS]', x);
+  for (const c of x.A) for (const mv of c.moves || []) if (/heals/.test(mv.text || '') && !JSON.stringify(mv.onHit || mv.ops || []).includes('-')) throw new Error('FAIL: ' + c.name + ' says it heals but its op deals damage');
+  for (const c of x.A) for (const mv of c.moves || []) if (/more damage/.test(mv.text || '') && /"hp","target",-/.test(JSON.stringify(mv.onHit || []))) throw new Error('FAIL: ' + c.name + ' says more damage but its op heals'); }
 console.log('game.test.js: all checks passed');

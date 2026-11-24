@@ -44,7 +44,7 @@ const OVERRIDES = {
        [
         "hp",
         "target",
-        -3
+        3
        ]
       ]
      ]
@@ -92,7 +92,7 @@ const OVERRIDES = {
      [
       "hp",
       "self",
-      2
+      -2
      ]
     ]
    }
@@ -177,7 +177,7 @@ const OVERRIDES = {
      [
       "hp",
       "target",
-      -1
+      1
      ]
     ]
    }
@@ -229,7 +229,7 @@ const OVERRIDES = {
      [
       "hp",
       "target",
-      -2
+      2
      ]
     ]
    }

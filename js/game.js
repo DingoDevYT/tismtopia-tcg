@@ -108,6 +108,7 @@ function apply(s0, p, a, rng = Math.random) {
       if (what === 'hp') {
         const pos = a1 === 'self' ? ctx.self : ctx.target, f = pos && s.players[pos.p].field[pos.i];
         if (!f || f.hp <= 0) continue;
+        if (a2 < 0) { const was = f.hp; f.hp = Math.min(maxHp(CARD[f.id]), f.hp - a2); if (f.hp > was) say(`${c.name}: ${CARD[f.id].name} +${f.hp - was} HP.`); continue; } // negative = heal, up to full HP
         f.lastHit = a2; for (let k = 0; k < a2; k++) hurt(pos.p, pos.i, true);
         say(`${c.name}: ${CARD[f.id].name} -${a2} HP.`);
         continue;
