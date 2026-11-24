@@ -1074,3 +1074,18 @@ img { -webkit-user-drag: none; }
 @keyframes packFall { to { transform: translateY(75vh) rotate(4deg); opacity: 0; } }
 .from-pack .flip-back { animation-delay: .9s; }
 .from-pack .stack .card.flick.enter { animation: flipFace .3s 1.18s ease-out both, sway 6s ease-in-out 1.5s infinite alternate; }
+
+/* ---------- opening sequence: top rips away, the five cards slide up out of the pouch while the pouch slides down, first card flips ---------- */
+.stack-wrap { display: grid; place-items: center; }
+.stack-wrap > * { grid-area: 1 / 1; }
+.stack-wrap > .pack-leave { z-index: 6; pointer-events: none; }
+.pack-leave .pack.strip { animation: stripFly .7s cubic-bezier(.25, .6, .35, 1) forwards !important; }
+.pack-leave .pack.body { animation: pouchOff .75s .5s cubic-bezier(.5, 0, .75, .2) forwards !important; }
+@keyframes pouchOff { to { transform: translateY(80vh); } }
+.pack-leave .rays::before { animation: raysBurst 1s ease-out forwards; }
+.from-pack .stack { animation: cardsOut .9s .2s cubic-bezier(.2, .8, .3, 1) both; }
+@keyframes cardsOut { from { transform: translateY(120px); } }
+.from-pack .flip-back { animation-delay: 1.15s; }
+.from-pack .stack .card.flick.enter { animation: flipFace .3s 1.43s ease-out both, sway 6s ease-in-out 1.75s infinite alternate; }
+@keyframes cardsOut { from { transform: translateY(60px) scale(.94); } }
+.from-pack .stack .stack-back { animation: none; }

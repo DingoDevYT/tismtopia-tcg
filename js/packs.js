@@ -96,7 +96,7 @@ function viewOpen() {
     const fresh = o.fresh; o.fresh = false;
     return `<div class="open-stage reveal${rare ? ' rare r-' + cur.rarity : ''}${big}${o.god ? ' god' : ''}${fresh ? ' from-pack' : ''}" data-act="next-card">
       ${rare ? '<div class="burst"></div>' : ''}${big ? `<div class="big-rays"></div><p class="big-tag">${cur.finish === 'rainbow' ? '★★★★★ RAINBOW' : '★★★★ FULL ART'}</p>` : ''}${o.god ? '<p class="god-tag">GOD PACK</p>' : ''}
-      <div class="stack" data-act="noop">${behind}${renderCard((cur.finish === 'full' || cur.finish === 'rainbow') ? { ...c, crop: null } : c, { cls: `zoom flick enter ${FINISH_CLS[cur.finish]}` })}${fresh ? `<div class="flip-back"></div><div class="tear-zone torn pack-leave" style="--tear:1"><div class="rays"></div><div class="pack3d">${packArt(P, 'big body')}${packArt(P, 'big strip')}<div class="pack-shade"></div></div></div>` : ''}</div>
+      <div class="stack-wrap">${fresh ? `<div class="tear-zone torn pack-leave" style="--tear:1"><div class="rays"></div><div class="pack3d">${packArt(P, 'big body')}${packArt(P, 'big strip')}<div class="pack-shade"></div></div></div>` : ''}<div class="stack" data-act="noop">${behind}${renderCard((cur.finish === 'full' || cur.finish === 'rainbow') ? { ...c, crop: null } : c, { cls: `zoom flick enter ${FINISH_CLS[cur.finish]}` })}${fresh ? '<div class="flip-back"></div>' : ''}</div></div>
       <p class="pull-tag">${cur.isNew ? '<span class="new">NEW</span>' : ''}${starsOf(cur.id, cur.finish)}${cur.finish !== 'normal' ? ` · ${FINISH_NAME[cur.finish]}` : ''}</p>
       <p class="open-hint">Drag to tilt · flick to the side for the next card (${o.i + 1}/${o.cards.length})</p></div>`;
   }
