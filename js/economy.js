@@ -165,7 +165,7 @@ const left = ms => { const m = Math.floor(ms / 6e4), sec = Math.floor(ms % 6e4 /
 function viewShop() {
   const slots = shopSlots();
   return `<div class="shop-page"><h2>Shop</h2><p class="shop-timer">${ICON.time}New stock in <b class="leaves" data-ends="${slots[0].ends}">${left(slots[0].ends - Date.now())}</b></p><p class="muted center-text">Prices are 3x a card's sell value</p>
-  <div class="grid">${slots.map(({ c, f }) => `<div class="cell coll-cell shop-cell${hasFin(c.id, f) ? ' owned' : ''}">${renderCard((f === 'full' || f === 'rainbow') ? { ...c, crop: null } : c, { cls: FINISH_CLS[f] || '', attrs: `data-act="shop-view" data-id="${c.id}" data-f="${f}"` })}${owned(c.id) ? '' : '<span class="new shop-new">NEW</span>'}${ownedTag(c.id, f)}
+  <div class="grid">${slots.map(({ c, f }) => `<div class="cell coll-cell shop-cell${hasFin(c.id, f) ? ' owned' : ''}">${renderCard((f === 'full' || f === 'rainbow') ? { ...c, crop: null } : c, { cls: FINISH_CLS[f] || '', attrs: `data-act="shop-view" data-id="${c.id}" data-f="${f}"` })}${hasFin(c.id, f) ? '' : '<span class="new shop-new">NEW</span>'}${ownedTag(c.id, f)}
     <small class="chip on shop-stars">${starsOf(c.id, f)}${f !== 'normal' ? ' · ' + FINISH_NAME[f] : ''}</small>
     <button class="btn primary wide" data-act="buy" data-id="${c.id}" data-f="${f}">${COIN}${fmt(cardValue(c.id, f) * SHOP_MARKUP)}</button></div>`).join('')}</div></div>${tabbar('shop')}${viewer()}`;
 }
