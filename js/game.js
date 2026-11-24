@@ -142,6 +142,7 @@ function apply(s0, p, a, rng = Math.random) {
       spend(playCost(s, p, c));
       me.hand.splice(a.i, 1);
       if (c.type === 'character') { me.field.push({ id, hp: maxHp(c), t: s.turnNo }); ev({ k: 'play', p, zone: 'field', i: me.field.length - 1 }); }
+      else if (isInstant(c)) ev({ k: 'cast', p, id }); // instant: resolves and is gone, never sits on the table
       else { me.effects.push(c.type === 'bit' ? { id, turns: c.dur } : { id }); ev({ k: 'play', p, zone: 'fx', i: me.effects.length - 1 }); ev({ k: 'cast', p, id }); }
       say(`${me.name} played ${c.name}.`);
       runOps(p, c.onPlay, c);

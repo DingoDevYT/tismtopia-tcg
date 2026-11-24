@@ -56,3 +56,6 @@ CAPTAINS.forEach((c, i) => { c.no = letters(i); });
 CARDS.forEach((c, i) => { c.no = String(i + 1).padStart(3, '0'); });
 // Null prototype so ids like "__proto__" from a pasted code or the network look up as missing.
 const CARD = Object.assign(Object.create(null), Object.fromEntries([...CAPTAINS, ...CARDS].map(c => [c.id, c])));
+
+// An Item is instant when it only does something as it's played (nothing that lasts).
+const isInstant = c => c.type === 'bit' && !Object.keys(c).some(k => k !== 'onPlay' && /^on|^mod$/.test(k));
