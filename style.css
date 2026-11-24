@@ -856,3 +856,4 @@ img { -webkit-user-drag: none; }
 .pile .card.behind { position: absolute; inset: 0; z-index: calc(4 - var(--k)); transform: translate(calc(var(--k) * 4px), calc(var(--k) * -4px)); filter: brightness(calc(1 - var(--k) * .1)); pointer-events: none; }
 .pile { width: calc(100% - var(--n) * 4px); box-sizing: border-box; } .pile .card { width: 100%; }
 .cell .count { z-index: 10; }
+.pile > .card:not(.behind) { transform: perspective(700px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transition: transform .15s ease-out; }
