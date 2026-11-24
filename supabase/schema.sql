@@ -190,7 +190,7 @@ create policy "submission art: admin read all" on storage.objects for select to 
 drop function if exists public.approved_cards();
 create function public.approved_cards() returns table (id uuid, card jsonb, image_path text, approved_at timestamptz, pack text)
 language sql stable security definer set search_path = '' as $$
-  select s.id, s.card -> 'card', s.image_path, s.updated_at, s.pack
+  select s.id, s.card -> 'card', s.image_path, s.created_at, s.pack -- creation time: card numbers never shift when a pack changes
   from public.submissions s where s.status = 'approved' order by s.created_at;
 $$;
 grant execute on function public.approved_cards() to anon, authenticated;
