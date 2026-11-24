@@ -7,7 +7,17 @@ const STAT_KEYS = ['botPlayed', 'botWon', 'pvpPlayed', 'pvpWon'];
 const CLOUD_OFF = { ok: false, why: 'Accounts are not connected yet.' }, NO_USER = { ok: false, why: 'Not signed in.' };
 // checked: we know whether someone is signed in. synced: the sign-in comparison is settled, so auto-save may run.
 // last: the cloud copy's updated_at as of this device's last sync (server time, so phone clocks don't matter).
-const cloud = { user: null, checked: false, synced: false, dirty: false, timer: 0, savedMs: 0, start: null, last: store.get('cloudAt', '') };
+// mem: this page load's Discord-server answer (cloudMember). block: why a signed-in player gets no cloud features (a MEMBER_BLOCK key).
+// token: the Discord access token from a sign-in on this page, kept in memory only, for Retry.
+const cloud = { user: null, checked: false, synced: false, dirty: false, timer: 0, savedMs: 0, start: null, last: store.get('cloudAt', ''), mem: null, block: '', token: '' };
+// Shown on the gate and on Profile: [title, text, button, what the button does: in = sign in, consent = sign in and re-ask Discord, recheck].
+const MEMBER_BLOCK = {
+  no: ['Members only', 'This game is for members of the Tismtopia Discord server. Join the server, then sign in again.', 'Try again', 'in'],
+  stale: ['', "Please sign in again to confirm you're in the Tismtopia Discord", 'Sign in with Discord', 'in'],
+  scope: ['', "Discord didn't share your server list. Sign in again and allow it.", 'Sign in again', 'consent'],
+  err: ['', "Couldn't check your Discord server membership. Try again.", 'Retry', 'recheck'],
+};
+const PAUSED = 'Cloud save is paused: see Profile.'; // short: toasts are one line
 let sbLib = null;
 
 // The library loads on first use only: a sign-in tap, a return from Discord, or a player who is already signed in. Signed-out play never loads it.
@@ -21,7 +31,21 @@ const need = r => { if (r.error) throw r.error; return r.data; };
 // Every cloud call goes through here: no client = not connected; any failure (offline, missing table, refused by RLS) is one short toast.
 async function sbRun(what, fn) {
   try { const sb = await sbGet(); return sb ? { ok: true, ...(await fn(sb)) } : CLOUD_OFF; }
-  catch (e) { console.warn('cloud:', what, e); const why = String(e?.message || e || 'no connection').slice(0, 90); toast(`${what} failed: ${why}`); return { ok: false, why }; }
+  catch (e) {
+    console.warn('cloud:', what, e);
+    if (cloud.user && (e?.code === '42501' || /row-level security/i.test(e?.message)) && (await cloudRefused())) return { ok: false, why: 'not a member' };
+    const why = String(e?.message || e || 'no connection').slice(0, 90); toast(`${what} failed: ${why}`); return { ok: false, why };
+  }
+}
+// The database refused: if membership has lapsed, cloud features (and auto-save) stop with one message until the next sign-in verifies again.
+async function cloudRefused() {
+  const r = await (await sbGet()).rpc('is_member').catch(() => null);
+  if (r?.data !== false) return false;
+  if (!cloud.user) return true; // another refused call got here first and said it
+  clearTimeout(cloud.timer); Object.assign(cloud, { user: null, synced: false, timer: 0, block: 'stale' }); ui.subList = null;
+  toast(PAUSED); // Profile shows the reason and the sign-in button
+  if (ui.view === 'profile' || ui.view === 'submit') render();
+  return true;
 }
 const hasSession = () => { try { return Object.keys(localStorage).some(k => /^sb-.+-auth-token$/.test(k)); } catch { return false; } };
 
@@ -29,17 +53,40 @@ const cloudReady = async () => !!(await sbGet().catch(() => null));
 async function cloudUser() {
   if (!CLOUD.url) return null;
   const r = await sbRun('Account check', async sb => ({ session: need(await sb.auth.getSession()).session }));
-  const u = r.ok && r.session?.user; cloud.checked = true;
-  if (!u) return (cloud.user = null);
-  const m = u.user_metadata || {}, av = String(m.avatar_url || '');
+  const s = r.ok && r.session, v = s?.user ? await cloudMember(s) : '';
+  if (v) cloud.block = v === 'yes' ? '' : v; // kept after a non-member is signed out, so the reason stays on screen
+  cloud.checked = true;
+  if (v !== 'yes') return (cloud.user = null); // only a verified member counts as signed in
+  const u = s.user, m = u.user_metadata || {}, av = String(m.avatar_url || '');
   return (cloud.user = { id: u.id, name: String(m.custom_claims?.global_name || m.full_name || m.name || 'Player').slice(0, 32), avatar: /^https:\/\/cdn\.discordapp\.com\/[\w/.-]+(\?[\w=&.-]*)?$/.test(av) ? av : '' });
 }
-async function cloudSignIn() {
+// Is this account in the Tismtopia Discord server? Asked once per page load. Right after a Discord sign-in the Discord token goes to
+// supabase/functions/verify-member (the server id is set there), which asks Discord and records the answer in public.members; any
+// other load asks is_member() (verified in the last 30 days). The database itself refuses non-members (supabase/schema.sql).
+// 'yes' | 'no' (not in the server: signed out) | 'stale' (not verified lately) | 'scope' (Discord didn't share the server list,
+// e.g. consent given before the guilds scope) | 'err'. An error never counts as 'yes'.
+const cloudMember = s => (cloud.mem ||= (async () => {
+  const sb = await sbGet();
+  if (fromDiscord && s.provider_token) cloud.token = s.provider_token; // Supabase drops it at the next token refresh
+  if (cloud.token) {
+    const { data, error } = await sb.functions.invoke('verify-member', { body: { provider_token: cloud.token } });
+    if (error) return [401, 502].includes(error.context?.status) ? 'scope' : 'err';
+    if (data?.member === false) await cloudSignOut();
+    return data?.member === true ? 'yes' : data?.member === false ? 'no' : 'err';
+  }
+  const { data, error } = await sb.rpc('is_member');
+  return error ? 'err' : data === true ? 'yes' : 'stale';
+})().catch(e => { console.warn('cloud: member check', e); return 'err'; }));
+// Retry after 'err': the same check again (with the Discord token if this page still holds it, else is_member()), then the usual sync.
+const cloudRecheck = () => { Object.assign(cloud, { mem: null, start: null, checked: false }); return cloudStart(false); };
+// consent: show Discord's permission screen again, for someone whose earlier consent didn't include the server list.
+async function cloudSignIn(consent) {
   if (!CLOUD.url) return CLOUD_OFF;
   // Ask first whether Discord is switched on: otherwise the redirect lands on a bare error page instead of a toast here.
   try { const s = await (await fetch(CLOUD.url + '/auth/v1/settings', { headers: { apikey: CLOUD.key } })).json(); if (!s.external?.discord) { toast("Discord sign-in isn't switched on yet."); return { ok: false, why: 'Discord sign-in is off.' }; } }
   catch { toast("Couldn't reach the account server."); return { ok: false, why: 'offline' }; }
-  return sbRun('Sign-in', async sb => { need(await sb.auth.signInWithOAuth({ provider: 'discord', options: { redirectTo: location.origin + location.pathname } })); return {}; });
+  return sbRun('Sign-in', async sb => { need(await sb.auth.signInWithOAuth({ provider: 'discord', options: { redirectTo: location.origin + location.pathname,
+    scopes: 'identify email guilds', ...(consent && { queryParams: { prompt: 'consent' } }) } })); return {}; }); // guilds: verify-member reads the server list
 }
 async function cloudSignOut() {
   if (!CLOUD.url) return CLOUD_OFF;
@@ -86,7 +133,8 @@ async function cloudSync() {
 }
 const cloudStart = fromDiscord => (cloud.start ||= (async () => {
   const u = await cloudUser(); // waits for the library to swap the ?code= for a session and store it
-  if (fromDiscord) { history.replaceState(null, '', location.pathname); ui.view = 'profile'; ui.back = 'home'; if (!u) toast("Sign-in didn't finish. Try again."); }
+  if (fromDiscord) { history.replaceState(null, '', location.pathname); ui.view = 'profile'; ui.back = 'home'; if (!u && !cloud.block) toast("Sign-in didn't finish. Try again."); }
+  else if (!u && cloud.block && ui.view !== 'profile') toast(PAUSED); // a saved session that isn't a verified member any more
   if (u && (ui.view === 'profile' || ui.view === 'submit')) render(); // signed-in buttons straight away, not after the save sync
   if (u) { try { await (await sbGet()).from('profiles').upsert({ id: u.id, name: u.name, avatar: u.avatar || null }); } catch { /* the profile row is a nicety */ } await cloudSync(); }
   if (ui.view === 'profile' || ui.view === 'submit') render();

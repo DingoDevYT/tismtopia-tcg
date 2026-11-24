@@ -194,3 +194,44 @@ language sql stable security definer set search_path = '' as $$
   from public.submissions s where s.status = 'approved' order by s.created_at;
 $$;
 grant execute on function public.approved_cards() to anon, authenticated;
+
+-- ---------- members of the Tismtopia Discord server only (live migration, applied in the dashboard) ----------
+-- Rows are written only by the Edge Function supabase/functions/verify-member/index.ts (service role), which the game calls right
+-- after a Discord sign-in (scope "guilds") and which asks Discord whether the account is in the server. The server id is the GUILD
+-- constant in that file. A member stays verified for 30 days; signing in again re-verifies. Signed-out public reads are unchanged.
+create table if not exists public.members (
+  user_id uuid primary key references auth.users on delete cascade,
+  discord_id text not null check (char_length(discord_id) <= 32),
+  verified_at timestamptz not null default now()
+);
+alter table public.members enable row level security;
+revoke all on public.members from anon, authenticated;
+grant select on public.members to authenticated; -- no insert/update/delete: a player cannot mark themselves a member
+drop policy if exists "members: read own" on public.members;
+create policy "members: read own" on public.members for select to authenticated using ((select auth.uid()) = user_id);
+
+create or replace function public.is_member() returns boolean language sql stable security definer set search_path = '' as $$
+  select exists (select 1 from public.members m where m.user_id = (select auth.uid()) and m.verified_at > now() - interval '30 days');
+$$;
+grant execute on function public.is_member() to authenticated;
+
+-- One-off when this went live: everyone who already had an account counts as a member until their next sign-in re-verifies them.
+-- insert into public.members (user_id, discord_id, verified_at)
+--   select u.id, coalesce(u.raw_user_meta_data ->> 'provider_id', ''), now() from auth.users u
+--   on conflict do nothing;
+
+-- Restrictive: on top of the "own row" policies above, a signed-in non-member (admins excepted) can read or write nothing here.
+drop policy if exists "members only" on public.profiles;
+create policy "members only" on public.profiles as restrictive for all to authenticated
+  using ((select public.is_member()) or (select public.is_admin())) with check ((select public.is_member()) or (select public.is_admin()));
+drop policy if exists "members only" on public.saves;
+create policy "members only" on public.saves as restrictive for all to authenticated
+  using ((select public.is_member()) or (select public.is_admin())) with check ((select public.is_member()) or (select public.is_admin()));
+drop policy if exists "members only" on public.submissions;
+create policy "members only" on public.submissions as restrictive for all to authenticated
+  using ((select public.is_member()) or (select public.is_admin())) with check ((select public.is_member()) or (select public.is_admin()));
+-- The private bucket too, except approved art (which anyone may see, signed in or not).
+drop policy if exists "submission art: members only" on storage.objects;
+create policy "submission art: members only" on storage.objects as restrictive for all to authenticated
+  using (bucket_id <> 'submissions' or (select public.is_member()) or (select public.is_admin()) or public.is_approved_art(name))
+  with check (bucket_id <> 'submissions' or (select public.is_member()) or (select public.is_admin()));

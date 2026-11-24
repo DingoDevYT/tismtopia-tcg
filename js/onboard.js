@@ -42,7 +42,8 @@ function gatePaint() {
     gate.el.setAttribute('role', 'dialog'); gate.el.setAttribute('aria-modal', 'true'); gate.el.setAttribute('aria-label', 'Sign in');
     gate.el.addEventListener('click', e => {
       const b = e.target.closest('button');
-      if (b?.dataset.gate === 'in') gateSignIn(); else if (b?.dataset.gate === 'retry') gateCheck(); else if (gate.state === 'in') gatePass();
+      const g = b?.dataset.gate;
+      if (g === 'in' || g === 'consent') gateSignIn(g === 'consent'); else if (g === 'retry') gateCheck(); else if (g === 'recheck') { cloudRecheck(); gateCheck(); } else if (gate.state === 'in') gatePass();
     });
     gate.el.addEventListener('keydown', e => { if (gate.state === 'in' && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); gatePass(); } });
     document.body.append(gate.el);
@@ -52,6 +53,7 @@ function gatePaint() {
   gate.el.innerHTML = `<img src="art/logo.png" alt="Tismtopia TCG">${s === 'checking' ? '<p class="gate-line">Checking your account… <span class="spin"></span></p>'
     : s === 'down' ? '<p class="gate-line">Can\'t reach the server</p><p class="muted">Check your connection, then try again.</p><button class="btn primary gate-btn" data-gate="retry">Retry</button>'
     : s === 'in' ? '<p class="gate-tap">Tap anywhere to start</p>'
+    : s === 'block' ? (([t, p, b, a]) => `${t ? `<p class="gate-line"><b>${t}</b></p>` : ''}<p class="${t ? 'muted' : 'gate-line'}">${p}</p><button class="btn primary gate-btn" data-gate="${a}">${b}</button>`)(MEMBER_BLOCK[cloud.block])
     : `<p class="gate-line">Sign in to play — your cards and progress are saved to your account</p><button class="btn primary gate-btn" data-gate="in"${s === 'busy' ? ' disabled' : ''}>${s === 'busy' ? 'Opening Discord…' : 'Sign in with Discord'}</button>`}
     <p class="gate-msg" role="status">${esc(gate.msg)}</p>`;
   (gate.el.querySelector('button:not([disabled])') || gate.el).focus({ preventScroll: true });
@@ -61,7 +63,8 @@ async function gateCheck() {
   gate.state = 'checking'; gatePaint();
   const check = (async () => {
     if (!(await cloudReady())) return 'down'; // the sign-in library didn't load (CDN down or offline)
-    if (await cloudUser()) return 'in'; // a saved session; this also finishes a return from Discord
+    if (await cloudUser()) return 'in'; // a saved session of a verified Discord-server member; this also finishes a return from Discord
+    if (cloud.block) return 'block'; // signed in, but not (or no longer, or not checkably) a member: the reason and its button
     const r = await fetch(CLOUD.url + '/auth/v1/settings', { headers: { apikey: CLOUD.key } }).catch(() => null);
     return r?.ok ? 'out' : 'down';
   })().catch(() => 'down');
@@ -69,9 +72,9 @@ async function gateCheck() {
   if (gate.state === 'out' && fromDiscord && !gate.msg) gate.msg = "Sign-in didn't finish. Try again.";
   gatePaint();
 }
-async function gateSignIn() {
+async function gateSignIn(consent) {
   Object.assign(gate, { state: 'busy', msg: '' }); gatePaint();
-  const r = await cloudSignIn(); // on success the browser leaves for Discord and comes back signed in
+  const r = await cloudSignIn(consent); // on success the browser leaves for Discord and comes back signed in
   if (r.ok) return;
   Object.assign(gate, r.why === 'offline' ? { state: 'down', msg: '' } : { state: 'out', msg: `Sign-in didn't start: ${r.why}` }); gatePaint();
 }

@@ -11,8 +11,9 @@ function viewProfile() {
   const rec = (w, p) => `${st[w] || 0} won of ${st[p] || 0}`;
   const account = !CLOUD.url ? `<button class="btn wide" disabled>Sign in with Discord</button><p class="muted pf-note">Accounts are coming soon. Your progress is saved on this device.</p>`
     : !cloud.checked ? '<p class="muted center">Checking your account… <span class="spin"></span></p>'
-    : u ? `<div class="pf-who"><span class="avatar">${u.avatar ? `<img src="${esc(u.avatar)}" alt="" referrerpolicy="no-referrer">` : ICON.character}</span><div><b>${esc(u.name)}</b><small class="cloud-last">${esc(lastSaveText())}</small></div></div>
+    : u ? `<div class="pf-who"><span class="avatar">${u.avatar ? `<img src="${esc(u.avatar)}" alt="" referrerpolicy="no-referrer">` : ICON.character}</span><div><b>${esc(u.name)}</b><small>Tismtopia Discord member ✓</small><small class="cloud-last">${esc(lastSaveText())}</small></div></div>
       <div class="row2"><button class="btn primary" data-act="cloud-save">Save now</button><button class="btn" data-act="cloud-out">Sign out</button></div>${rvEntry()}`
+    : cloud.block ? (([t, p, b, a]) => `${t ? `<h3>${t}</h3>` : ''}<p class="muted pf-note">${p}</p><button class="btn primary wide" data-act="cloud-${a}">${b}</button>`)(MEMBER_BLOCK[cloud.block])
     : `<button class="btn primary wide" data-act="cloud-in">Sign in with Discord</button><p class="muted pf-note">Keeps a copy of your progress online, so you can carry on from any device.</p>`;
   return `${header('Profile')}
   <div class="pf-wrap">
@@ -52,6 +53,8 @@ Object.assign(ACTS, {
   'pf-back'() { ui.view = ui.back || 'home'; },
   'pf-rename'() { pfRename(); return false; },
   'cloud-in'() { cloudSignIn(); return false; },
+  'cloud-consent'() { cloudSignIn(true); return false; },
+  'cloud-recheck'() { cloudRecheck(); }, // renders "Checking your account…" now; cloudStart renders the answer
   'cloud-out'() { cloudSignOut().then(render); return false; },
   'cloud-save'() { cloudSaveGame().then(r => r.ok && toast('Saved to the cloud.')); return false; },
   'pf-export'() {
