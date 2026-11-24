@@ -29,7 +29,9 @@ const boosted = (table, pk) => { const k = BOOST[pk] || 1, sp = table.filter(([,
 const roll = table => { let x = Math.random(); for (const [p, v] of table) { if ((x -= p) < 0) return v; } return table[table.length - 1][1]; };
 const COMMONISH = [[0.85, 'C'], [0.13, 'U'], [0.02, 'R']];
 const SLOTS = [...Array(6).fill(COMMONISH), [[0.7, 'U'], [0.25, 'R'], [0.05, 'UR']], [[0.7, 'U'], [0.25, 'R'], [0.05, 'UR']], [[0.75, 'R'], [0.25, 'UR']], [[0.75, 'R'], [0.25, 'UR']]];
-const FINISH = { C: [[0.12, 'rev'], [0.88, 'normal']], U: [[0.15, 'rev'], [0.85, 'normal']], R: [[0.4, 'holo'], [0.15, 'rev'], [0.05, 'full'], [0.4, 'normal']], UR: [[0.6, 'holo'], [0.4, 'full']] };
+// Normal is always the most likely; holo beats reverse holo beats full art at every rarity.
+const FINISH = { C: [[0.06, 'holo'], [0.03, 'rev'], [0.91, 'normal']], U: [[0.08, 'holo'], [0.04, 'rev'], [0.005, 'full'], [0.875, 'normal']],
+  R: [[0.15, 'holo'], [0.07, 'rev'], [0.02, 'full'], [0.76, 'normal']], UR: [[0.25, 'holo'], [0.12, 'rev'], [0.06, 'full'], [0.57, 'normal']] };
 function openPack(packId) {
   const cards = SLOTS.map(t => {
     let r = roll(t); while (!pool(r, packId).length && r !== 'C') r = { UR: 'R', R: 'U', U: 'C' }[r];
@@ -153,6 +155,7 @@ function wheelGo(idx) {
   st.querySelector('.wheel-name').textContent = pk.name;
   st.querySelectorAll('.wheel-dots i').forEach((d, i) => d.classList.toggle('on', i === cur));
   st.querySelector('.wheel-open').dataset.p = pk.id;
+  if (typeof price === 'function') { st.querySelector('.wheel-open').innerHTML = `Open for ${COIN}${fmt(price(pk.id))}`; const ob = st.querySelector('.odds-btn') || $app.querySelector('.odds-btn'); if (ob) ob.dataset.p = pk.id; } // economy.js prices
 }
 // Swipe: the packs follow your finger, then ease to the nearest one.
 let wheelX = null, lastSwipe = 0;
