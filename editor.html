@@ -46,7 +46,7 @@ $('#grid').addEventListener('input', async e => {
   else { c.crop = get(id).crop = { ...(c.crop || { x: 50, y: 50, zoom: 1 }), [k]: +el.value }; }
   el.closest('.c').querySelector('.vars').innerHTML = vars(c); // redraw only this card
 });
-$('#open').onclick = async () => { dir = await showDirectoryPicker({ mode: 'readwrite' }); $('#save').disabled = false; $('#msg').textContent = 'Folder open'; };
+$('#open').onclick = async () => { if (!window.showDirectoryPicker) return alert('Folder access needs Chrome/Edge on http://localhost (not a 192.168... address or a double-clicked file). Open http://localhost:' + (location.port || 80) + '/editor.html'); try { dir = await showDirectoryPicker({ mode: 'readwrite' }); } catch (err) { return alert('Could not open the folder: ' + err.message); } $('#save').disabled = false; $('#msg').textContent = 'Folder open'; };
 $('#save').onclick = async () => {
   const fh = await (await dir.getDirectoryHandle('js')).getFileHandle('card-overrides.js');
   const w = await fh.createWritable();
