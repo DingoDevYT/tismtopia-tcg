@@ -183,7 +183,7 @@ function viewCollection() {
     <div class="chips">${chip('own', 'all', 'All')}${chip('own', 'owned', 'Owned')}${chip('own', 'missing', 'Missing')}${chip('own', 'favs', '★ Favourites')}</div>
     <div class="chips">${chip('type', 'all', 'Any type')}${chip('type', 'character', 'Characters')}${chip('type', 'bit', 'Items')}${chip('type', 'evil', 'Evils')}</div>
     <div class="chips">${chip('rar', 'all', 'Any rarity')}${['C', 'U', 'R', 'UR'].map(r => chip('rar', r, RARITY_NAME[r])).join('')}</div>
-    <div class="chips">Sort: ${chip('sort', 'no', 'Number')}${chip('sort', 'rarity', 'Rarity')}${chip('sort', 'name', 'Name')}${chip('sort', 'copies', 'Copies')}</div>
+    <div class="chips">${chip('sort', 'no', 'Number')}${chip('sort', 'rarity', 'Rarity')}${chip('sort', 'name', 'Name')}${chip('sort', 'copies', 'Copies')}</div>
   </div>
   <div class="grid coll-grid">${list.map(c => { const n = owned(c.id), f = bestFinish(c.id);
     return `<div class="cell coll-cell${n ? '' : ' locked'}">${renderCard(n && f === 'full' ? { ...c, crop: null } : c, { cls: n ? FINISH_CLS[f] : '', attrs: tappable('view-card', `data-id="${c.id}"`) })}
