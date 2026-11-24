@@ -66,9 +66,39 @@ function syncMusic() {
   playLoop(musicKey());
 }
 
+// Sound effects (audio/local/sfx/, same rule as the music): played by comparing state before and after each render.
+const sfx = name => { if (!musicOn || !unlocked) return; const a = new Audio(`audio/local/sfx/${name}.wav`); a.volume = 0.7; a.play().catch(() => {}); };
+let prev = null, prevOpen = '';
+function syncSfx() {
+  if (ui.view === 'game' && game) {
+    const snap = { turn: game.turn, turnNo: game.turnNo, hands: game.players.map(p => p.hand.length), fx: game.players.map(p => p.effects.length),
+      fields: game.players.map(p => p.field.map(f => f.hp)), bore: game.players.map(p => p.bore) };
+    if (prev) {
+      if (snap.turnNo !== prev.turnNo || snap.turn !== prev.turn) sfx(snap.turn === me ? 'PlayerTurnBegin' : 'OpponentTurnBegin');
+      const lostHp = snap.fields.flat().reduce((a, b) => a + b, 0) < prev.fields.flat().reduce((a, b) => a + b, 0);
+      const fainted = snap.fields.some((f, i) => f.length < prev.fields[i].length);
+      if (fainted) sfx('knockOut_002');
+      else if (lostHp) sfx(prev.fields.flat().reduce((a, b) => a + b, 0) - snap.fields.flat().reduce((a, b) => a + b, 0) >= 4 ? 'colorlessAttackBig' : 'colorlessAttackSmall');
+      else if (snap.fields.some((f, i) => f.length > prev.fields[i].length)) sfx('pokemonPlay');
+      else if (snap.fx.some((n, i) => n > prev.fx[i])) sfx('PlayTrainer');
+      else if (snap.bore.some((n, i) => n > prev.bore[i])) sfx('damageToken');
+      else if (snap.hands[me] > prev.hands[me]) sfx('cardDraw');
+    }
+    prev = snap;
+  } else prev = null;
+  const o = ui.open, tag = ui.view === 'open' && o ? o.stage + o.i : '';
+  if (tag && tag !== prevOpen) {
+    if (o.stage === 'deck') sfx('packopen_4_ripopen');
+    else if (o.stage === 'reveal') sfx(o.cards[o.i].rarity === 'UR' || o.cards[o.i].finish !== 'normal' ? 'packopen_11_rarereveal' : 'packopen_6_A_cardflip');
+    else if (o.stage === 'summary') sfx('packopen_2_handreveal');
+  }
+  prevOpen = tag;
+}
+addEventListener('click', e => { if (e.target.closest('button')) sfx('ui_button_1'); }, { capture: true });
+
 // Hook into every screen change.
 const renderNoMusic = render;
-render = function () { renderNoMusic(); syncMusic(); };
+render = function () { renderNoMusic(); syncMusic(); syncSfx(); };
 
 // Browsers only allow sound after a tap: the first one anywhere starts the music.
 addEventListener('pointerdown', () => { if (!unlocked) { unlocked = true; syncMusic(); } }, { capture: true });
