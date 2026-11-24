@@ -59,3 +59,6 @@ render = function () {
   } else paidPhase = null;
   renderNoPay();
 };
+
+const viewHomeNoCoins = viewHome;
+viewHome = () => coinBar() + viewHomeNoCoins();
