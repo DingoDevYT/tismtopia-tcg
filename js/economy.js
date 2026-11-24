@@ -98,8 +98,8 @@ function oddsHtml() {
   const rows = CARDS.filter(c => c.type !== 'captain').map(c => { const r = c.rarity || 'C', n = pool(r).length;
     return { c, p: SLOTS.reduce((s, t) => s + (t.find(([, v]) => v === r)?.[0] || 0) / n, 0) / SLOTS.length }; })
     .sort((a, b) => a.c.no.localeCompare(b.c.no));
-  return `<h3>What's in this pack</h3><small class="muted">Chance that any card you pull is this one</small><div class="odds">${rows.map(({ c, p }) =>
-    `<div>${renderCard(c, { attrs: `data-act="view-card" data-id="${c.id}"` })}<small class="chip on">${(p * 100).toFixed(p < 0.01 ? 2 : 1)}%</small></div>`).join('')}</div>`;
+  return `<h3>What's in this pack</h3><small class="muted">Chance that any card you pull is this one</small><div class="grid odds">${rows.map(({ c, p }) =>
+    `<div class="cell coll-cell">${renderCard(c, { attrs: `data-act="view-card" data-id="${c.id}"` })}<small class="chip on">${(p * 100).toFixed(p < 0.01 ? 2 : 1)}%</small></div>`).join('')}</div>`;
 }
 const viewPacksNoOdds = viewPacks;
 viewPacks = () => viewPacksNoOdds() + (ui.odds ? `<div class="viewer"><div class="viewer-bg" data-act="odds"></div><div class="shop-sheet neu">${oddsHtml()}<button class="btn wide" data-act="odds">Close</button></div></div>` : '');
