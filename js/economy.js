@@ -93,13 +93,13 @@ viewOpen = () => {
     .replace('<div class="pull-grid">', `<button class="btn wide" data-act="sell-all-pulls">Sell all for ${COIN}${fmt(o.cards.filter(p => !p.sold).reduce((a, p) => a + cardValue(p.id, p.finish), 0))}</button><div class="pull-grid">`);
 };
 
-// "What's in this pack?": every card and its chance to show up at least once in a pack.
+// "What's in this pack?": every card, in number order, with its share of all pulled cards (adds up to 100%).
 function oddsHtml() {
   const rows = CARDS.filter(c => c.type !== 'captain').map(c => { const r = c.rarity || 'C', n = pool(r).length;
-    const miss = SLOTS.reduce((m, t) => m * (1 - (t.find(([, v]) => v === r)?.[0] || 0) / n), 1); return { c, p: 1 - miss }; })
-    .sort((a, b) => a.p - b.p || a.c.name.localeCompare(b.c.name));
-  return `<h3>What's in this pack</h3><small class="muted">Chance to get each card at least once in a 10-card pack</small><div class="odds">${rows.map(({ c, p }) =>
-    `<div><span class="rar r-${c.rarity || 'C'}">${RARITY_NAME[c.rarity || 'C']}</span><b>${esc(c.name)}</b><span>${(p * 100).toFixed(p < 0.1 ? 1 : 0)}%</span></div>`).join('')}</div>`;
+    return { c, p: SLOTS.reduce((s, t) => s + (t.find(([, v]) => v === r)?.[0] || 0) / n, 0) / SLOTS.length }; })
+    .sort((a, b) => a.c.no.localeCompare(b.c.no));
+  return `<h3>What's in this pack</h3><small class="muted">Chance that any card you pull is this one</small><div class="odds">${rows.map(({ c, p }) =>
+    `<div>${renderCard(c, { cls: 'mini', attrs: `data-act="view-card" data-id="${c.id}"` })}<small>${(p * 100).toFixed(p < 0.01 ? 2 : 1)}%</small></div>`).join('')}</div>`;
 }
 const viewPacksNoOdds = viewPacks;
 viewPacks = () => viewPacksNoOdds() + (ui.odds ? `<div class="viewer"><div class="viewer-bg" data-act="odds"></div><div class="shop-sheet neu">${oddsHtml()}<button class="btn wide" data-act="odds">Close</button></div></div>` : '');
