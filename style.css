@@ -878,3 +878,5 @@ img { -webkit-user-drag: none; }
 .card .pc b { font-size: 4.4cqw; line-height: 1; } .card .pc .free { font-size: 2.7cqw; letter-spacing: .1cqw; }
 .card .name, .card.mini .name, .card.mini.k-character .name, .card.mini.k-main .name { font-size: 5.4cqw; }
 .card .name, .card.mini .name, .card.mini.k-character .name, .card.mini.k-main .name { font-size: 4.1cqw; letter-spacing: -.05cqw; }
+.card .head .type { display: none; } /* frame colour already says the card type; the room goes to the name */
+.card .name, .card.mini .name, .card.mini.k-character .name, .card.mini.k-main .name { font-size: 5.1cqw; }
