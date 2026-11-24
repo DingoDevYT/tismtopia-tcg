@@ -9,10 +9,9 @@ const CF_EFF = {
   draw: ['Draw cards', n => ['draw', 'me', n]],
   act: ['+Actions', n => ['actions', 'me', n]],
   heal: ['Heal self', n => ['hp', 'self', -n]], // game.js 'hp': positive n = damage, negative = heal
-
   dmg: ['Extra damage to the blocker', n => ['hp', 'target', n]],
   atk: ['Your attacks +power', n => ({ atk: n })],
-  def: ['Your Characters +DEF', n => ({ def: n })],
+  def: ['Your Characters +armour', n => ({ def: n })],
   tax: ["Opponent's attacks cost more", n => ({ oppAttackCost: n })],
 };
 const CF_BASIC = ['goof', 'bore', 'calm', 'draw', 'act'];
@@ -20,6 +19,16 @@ const CF_BASIC = ['goof', 'bore', 'calm', 'draw', 'act'];
 const CF_OK = { play: CF_BASIC, turn: CF_BASIC, hit: [...CF_BASIC, 'heal'], passive: ['atk', 'def', 'tax'], onHit: [...CF_BASIC, 'heal', 'dmg'], ability: [...CF_BASIC, 'heal'] };
 const CF_FINS = ['holo', 'rev', 'full', 'rainbow'];
 const CF_BG = ['glow', 'rays', 'stars', 'dots', 'sky', 'flames', 'grid', 'plain']; // background templates, drawn in art-tools.js
+// Players pick what the card prints. Card data keeps the engine's numbers (printed HP = maxHp(hp), armour = baseArmor(def)), so these map
+// each printed value to the stored one, over the range the real Characters print. Attack power is stored as printed (apply-cards bakes its bonus in).
+const CF_HP = {}, CF_DEF = {}, CF_POW = []; // printed HP -> hp, armour -> lowest def, [min, max] printed damage
+{
+  const ch = CARDS.filter(c => c.type === 'character'), shown = ch.map(maxHp), pw = ch.flatMap(c => c.moves.filter(m => !m.ability).map(m => m.power));
+  for (let k = 1; k <= 20; k++) { const p = maxHp({ hp: k }); if (p >= Math.min(...shown) && p <= Math.max(...shown) && !(p in CF_HP)) CF_HP[p] = k; } // HP_SCALE rounding skips some numbers
+  for (let d = 8; d <= 16; d++) { const a = baseArmor({ def: d }); if (!(a in CF_DEF)) CF_DEF[a] = d; }
+  CF_POW.push(Math.min(...pw), Math.max(...pw));
+}
+const cfNear = (v, list) => list.reduce((b, x) => (Math.abs(x - v) < Math.abs(b - v) ? x : b));
 // Items are Instant (when played) or last a few turns (start of your turn / passive); Evils always last.
 const cfTrigs = (type, dur) => (type === 'character' ? ['', 'play', 'hit', 'turn', 'passive'] : type === 'bit' && !dur ? ['play'] : ['turn', 'passive']);
 
@@ -36,11 +45,11 @@ function cfClean(f) {
   const crop = c => ({ x: cfNum(c?.x, 0, 100, 50), y: cfNum(c?.y, 0, 100, 50), zoom: cfNum(c?.zoom, 1, 4, 1) });
   return {
     type, name: cfStr(f.name, 22), credit: cfStr(f.credit, 30), notes: cfStr(f.notes, 300),
-    hp: cfInt(f.hp, 1, 8, 3), def: cfInt(f.def, 8, 16, 10), cost: cfInt(f.cost, type === 'evil' ? 1 : 0, 3, 1), dur,
+    hp: cfNear(cfInt(f.hp, 1, 20, 3), Object.values(CF_HP)), def: CF_DEF[baseArmor({ def: cfInt(f.def, 8, 16, 8) })], cost: cfInt(f.cost, type === 'evil' ? 1 : 0, 3, 1), dur,
     fx: { trig, eff: ok.length ? pick(ok, f.fx?.eff) : '', n: cfInt(f.fx?.n, 1, 3, 1) },
     moves: (Array.isArray(f.moves) && f.moves.length ? f.moves : [{}]).slice(0, 2).map(m => {
       const ability = m?.ability === true, list = CF_OK[ability ? 'ability' : 'onHit'];
-      return { name: cfStr(m?.name, 20), cost: cfInt(m?.cost, 1, 3, 1), ability, power: cfInt(m?.power, 1, 6, 2), eff: list.includes(m?.eff) ? m.eff : '', n: cfInt(m?.n, 1, 3, 1) };
+      return { name: cfStr(m?.name, 20), cost: cfInt(m?.cost, 1, 3, 1), ability, power: cfInt(m?.power, CF_POW[0], CF_POW[1], 2), eff: list.includes(m?.eff) ? m.eff : '', n: cfInt(m?.n, 1, 3, 1) };
     }),
     fins: Object.fromEntries(CF_FINS.map(k => [k, type === 'character' && f.fins?.[k] === true])),
     crop: crop(f.crop), cropFull: crop(f.cropFull), anyway: f.anyway === true,

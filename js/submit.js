@@ -9,7 +9,9 @@
 //   form: {                                 what the player picked; every value is clamped by cfClean()
 //     type: 'character' | 'bit' | 'evil',   (bit = Item; Captains can't be submitted)
 //     name: string <= 22, credit: string <= 30 ("whose OC is this"), notes: string <= 300 (to the reviewer),
-//     hp: 1-8, def: 8-16                    Characters (printed HP and DEF, like cards-data.js)
+//     hp, def                               Characters, stored like cards-data.js; the player picks what the card prints:
+//                                         hp is the lowest value whose maxHp() is the chosen printed HP (today hp 1-6 = printed 1, 2, 4, 5, 6, 7),
+//                                         def is the lowest DEF for the chosen armour (8 = armour 0, 12 = 1, 15 = 2)
 //     cost: 0-3                             Actions to play (Evils 1-3)
 //     dur: 0-3                              Items: 0 = Instant, 1-3 = lasts that many turns; 0 for the others
 //     fx: { trig, eff, n }                  the card's one effect (a Character's optional passive):
@@ -17,7 +19,7 @@
 //         eff:  'goof' (+n Creativity) | 'bore' (opponent +n Boredom) | 'calm' (your Boredom -n) | 'draw' | 'act' (+n Actions)
 //               | 'heal' (self, on a hit) | 'atk' | 'def' | 'tax' (opponent's attacks cost n more; these three are passive only) | ''
 //         n: 1-3
-//     moves: [ { name: string <= 20, cost: 1-3, ability: bool, power: 1-6 (ignored for abilities),
+//     moves: [ { name: string <= 20, cost: 1-3, ability: bool, power: printed damage, 2-6 like the real cards (ignored for abilities),
 //                eff: '' | 'goof'|'bore'|'calm'|'draw'|'act'|'heal'|'dmg' (dmg = n more damage to the blocker, attacks only), n: 1-3 } ]
 //                                         1-2 moves, Characters only (Items/Evils carry one default move that is ignored)
 //     fins: { holo, rev, full, rainbow }    booleans: finishes the player allows (all false for Items/Evils; normal is always allowed)
@@ -38,11 +40,11 @@
 // image_path = the image's path, note = form.notes. Pictures live in the private `submissions` bucket.
 // Example (image shortened):
 // {"v":1,"kind":"tismcard","created":"2026-11-24T12:00:00.000Z",
-//  "form":{"type":"character","name":"Bee Boy","credit":"the jangle jingler","notes":"","hp":4,"def":13,"cost":1,"dur":0,
+//  "form":{"type":"character","name":"Bee Boy","credit":"the jangle jingler","notes":"","hp":4,"def":12,"cost":1,"dur":0,
 //   "fx":{"trig":"play","eff":"goof","n":1},"moves":[{"name":"Bonk","cost":1,"ability":false,"power":2,"eff":"","n":1},
 //   {"name":"Big Bonk","cost":2,"ability":false,"power":4,"eff":"bore","n":1}],"fins":{"holo":true,"rev":false,"full":false,"rainbow":true},
 //   "crop":{"x":50,"y":30,"zoom":1.4},"cropFull":{"x":50,"y":50,"zoom":1},"anyway":false},
-//  "card":{"id":"sub_bee_boy","type":"character","name":"Bee Boy","cost":1,"onPlay":[["goof","me",1]],"hp":4,"def":13,
+//  "card":{"id":"sub_bee_boy","type":"character","name":"Bee Boy","cost":1,"onPlay":[["goof","me",1]],"hp":4,"def":12,
 //   "text":"When played: +1 Creativity.","moves":[{"name":"Bonk","cost":1,"power":2},{"name":"Big Bonk","cost":2,"power":4,
 //   "onHit":[["bore","opp",1]],"text":"On a hit, opponent +1 Boredom."}],"artist":"the jangle jingler",
 //   "crop":{"x":50,"y":30,"zoom":1.4},"cropFull":{"x":50,"y":50,"zoom":1},"finishes":["normal","holo","rainbow"]},
@@ -107,8 +109,14 @@ async function subPick(file) {
 // ---------- the screen ----------
 const subFins = f => ['normal', ...CF_FINS.filter(k => f.fins[k])];
 const subFin = f => (subFins(f).includes(ui.subFin) ? ui.subFin : 'normal');
-const subSel = (path, val, opts, attrs = '') => `<select data-f="${path}" ${attrs}>${opts.map(([v, l]) => `<option value="${v}"${String(v) === String(val) ? ' selected' : ''}>${l}</option>`).join('')}</select>`;
+// The id lets render() put focus back after a redraw, so arrow keys keep working on a picker that changes the form.
+const subSel = (path, val, opts, attrs = '') => `<select id="sf-${path.replace(/\./g, '-')}" data-f="${path}" ${attrs}>${opts.map(([v, l]) => `<option value="${v}"${String(v) === String(val) ? ' selected' : ''}>${l}</option>`).join('')}</select>`;
 const subNums = (lo, hi) => Array.from({ length: hi - lo + 1 }, (_, i) => [lo + i, lo + i]);
+// A row of buttons showing exactly what the card will print; tapping one updates the preview in place (no redraw, nothing to lose mid-gesture).
+const subSeg = (path, val, opts, label, hint = '') => `<div class="sub-field"><span>${label}${hint ? ` <small>${hint}</small>` : ''}</span><div class="sub-seg" role="radiogroup" aria-label="${label}">${opts.map(([v, l]) =>
+  `<button type="button" role="radio" aria-checked="${v === val}" class="${v === val ? 'on' : ''}" data-act="sub-seg" data-p="${path}" data-v="${v}">${l}</button>`).join('')}</div></div>`;
+const subPips = n => (n ? ICON.action.repeat(n) : 'Free'); // a move's cost as the card prints it
+const SUB_N = subNums(1, 3);
 const subField = (label, inner, err = '', cls = '') => `<label class="sub-field ${cls}"><span>${label}</span>${inner}${err ? `<small class="sub-err" data-err="${err}" aria-live="polite"></small>` : ''}</label>`;
 const subThumb = (t, tint) => (subArt.thumbs[t + tint] ||= atBg(t, tint, 36, 50).toDataURL());
 
@@ -125,18 +133,19 @@ function subMeter(f) {
 // The card's one effect (a Character's optional passive): when it happens, what it does, how much.
 function subFx(f) {
   const trigs = cfTrigs(f.type, f.dur), ok = CF_OK[f.fx.trig] || [];
-  return `<div class="sub-row">${trigs.length > 1 ? subField(f.type === 'character' ? 'Passive ability' : 'When', subSel('fx.trig', f.fx.trig, trigs.map(t => [t, CF_TRIG[t]]), 'data-redraw')) : ''}
-    ${ok.length ? subField('Effect', subSel('fx.eff', f.fx.eff, ok.map(k => [k, CF_EFF[k][0]])), '', 'grow') + subField('Amount', subSel('fx.n', f.fx.n, subNums(1, 3), 'data-num'), '', 'sm') : ''}</div>`;
+  return `${trigs.length > 1 ? subField(f.type === 'character' ? 'Passive ability' : 'When', subSel('fx.trig', f.fx.trig, trigs.map(t => [t, CF_TRIG[t]]), 'data-redraw')) : ''}
+    ${ok.length ? subField('Effect', subSel('fx.eff', f.fx.eff, ok.map(k => [k, CF_EFF[k][0]]))) + subSeg('fx.n', f.fx.n, SUB_N, 'Amount') : ''}`;
 }
 function subMoves(f) {
   return f.moves.map((m, i) => {
     const list = CF_OK[m.ability ? 'ability' : 'onHit'];
     return `<div class="sub-move neu-in"><div class="sub-row">${subField(`Move ${i + 1} name`, `<input data-f="moves.${i}.name" maxlength="20" autocomplete="off" value="${esc(m.name)}">`, `m${i}name`, 'grow')}
       ${i ? `<button class="btn sm" data-act="sub-move-del" data-i="${i}">Remove</button>` : ''}</div>
-      <div class="sub-row">${subField('Action cost', subSel(`moves.${i}.cost`, m.cost, subNums(1, 3), 'data-num'))}${subField('Damage', m.ability ? '<select disabled><option>None</option></select>' : subSel(`moves.${i}.power`, m.power, subNums(1, 6), 'data-num'))}</div>
-      <label class="sub-check"><input type="checkbox" data-f="moves.${i}.ability" data-redraw${m.ability ? ' checked' : ''}> Ability (no damage, no roll)</label>
-      <div class="sub-row">${subField(m.ability ? 'What it does' : 'On a hit (optional)', subSel(`moves.${i}.eff`, m.eff, [['', m.ability ? 'Pick an effect' : 'Nothing extra'], ...list.map(k => [k, CF_EFF[k][0]])]), `m${i}eff`, 'grow')}
-      ${subField('Amount', subSel(`moves.${i}.n`, m.n, subNums(1, 3), 'data-num'), '', 'sm')}</div></div>`;
+      ${subSeg(`moves.${i}.cost`, m.cost, SUB_N.map(([n]) => [n, subPips(n)]), 'Action cost')}
+      ${m.ability ? '<div class="sub-field"><span>Damage</span><p class="muted">None: abilities don\'t attack</p></div>' : subSeg(`moves.${i}.power`, m.power, subNums(CF_POW[0], CF_POW[1]), 'Damage')}
+      <label class="sub-check"><input type="checkbox" id="sf-moves-${i}-ability" data-f="moves.${i}.ability" data-redraw${m.ability ? ' checked' : ''}> Ability (no damage, no roll)</label>
+      ${subField(m.ability ? 'What it does' : 'On a hit (optional)', subSel(`moves.${i}.eff`, m.eff, [['', m.ability ? 'Pick an effect' : 'Nothing extra'], ...list.map(k => [k, CF_EFF[k][0]])]), `m${i}eff`)}
+      ${subSeg(`moves.${i}.n`, m.n, SUB_N, 'Amount')}</div>`;
   }).join('') + (f.moves.length < 2 ? '<button class="btn wide" data-act="sub-move-add">Add a second move</button>' : '');
 }
 function subArtTools() {
@@ -181,15 +190,15 @@ function viewSubmit() {
     ${sub.art ? subCrops('crop', isCh ? 'Crop: normal, holo and reverse holo' : 'Crop') + (isCh && (f.fins.full || f.fins.rainbow) ? subCrops('cropFull', 'Crop: full art and rainbow (the art fills the whole card)') : '') : ''}
   </section>
   ${isCh ? `<section class="panel neu"><h3 class="sub-h">Finishes</h3><p class="muted">Which special versions may this card come in? Normal always exists.</p>
-    <div class="sub-fins">${CF_FINS.map(k => `<label class="sub-check"><input type="checkbox" data-f="fins.${k}" data-redraw${f.fins[k] ? ' checked' : ''}> ${FINISH_NAME[k]}</label>`).join('')}</div></section>
+    <div class="sub-fins">${CF_FINS.map(k => `<label class="sub-check"><input type="checkbox" id="sf-fins-${k}" data-f="fins.${k}" data-redraw${f.fins[k] ? ' checked' : ''}> ${FINISH_NAME[k]}</label>`).join('')}</div></section>
   <section class="panel neu"><h3 class="sub-h">Stats</h3>
-    <label class="sub-slider"><span>HP <b data-out="hp"></b> <small>(<b data-out="hpc"></b> on the card)</small></span><input type="range" data-f="hp" data-num min="1" max="8" value="${f.hp}"></label>
-    <label class="sub-slider"><span>DEF <b data-out="def"></b> <small>(armour <b data-out="armor"></b>: damage blocked per hit)</small></span><input type="range" data-f="def" data-num min="8" max="16" value="${f.def}"></label>
-    <div class="sub-row">${subField('Actions to play', subSel('cost', f.cost, subNums(0, 3), 'data-num'))}</div>
+    ${subSeg('hp', f.hp, Object.entries(CF_HP).map(([shown, hp]) => [hp, shown]), 'HP')}
+    ${subSeg('def', f.def, Object.entries(CF_DEF).map(([armour, def]) => [def, armour]), 'Armour', 'damage blocked from every hit')}
+    ${subSeg('cost', f.cost, subNums(0, 3).map(([n]) => [n, n ? `${ICON.action}${n}` : 'Free']), 'Actions to play')}
     ${subFx(f)}</section>
   <section class="panel neu"><h3 class="sub-h">Moves</h3>${subMoves(f)}</section>`
   : `<section class="panel neu"><h3 class="sub-h">${f.type === 'bit' ? 'Item' : 'Evil'}</h3>
-    <div class="sub-row">${subField('Actions to play', subSel('cost', f.cost, subNums(f.type === 'evil' ? 1 : 0, 3), 'data-num'))}
+    <div class="sub-row">${subSeg('cost', f.cost, subNums(f.type === 'evil' ? 1 : 0, 3).map(([n]) => [n, n ? `${ICON.action}${n}` : 'Free']), 'Actions to play')}
     ${f.type === 'bit' ? subField('How long', subSel('dur', f.dur, [[0, 'Instant'], [1, 'Lasts 1 turn'], [2, 'Lasts 2 turns'], [3, 'Lasts 3 turns']], 'data-num data-redraw')) : ''}</div>
     ${f.type === 'evil' ? '<p class="muted">Evils stay in play until the opponent Cleanses them.</p>' : ''}${subFx(f)}</section>`}
   <section class="panel neu"><h3 class="sub-h">Power</h3><div class="sub-meter-box"></div></section>
@@ -197,7 +206,8 @@ function viewSubmit() {
     ${subField('Anything Anonagon should know (optional)', `<textarea data-f="notes" maxlength="300" rows="3">${esc(f.notes)}</textarea><small class="sub-count" data-count="notes"></small>`)}</section>
   <section class="panel neu sub-send"><h3 class="sub-h">Send it</h3>
     ${online ? `<button class="btn primary wide" data-act="sub-send"${ui.subSending ? ' disabled' : ''}>${ui.subSending ? 'Sending…' : 'Submit card'}</button><button class="btn wide" data-act="sub-download">Download card file</button>`
-    : `<button class="btn primary wide" data-act="sub-download">Download card file</button><p class="muted center">Send this file to Anonagon on Discord.</p>${CLOUD.url && cloud.checked ? '<button class="btn wide" data-act="cloud-in">Sign in to submit online</button>' : ''}`}
+    : CLOUD.url && !cloud.checked ? '<p class="muted center">Checking your account… <span class="spin"></span></p>'
+    : `<button class="btn primary wide" data-act="sub-download">Download card file</button><p class="muted center">Send this file to Anonagon on Discord.</p>${CLOUD.url ? '<button class="btn wide" data-act="cloud-in">Sign in to submit online</button>' : ''}`}
     <button class="btn sm sub-reset" data-act="sub-reset">Start over</button>
     ${cloud.user ? subList() : ''}</section>
   </div></div>${tabbar('submit')}`;
@@ -210,7 +220,6 @@ function subPaint() {
   set('.sub-stage', subPreview(f)); set('.sub-finchips', subFinChips(f)); set('.sub-meter-box', subMeter(f));
   const errs = cfErrors(f, !!subArt.blob || subArt.busy);
   $app.querySelectorAll('[data-err]').forEach(el => { const k = el.dataset.err; el.textContent = ((ui.subTried || subTouched.has(k)) && errs[k]) || ''; });
-  $app.querySelectorAll('[data-out]').forEach(el => { el.textContent = { hp: f.hp, hpc: maxHp(f), def: f.def, armor: baseArmor(f) }[el.dataset.out]; });
   $app.querySelectorAll('[data-count]').forEach(el => { el.textContent = `${String(sub.form[el.dataset.count] || '').length}/${el.dataset.count === 'notes' ? 300 : 22}`; });
 }
 const renderNoSubmit = render;
@@ -249,6 +258,11 @@ async function subSend() {
 Object.assign(ACTS, {
   'sub-type'(d) { sub.form.type = d.t; sub.form = cfClean(sub.form); subSave(); },
   'sub-fin'(d) { ui.subFin = d.f; },
+  'sub-seg'(d) {
+    subSet(d.p, Number(d.v)); subSave();
+    $app.querySelectorAll('[data-act="sub-seg"]').forEach(b => { if (b.dataset.p !== d.p) return; const on = b.dataset.v === d.v; b.classList.toggle('on', on); b.setAttribute('aria-checked', on); });
+    subPaint(); return false;
+  },
   'sub-move-add'() { sub.form.moves.push({ name: '', cost: 2, power: 4 }); subSave(); },
   'sub-move-del'(d) { sub.form.moves.splice(Number(d.i), 1); subSave(); },
   'sub-bg'(d) { sub.art.bg = d.t ? { tpl: d.t, tint: sub.art.bg?.tint || subArt.tint || '#e5535d' } : null; subSave(); subRebuild(true); return false; },

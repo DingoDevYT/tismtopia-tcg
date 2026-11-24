@@ -79,7 +79,8 @@ async function cloudSync() {
 }
 const cloudStart = fromDiscord => (cloud.start ||= (async () => {
   const u = await cloudUser(); // waits for the library to swap the ?code= for a session and store it
-  if (fromDiscord) { history.replaceState(null, '', location.pathname); ui.view = 'profile'; ui.back = 'home'; if (u) render(); else toast("Sign-in didn't finish. Try again."); }
+  if (fromDiscord) { history.replaceState(null, '', location.pathname); ui.view = 'profile'; ui.back = 'home'; if (!u) toast("Sign-in didn't finish. Try again."); }
+  if (u && (ui.view === 'profile' || ui.view === 'submit')) render(); // signed-in buttons straight away, not after the save sync
   if (u) { try { await (await sbGet()).from('profiles').upsert({ id: u.id, name: u.name, avatar: u.avatar || null }); } catch { /* the profile row is a nicety */ } await cloudSync(); }
   if (ui.view === 'profile' || ui.view === 'submit') render();
 })());

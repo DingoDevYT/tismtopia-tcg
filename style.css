@@ -1320,6 +1320,12 @@ body:has(#app[data-view="game"]) :is(.vol-btn, .vol-slider) { display: none !imp
 .panel label.btn { cursor: pointer; } .panel .btn { min-height: 44px; }
 .cloud-ask > :is(.dim, .sheet) { position: fixed; z-index: 300; } .cloud-ask .sheet .btn { margin-top: 8px; } .cloud-ask .adj small { display: block; }
 @media (max-width: 899.98px) { .cloud-ask .sheet { left: 0; right: 0; margin-inline: auto; width: min(100%, 480px); } }
+/* submit: printed-value button rows (HP, armour, costs, damage, amounts) */
+.sub-seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.sub-seg button { min-width: 42px; min-height: 42px; padding: 0 12px; display: inline-flex; align-items: center; justify-content: center; gap: 1px; border-radius: 12px; background: var(--surface); box-shadow: var(--raise-sm); font-weight: 800; font-size: 15px; }
+.sub-seg button .i { width: 14px; height: 14px; color: #f2a21a; }
+.sub-seg button.on { box-shadow: var(--inset); color: var(--accent); }
+.sub-field > span small { text-transform: none; letter-spacing: 0; }
 /* submit: preview on top on phones (collapsible), sticky beside the form on wide screens */
 .sub-prev { margin: 14px 16px 0; padding: 10px 14px 14px; display: grid; justify-items: center; gap: 10px; }
 .sub-prev summary { justify-self: stretch; min-height: 40px; display: flex; align-items: center; justify-content: center; font-weight: 800; cursor: pointer; }

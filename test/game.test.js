@@ -215,7 +215,11 @@ new Function(['cards-data', 'card-overrides', 'cards', 'render', 'rainbow', 'gam
 { const x = { Image: function () {} }; vm.runInNewContext(['cards-data', 'cards', 'render', 'cardfile'].map(f => fs.readFileSync(__dirname + '/../js/' + f + '.js', 'utf8')).join('\n;\n') + `;
   const ok = (c, m) => { if (!c) throw new Error('FAIL: cardfile: ' + m); };
   const f = cfClean({ type: 'character', name: 'x'.repeat(40), hp: 99, def: -5, cost: 9, fx: { trig: 'passive', eff: 'goof' }, moves: [{ name: 'Hit', power: 50, eff: 'heal', n: 2 }, { ability: true, eff: 'dmg' }, {}], fins: { rainbow: true, evil: true }, hack: 1 });
-  ok(f.name.length === 22 && f.hp === 8 && f.def === 8 && f.cost === 3 && f.moves.length === 2 && f.moves[0].power === 6 && !('hack' in f), 'clamps values');
+  ok(f.name.length === 22 && f.cost === 3 && f.moves.length === 2 && f.moves[0].power === CF_POW[1] && !('hack' in f), 'clamps values');
+  // what the player picks is what the card prints: HP within the real cards' printed range, armour 0-2, damage as stored
+  const shown = CARDS.filter(c => c.type === 'character').map(maxHp), b = cfBuild(f);
+  ok(maxHp(b) === Math.max(...shown) && baseArmor(b) === 0 && CF_POW[0] === Math.min(...CARDS.flatMap(c => (c.moves || []).filter(m => !m.ability).map(m => m.power))), 'stats clamp to printed ranges');
+  ok(Object.entries(CF_HP).every(([p, hp]) => maxHp(cfBuild(cfClean({ hp }))) === +p) && Object.entries(CF_DEF).every(([a, def]) => baseArmor(cfBuild(cfClean({ def }))) === +a) && JSON.stringify(Object.keys(CF_DEF)) === '["0","1","2"]', 'each printed HP / armour button builds that exact card');
   ok(f.fx.eff === 'atk' && f.moves[1].eff === '' && f.fins.rainbow && !('evil' in f.fins), 'only menu effects for each slot');
   const c = cfBuild(f); ok(JSON.stringify(c.moves[0].onHit) === '[["hp","self",-2]]' && c.moves[0].text === 'On a hit, ' + f.name + ' heals 2 HP.', 'heal is a negative hp op with the card wording');
   const d = cfBuild(cfClean({ moves: [{ name: 'a', eff: 'dmg', n: 3 }] })); ok(d.moves[0].text === 'On a hit, 3 more damage to the blocker.' && d.moves[0].onHit[0][2] === 3, 'extra damage is a positive hp op');
