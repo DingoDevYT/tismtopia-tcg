@@ -35,6 +35,9 @@ viewCollection = () => viewCollectionNoCoins();
 const viewerNoSell = viewer;
 viewer = () => {
   const v = ui.viewer, html = viewerNoSell(); if (!v) return html;
+  if (v.shop) { const c = CARD[v.id], f = v.finish, full = f === 'full' || f === 'rainbow';
+    return html.replace(/<div class="viewer-card">[\s\S]*?<\/div>\s*<div class="viewer-info/, `<div class="viewer-card">${renderCard(full ? { ...c, crop: null } : c, { cls: `zoom view sway ${FINISH_CLS[f] || ''}` })}</div><div class="viewer-info`)
+      .replace(/<div class="chips">[\s\S]*?<\/div>/, '').replace('<button class="btn wide" data-act="close-viewer">', `<button class="btn primary wide" data-act="buy" data-id="${v.id}" data-f="${f}">Buy ${starsOf(v.id, f)} for ${COIN}${fmt(cardValue(v.id, f) * SHOP_MARKUP)}</button><button class="btn wide" data-act="close-viewer">`); }
   const have = coll[v.id]?.f?.[v.finish] || 0, spare = (coll[v.id]?.n || 0) - keep(v.id);
   // Missing card: point to the pack that can give it, with the chance per pack.
   const pk = !coll[v.id]?.n && PACKS.find(p => PACK_SET[p.id]?.includes(v.id));
@@ -67,6 +70,7 @@ Object.assign(ACTS, {
     if (!coll[v.id]?.f?.[v.finish]) ui.viewer.finish = 'normal';
   },
   shop() { ui.view = 'shop'; },
+  'shop-view'(d) { ui.viewer = { id: d.id, finish: d.f || 'normal', shop: true }; },
   odds(d) { ui.odds = ui.odds ? null : d.p; },
   'sell-pull'(d) {
     const p = ui.open.cards[d.i], e = coll[p.id];
@@ -153,7 +157,7 @@ const left = ms => { const m = Math.floor(ms / 6e4), sec = Math.floor(ms % 6e4 /
 function viewShop() {
   const slots = shopSlots();
   return `<div class="shop-page"><h2>Shop</h2><p class="shop-timer">${ICON.time}New stock in <b class="leaves" data-ends="${slots[0].ends}">${left(slots[0].ends - Date.now())}</b></p><p class="muted center-text">Prices are 3x a card's sell value</p>
-  <div class="grid">${slots.map(({ c, f }) => `<div class="cell coll-cell shop-cell">${renderCard((f === 'full' || f === 'rainbow') ? { ...c, crop: null } : c, { cls: FINISH_CLS[f] || '', attrs: `data-act="view-card" data-id="${c.id}" data-f="${f}"` })}
+  <div class="grid">${slots.map(({ c, f }) => `<div class="cell coll-cell shop-cell">${renderCard((f === 'full' || f === 'rainbow') ? { ...c, crop: null } : c, { cls: FINISH_CLS[f] || '', attrs: `data-act="shop-view" data-id="${c.id}" data-f="${f}"` })}${owned(c.id) ? '' : '<span class="new shop-new">NEW</span>'}
     <small class="chip on shop-stars">${starsOf(c.id, f)}${f !== 'normal' ? ' · ' + FINISH_NAME[f] : ''}</small>
     <button class="btn primary wide" data-act="buy" data-id="${c.id}" data-f="${f}">${COIN}${fmt(cardValue(c.id, f) * SHOP_MARKUP)}</button></div>`).join('')}</div></div>${tabbar('shop')}${viewer()}`;
 }

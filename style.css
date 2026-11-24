@@ -843,3 +843,4 @@ img { -webkit-user-drag: none; }
 .shop-stars { align-self: center; pointer-events: none; }
 .shop-page h2 { text-align: center; }
 .shop-timer { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 4px 0; font-weight: 600; } .shop-timer svg { width: 18px; height: 18px; }
+.shop-cell { position: relative; } .shop-new { position: absolute; top: 6px; left: 6px; z-index: 5; pointer-events: none; }
