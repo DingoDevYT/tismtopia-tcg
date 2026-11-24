@@ -63,4 +63,4 @@ render = function () {
 };
 
 const viewHomeNoCoins = viewHome;
-viewHome = () => viewHomeNoCoins().replace(/<div class="topbar">[sS]*?</div>/, '');
+viewHome = () => viewHomeNoCoins().replace(/<div class="topbar">[\s\S]*?<\/div>/, '');
