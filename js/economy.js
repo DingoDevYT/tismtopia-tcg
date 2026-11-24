@@ -152,7 +152,7 @@ function shopSlots() {
 const left = ms => { const m = Math.floor(ms / 6e4), sec = Math.floor(ms % 6e4 / 1000); return `${m}m ${String(sec).padStart(2, '0')}s`; };
 function viewShop() {
   const slots = shopSlots();
-  return `<div class="shop-page"><h2>Shop</h2><p class="muted">New stock in <b class="leaves" data-ends="${slots[0].ends}">${left(slots[0].ends - Date.now())}</b> · prices are 3x a card's sell value</p>
+  return `<div class="shop-page"><h2>Shop</h2><p class="shop-timer">${ICON.time}New stock in <b class="leaves" data-ends="${slots[0].ends}">${left(slots[0].ends - Date.now())}</b></p><p class="muted center-text">Prices are 3x a card's sell value</p>
   <div class="grid">${slots.map(({ c, f }) => `<div class="cell coll-cell shop-cell">${renderCard((f === 'full' || f === 'rainbow') ? { ...c, crop: null } : c, { cls: FINISH_CLS[f] || '', attrs: `data-act="view-card" data-id="${c.id}" data-f="${f}"` })}
     <small class="chip on shop-stars">${starsOf(c.id, f)}${f !== 'normal' ? ' · ' + FINISH_NAME[f] : ''}</small>
     <button class="btn primary wide" data-act="buy" data-id="${c.id}" data-f="${f}">${COIN}${fmt(cardValue(c.id, f) * SHOP_MARKUP)}</button></div>`).join('')}</div></div>${tabbar('shop')}${viewer()}`;

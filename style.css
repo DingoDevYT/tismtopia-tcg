@@ -841,3 +841,5 @@ img { -webkit-user-drag: none; }
 .shop-page { padding: 64px 16px 100px; overflow: auto; height: 100%; box-sizing: border-box; } .shop-page h2 { margin: 0 0 4px; }
 .shop-cell { display: flex; flex-direction: column; gap: 6px; align-items: stretch; } .shop-cell .leaves { text-align: center; }
 .shop-stars { align-self: center; pointer-events: none; }
+.shop-page h2 { text-align: center; }
+.shop-timer { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 4px 0; font-weight: 600; } .shop-timer svg { width: 18px; height: 18px; }
