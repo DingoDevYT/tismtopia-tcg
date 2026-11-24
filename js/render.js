@@ -91,7 +91,7 @@ function renderCard(c, o = {}) {
     <div class="head">${c.type !== 'captain' ? `<span class="pc" title="Actions to play">${(c.cost ?? 1) ? ICON.action.repeat(c.cost ?? 1) : 'FREE'}</span>` : ''}<span class="name">${c.name}</span>${hpTag}<span class="type">${ICON[kind]}</span></div>
     <div class="art">${art}${/rare holo"/.test(fin) ? layers : ''}${defTag}</div>
     ${body}
-    <div class="foot"><span>${c.role || LABEL[kind]}</span><span>TISM ${c.no}</span></div>${/rare holo"/.test(fin) ? '' : layers}
+    <div class="foot"><span>${c.artist ? `Art: ${c.artist}` : c.role || LABEL[kind]}</span><span>TISM ${c.no}</span></div>${/rare holo"/.test(fin) ? '' : layers}
   </div></div>`;
 }
 

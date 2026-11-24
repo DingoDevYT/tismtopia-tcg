@@ -12,7 +12,7 @@
   .pic img { width: 100%; height: 100%; object-fit: cover; }
   label { display: block; font-size: 12px; } input[type=range] { width: 100%; }
 </style>
-<p>Chrome/Edge on PC. <button class="btn" id="open">1. Open the Tismtopia TCG folder</button> <button class="btn primary" id="save" disabled>2. Save</button> <span id="msg"></span></p>
+<p>Open via http://localhost:8123/editor.html (py tools/serve.py). <button class="btn primary" id="save">Save</button> <span id="msg"></span></p>
 <div id="grid"></div>
 <script src="js/cards-data.js"></script>
 <script src="js/card-overrides.js"></script>
@@ -20,7 +20,6 @@
 <script src="js/render.js"></script>
 <script>
 // Edits js/card-overrides.js and writes uploads to art/local/ through the browser's folder access.
-let dir = null;
 const all = [...CAPTAINS, ...CARDS], ov = structuredClone(OVERRIDES), $ = s => document.querySelector(s);
 const get = id => (ov[id] ||= {});
 const vars = c => (c.type === 'character' ? ['', 'v-holo', 'v-rev', 'v-full'] : ['']).map(v => renderCard(c, { cls: v })).join('');
@@ -37,20 +36,15 @@ function draw() {
 $('#grid').addEventListener('input', async e => {
   const el = e.target, id = el.closest('.c').dataset.id, c = all.find(x => x.id === id), k = el.dataset.k;
   if (el.type === 'file') {
-    if (!dir) return alert('Open the folder first');
     const f = el.files[0], name = `${id}-custom.${f.name.split('.').pop().toLowerCase()}`;
-    const fh = await (await (await dir.getDirectoryHandle('art')).getDirectoryHandle('local', { create: true })).getFileHandle(name, { create: true });
-    const w = await fh.createWritable(); await w.write(f); await w.close();
+    if (!(await fetch('art/local/' + name, { method: 'PUT', body: f })).ok) return alert('Upload failed: run py tools/serve.py and open the editor on localhost:8123');
     c.art = get(id).art = `art/local/${name}?v=${Date.now()}`;
   } else if (k === 'rainbow') c.rainbow = get(id).rainbow = el.checked;
   else { c.crop = get(id).crop = { ...(c.crop || { x: 50, y: 50, zoom: 1 }), [k]: +el.value }; }
   el.closest('.c').querySelector('.vars').innerHTML = vars(c); // redraw only this card
 });
-$('#open').onclick = async () => { if (!window.showDirectoryPicker) return alert('Folder access needs Chrome/Edge on http://localhost (not a 192.168... address or a double-clicked file). Open http://localhost:' + (location.port || 80) + '/editor.html'); try { dir = await showDirectoryPicker({ mode: 'readwrite' }); } catch (err) { return alert('Could not open the folder: ' + err.message); } $('#save').disabled = false; $('#msg').textContent = 'Folder open'; };
 $('#save').onclick = async () => {
-  const fh = await (await dir.getDirectoryHandle('js')).getFileHandle('card-overrides.js');
-  const w = await fh.createWritable();
-  await w.write(`// Written by editor.html: per-card art, crop and rainbow full-art overrides, applied on top of cards-data.js.\nconst OVERRIDES = ${JSON.stringify(ov, null, 1)};\nfor (const c of [...CAPTAINS, ...CARDS]) Object.assign(c, OVERRIDES[c.id] || {});\n`);
+  const r = await fetch('js/card-overrides.js', { method: 'PUT', body: `// Written by editor.html: per-card art, crop and rainbow full-art overrides, applied on top of cards-data.js.\nconst OVERRIDES = ${JSON.stringify(ov, null, 1)};\nfor (const c of [...CAPTAINS, ...CARDS]) Object.assign(c, OVERRIDES[c.id] || {});\n`);
   await w.close(); $('#msg').textContent = 'Saved ' + new Date().toLocaleTimeString();
 };
 draw();

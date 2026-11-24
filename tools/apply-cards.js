@@ -35,6 +35,7 @@ for (const d of drafts) {
   for (const m of c.moves || []) if (!m.ability && m.power != null) m.power += DMG_BONUS;
   if (c.disadv && c.text) c.text = c.text.replace(/Attacks against .*? roll twice and keep the lower\./, 'Tough: +1 armour.');
   owner[c.id] = r?.owner || d.owner || '';
+  if (owner[c.id]) c.artist = owner[c.id]; // credited on the card's bottom line
   const a = r?.art || {}, src = a.path ? path.join(ART, a.path) : a.file ? path.join(ART, r?.folder || d.folder, a.file) : null;
   if (src && fs.existsSync(src)) {
     const rel = `art/local/${c.id}${path.extname(src).toLowerCase()}`;

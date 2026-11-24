@@ -162,7 +162,7 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
 .k-character .frame, .k-main .frame { gap: 1.4cqw; padding: 4cqw 4.5cqw 5cqw; }
 .k-character .head, .k-main .head { min-height: 0; padding: 0 .4cqw 0 1cqw; }
 /* type + set number sit in the bottom border so they cost no text space */
-.k-character .foot, .k-main .foot { position: absolute; left: 5cqw; right: 5cqw; bottom: 1.2cqw; font-size: 2.8cqw; }
+.k-character .foot, .k-main .foot { margin-top: auto; padding-top: 1cqw; font-size: 2.8cqw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; gap: 2cqw; }
 .k-character .name, .k-main .name { color: var(--ink); }
 .card .hp { flex: none; display: flex; align-items: baseline; gap: .6cqw; padding: .4cqw 2.4cqw; border-radius: 99px; font-size: 8cqw; font-weight: 800; line-height: 1.1; color: var(--ink); background: rgba(255, 255, 255, .92); }
 .card .hp i { font-style: normal; font-size: 3.8cqw; color: var(--muted); }
