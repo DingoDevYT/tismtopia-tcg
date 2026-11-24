@@ -805,3 +805,8 @@ img { -webkit-user-drag: none; }
 [data-view="collection"] .chips .chip { display: flex; align-items: center; justify-content: center; text-align: center; position: relative; }
 [data-view="collection"] .chips .chip + .chip::before { content: ""; position: absolute; left: 0; top: 25%; bottom: 25%; width: 1px; background: rgba(52, 60, 85, .25); }
 [data-view="collection"] .chips .chip.on::before, [data-view="collection"] .chips .chip.on + .chip::before { display: none; }
+
+/* Account corner: profile then coins, top right; volume moves top left. */
+.acct { position: fixed; top: calc(10px + env(safe-area-inset-top)); right: 12px; z-index: 70; display: flex; gap: 8px; align-items: center; }
+.acct .coin-bar { position: static; }
+.vol-slider { right: auto !important; left: 12px; }

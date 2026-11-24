@@ -7,7 +7,8 @@ const setCoins = n => { coins = n; store.set('coins', coins); };
 const cardValue = (id, f = 'normal') => (RVAL[CARD[id].rarity || 'C'] || 10) * (FVAL[f] || 1);
 // Starter copies come back on every load, so they can't be sold (no free-money loop).
 const keep = id => Math.max(0, ...STARTERS.map(s => s.cards[id] || 0));
-const coinBar = () => `<div class="coin-bar neu">${COIN}<b>${coins}</b></div>`;
+// Account corner on every screen but battles: your name/captain, then your coins.
+const coinBar = () => `<div class="acct"><button class="profile neu" data-act="rename-me" aria-label="Change your name">${renderAvatar(CARD[deck().captain] || CAPTAINS[0])}<b>${esc(myName)}</b></button><div class="coin-bar neu">${COIN}<b>${coins}</b></div></div>`;
 
 // Daily shop: same 4 cards for everyone each day, at twice their sell value.
 function shopToday() {
@@ -18,9 +19,9 @@ const shopHtml = () => `<section class="shop"><h3>Shop <small class="muted">new 
   `<div class="shop-item">${renderCard(c, { cls: 'mini', attrs: `data-act="view-card" data-id="${c.id}"` })}<button class="btn primary" data-act="buy" data-id="${c.id}">${COIN}${cardValue(c.id) * 2}</button></div>`).join('')}</div></section>`;
 
 const viewPacksNoShop = viewPacks;
-viewPacks = () => coinBar() + viewPacksNoShop().replace('data-p="' , 'data-p="').replace(/(wheel-open[^>]*>)Open</, `$1Open for ${COIN}${PACK_COST}<`).replace(/(<nav class="tabbar)/, `${shopHtml()}$1`);
+viewPacks = () => viewPacksNoShop().replace('data-p="' , 'data-p="').replace(/(wheel-open[^>]*>)Open</, `$1Open for ${COIN}${PACK_COST}<`).replace(/(<nav class="tabbar)/, `${shopHtml()}$1`);
 const viewCollectionNoCoins = viewCollection;
-viewCollection = () => coinBar() + viewCollectionNoCoins();
+viewCollection = () => viewCollectionNoCoins();
 const viewerNoSell = viewer;
 viewer = () => {
   const v = ui.viewer, html = viewerNoSell(); if (!v) return html;
@@ -58,7 +59,8 @@ render = function () {
     paidPhase = game.phase;
   } else paidPhase = null;
   renderNoPay();
+  if (ui.view !== 'game') $app.insertAdjacentHTML('afterbegin', coinBar());
 };
 
 const viewHomeNoCoins = viewHome;
-viewHome = () => coinBar() + viewHomeNoCoins();
+viewHome = () => viewHomeNoCoins().replace(/<div class="topbar">[sS]*?</div>/, '');
