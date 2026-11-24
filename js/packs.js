@@ -6,8 +6,11 @@ const PACKS = [
   { id: 'empirical', name: 'Empirical Ascension', colour: '#1f9bff' },
   { id: 'foreseen', name: 'Foreseen Knowledge', colour: '#5b1fd6' },
 ];
-const RARITY_NAME = { C: '★', U: '★★', R: '★★★', UR: '★★★★' }; // star rarity
-const FINISH_NAME = { normal: '', rev: 'Reverse Holo', holo: 'Holo', full: 'Full Art', rainbow: '★★★★★ Rainbow' };
+const RARITY_NAME = { C: 'Common', U: 'Uncommon', R: 'Rare', UR: 'Ultra Rare' };
+// Stars: 0 plain common, 1 rarer card, 2 holo, 3 reverse holo, 4 full art, 5 rainbow.
+const starN = (id, f = 'normal') => ({ holo: 2, rev: 3, full: 4, rainbow: 5 }[f] ?? ((CARD[id]?.rarity || 'C') === 'C' ? 0 : 1));
+const starsOf = (id, f) => { const n = starN(id, f); return n ? '★'.repeat(n) : '☆'; };
+const FINISH_NAME = { normal: '', rev: 'Reverse Holo', holo: 'Holo', full: 'Full Art', rainbow: 'Rainbow' };
 const FINISH_CLS = { normal: '', rev: 'v-rev', holo: 'v-holo', full: 'v-full v-holo', rainbow: 'v-full v-holo v-rainbow' };
 
 // Everyone owns the free starter decks (topped up on every load, so new starters reach old saves).
@@ -80,11 +83,11 @@ function viewOpen() {
     return `<div class="open-stage reveal${rare ? ' rare r-' + cur.rarity : ''}" data-act="next-card">
       ${rare ? '<div class="burst"></div>' : ''}
       <div class="stack" data-act="noop">${behind}${renderCard((cur.finish === 'full' || cur.finish === 'rainbow') ? { ...c, crop: null } : c, { cls: `zoom flick enter ${FINISH_CLS[cur.finish]}` })}</div>
-      <p class="pull-tag">${cur.isNew ? '<span class="new">NEW</span>' : ''}${RARITY_NAME[cur.rarity]}${cur.finish !== 'normal' ? ` · ${FINISH_NAME[cur.finish]}` : ''}</p>
+      <p class="pull-tag">${cur.isNew ? '<span class="new">NEW</span>' : ''}${starsOf(cur.id, cur.finish)}${cur.finish !== 'normal' ? ` · ${FINISH_NAME[cur.finish]}` : ''}</p>
       <p class="open-hint">Drag to tilt · flick to the side for the next card (${o.i + 1}/${o.cards.length})</p></div>`;
   }
   return `${header('Your pulls')}
-    <div class="pull-grid">${o.cards.map(p => `<div class="pull">${renderCard((p.finish === 'full' || p.finish === 'rainbow') ? { ...CARD[p.id], crop: null } : CARD[p.id], { cls: FINISH_CLS[p.finish], attrs: tappable('view-card', `data-id="${p.id}" data-f="${p.finish}"`) })}${p.isNew ? '<span class="new">NEW</span>' : ''}<small>${RARITY_NAME[p.rarity]}${p.finish !== 'normal' ? ` · ${FINISH_NAME[p.finish]}` : ''}</small></div>`).join('')}</div>
+    <div class="pull-grid">${o.cards.map(p => `<div class="pull">${renderCard((p.finish === 'full' || p.finish === 'rainbow') ? { ...CARD[p.id], crop: null } : CARD[p.id], { cls: FINISH_CLS[p.finish], attrs: tappable('view-card', `data-id="${p.id}" data-f="${p.finish}"`) })}${p.isNew ? '<span class="new">NEW</span>' : ''}<small>${starsOf(p.id, p.finish)}${p.finish !== 'normal' ? ` · ${FINISH_NAME[p.finish]}` : ''}</small></div>`).join('')}</div>
     <div class="row2" style="margin:16px"><button class="btn primary" data-act="pick-pack" data-p="${o.pack}">Open another</button><button class="btn" data-act="go" data-to="packs">Done</button></div>
     ${overlay()}${viewer()}`;
 }
@@ -173,11 +176,11 @@ document.addEventListener('pointerup', e => {
 // ---------------- collection: every card, what you own, favourites, search / filter / sort ----------------
 let favs = new Set(store.get('favs', []));
 const RANK = { C: 0, U: 1, R: 2, UR: 3 };
-const bestFinish = id => { if (CARD[id]?.type !== 'character') return 'normal'; const f = coll[id]?.f || {}; return f.full ? 'full' : f.holo ? 'holo' : f.rev ? 'rev' : 'normal'; };
+const bestFinish = id => { if (CARD[id]?.type !== 'character') return 'normal'; const f = coll[id]?.f || {}; return f.rainbow ? 'rainbow' : f.full ? 'full' : f.rev ? 'rev' : f.holo ? 'holo' : 'normal'; };
 function viewCollection() {
   const s = (ui.coll ||= { q: '', own: 'all', type: 'all', rar: 'all', sort: 'no' }), q = s.q.trim().toLowerCase();
   let list = CARDS.filter(c => (s.own === 'all' || (s.own === 'owned' ? owned(c.id) : s.own === 'missing' ? !owned(c.id) : favs.has(c.id)))
-    && (s.type === 'all' || c.type === s.type) && (s.rar === 'all' || (c.rarity || 'C') === s.rar)
+    && (s.type === 'all' || c.type === s.type) && (s.rar === 'all' || String(starN(c.id, owned(c.id) ? bestFinish(c.id) : 'normal')) === s.rar)
     && (!q || [c.name, c.text, c.role, ...(c.moves || []).flatMap(m => [m.name, m.text])].some(t => t && t.toLowerCase().includes(q))));
   const by = { no: (a, b) => a.no.localeCompare(b.no), rarity: (a, b) => RANK[b.rarity || 'C'] - RANK[a.rarity || 'C'] || a.no.localeCompare(b.no), name: (a, b) => a.name.localeCompare(b.name), copies: (a, b) => owned(b.id) - owned(a.id) || a.no.localeCompare(b.no) };
   list = [...list].sort(by[s.sort]);
@@ -188,7 +191,7 @@ function viewCollection() {
     <input id="coll-search" class="coll-search" type="search" placeholder="Search names, moves, text…" value="${esc(s.q)}" autocomplete="off">
     <div class="chips">${chip('own', 'all', 'All')}${chip('own', 'owned', 'Owned')}${chip('own', 'missing', 'Missing')}${chip('own', 'favs', '★ Favourites')}</div>
     <div class="chips">${chip('type', 'all', 'Any type')}${chip('type', 'character', 'Characters')}${chip('type', 'bit', 'Items')}${chip('type', 'evil', 'Evils')}</div>
-    <div class="chips">${chip('rar', 'all', 'Any rarity')}${['C', 'U', 'R', 'UR'].map(r => chip('rar', r, RARITY_NAME[r])).join('')}</div>
+    <div class="chips">${chip('rar', 'all', 'Any')}${[0, 1, 2, 3, 4, 5].map(n => chip('rar', String(n), n ? n + '★' : '☆')).join('')}</div>
     <div class="chips">${chip('sort', 'no', 'Number')}${chip('sort', 'rarity', 'Rarity')}${chip('sort', 'name', 'Name')}${chip('sort', 'copies', 'Copies')}</div>
   </div>
   <div class="grid coll-grid">${list.map(c => { const n = owned(c.id), f = bestFinish(c.id);
@@ -210,7 +213,7 @@ function viewer() {
   return `<div class="viewer"><div class="viewer-bg" data-act="close-viewer"></div>
     <div class="viewer-card">${renderCard((f === 'full' || f === 'rainbow') ? { ...c, crop: null } : c, { cls: `zoom view sway ${n ? FINISH_CLS[f] : ''}` })}</div>
     <div class="viewer-info neu">
-      <div class="viewer-top"><b>${esc(c.name)}</b><span class="rar r-${c.rarity || 'C'}">${RARITY_NAME[c.rarity || 'C']}</span>
+      <div class="viewer-top"><b>${esc(c.name)}</b><span class="rar r-${c.rarity || 'C'}">${starsOf(v.id, n ? f : 'normal')}</span>
         <button class="fav${favs.has(v.id) ? ' on' : ''}" data-act="fav" data-id="${v.id}" aria-label="Favourite">★</button></div>
       <small class="muted">${n ? `You own ${n}` : 'Not owned yet'} · drag the card to tilt it</small>
       ${n ? `<div class="chips">${have.map(k => `<button class="chip${k === f ? ' on' : ''}" data-act="viewer-finish" data-f="${k}">${k === 'normal' ? 'Normal' : FINISH_NAME[k]}${coll[v.id]?.f?.[k] ? ` ×${coll[v.id].f[k]}` : ''}</button>`).join('')}</div>` : ''}

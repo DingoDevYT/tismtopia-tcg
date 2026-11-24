@@ -122,7 +122,7 @@ function oddsHtml() {
     .sort((a, b) => FORDER.indexOf(b.f) - FORDER.indexOf(a.f) || a.p - b.p || a.c.no.localeCompare(b.c.no));
   const pc = p => (p * 100).toFixed(p < 0.001 ? 3 : p < 0.01 ? 2 : 1) + '%';
   return `<h3>${esc(PACKS.find(p => p.id === ui.odds)?.name || 'This pack')}: ${fmt(price(ui.odds))} coins</h3><small class="muted">Chance that any card you pull is this one, rarest first</small><div class="grid odds">${rows.map(({ c, f, p }) =>
-    `<div class="cell coll-cell">${renderCard((f === 'full' || f === 'rainbow') ? { ...c, crop: null } : c, { cls: FINISH_CLS[f] || '', attrs: `data-act="view-card" data-id="${c.id}" data-f="${f}"` })}<small class="chip on">${f === 'normal' ? '' : FINISH_NAME[f] + ' · '}${pc(p)}</small></div>`).join('')}</div>`;
+    `<div class="cell coll-cell">${renderCard((f === 'full' || f === 'rainbow') ? { ...c, crop: null } : c, { cls: FINISH_CLS[f] || '', attrs: `data-act="view-card" data-id="${c.id}" data-f="${f}"` })}<small class="chip on">${starsOf(c.id, f)} · ${pc(p)}</small></div>`).join('')}</div>`;
 }
 const viewPacksNoOdds = viewPacks;
 viewPacks = () => viewPacksNoOdds() + (ui.odds ? `<div class="viewer"><div class="viewer-bg" data-act="odds"></div><div class="shop-sheet neu">${oddsHtml()}<button class="btn wide" data-act="odds">Close</button></div></div>` : '');
