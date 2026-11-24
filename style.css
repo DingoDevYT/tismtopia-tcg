@@ -959,3 +959,5 @@ img { -webkit-user-drag: none; }
 .tear-zone .pack::after { display: none; } /* the old flat sheen */
 .pack3d { filter: drop-shadow(0 26px 22px rgba(20, 20, 60, .35)); }
 .tear-zone.torn .pack.body { clip-path: polygon(0 11%, 100% 11%, 100% 100%, 0 100%); }
+/* inside the pouch: the cards themselves (their backs), seen once the top is cut off */
+.pack-back { background: #f4f6fa url(art/card-back.jpg) center 8% / 92% auto no-repeat; box-shadow: inset 0 0 0 4px #f4f6fa; }
