@@ -1062,3 +1062,6 @@ img { -webkit-user-drag: none; }
 /* after the reveal: soft white rays with a gentle colour drift instead of the striped rainbow wheel */
 .pull-5 .big-rays { background: repeating-conic-gradient(from 0deg, rgba(255, 255, 255, .7) 0 4deg, transparent 4deg 18deg) !important; opacity: .9; animation: bigSpin 30s linear infinite, bigIn .6s ease-out, hueDrift 4s linear infinite; }
 .pull-5.reveal:not(.cine)::after { content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none; background: radial-gradient(circle at 50% 45%, rgba(255, 170, 220, .45), rgba(160, 210, 255, .25) 40%, transparent 70%); animation: hueDrift 4s linear infinite; }
+/* only the first card flips as the five come out of the pack; after that you just flick to the next */
+.stack .card.flick.enter { animation: cardIn .35s cubic-bezier(.2, 1.3, .4, 1), sway 6s ease-in-out .35s infinite alternate; }
+.from-pack .stack .card.flick.enter { animation: flipFace .3s 1.03s ease-out both, sway 6s ease-in-out 1.4s infinite alternate; }
