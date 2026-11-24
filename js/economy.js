@@ -1,6 +1,6 @@
 // Coins: packs cost coins, matches pay coins, cards sell for coins, and a daily shop sells a few cards.
 const PACK_PRICE = { heehn: 300, empirical: 400, foreseen: 500 }, price = pk => PACK_PRICE[pk] || 300;
-const WIN_PAY = 100, LOSS_PAY = 40; // 10-card packs resell for roughly their price on average
+const PAY = { bot: [1000, 500], player: [2000, 1000] }; // [win, loss] // 10-card packs resell for roughly their price on average
 const RVAL = { C: 15, U: 38, R: 90, UR: 300 }, FVAL = { normal: 1, rev: 1.5, holo: 2, full: 4, rainbow: 12 }; // a weak pack sells for about half its cost
 const fmt = n => Math.round(n).toLocaleString('en-US'); // 10000 -> 10,000
 const COIN = '<img class="coin" src="art/coin.svg" alt="coins">';
@@ -89,7 +89,7 @@ let paidPhase = null;
 const renderNoPay = render;
 render = function () {
   if (ui.view === 'game' && game) {
-    if (game.phase === 'over' && paidPhase && paidPhase !== 'over') { const won = game.winner === me; setCoins(coins + (won ? WIN_PAY : LOSS_PAY)); ui.toast = `+${won ? WIN_PAY : LOSS_PAY} coins`; }
+    if (game.phase === 'over' && paidPhase && paidPhase !== 'over') { const won = game.winner === me, pay = PAY[bot ? 'bot' : 'player'][won ? 0 : 1]; setCoins(coins + pay); ui.toast = `+${fmt(pay)} coins`; }
     paidPhase = game.phase;
   } else paidPhase = null;
   renderNoPay();
