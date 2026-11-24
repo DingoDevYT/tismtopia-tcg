@@ -810,3 +810,7 @@ img { -webkit-user-drag: none; }
 .acct { position: fixed; top: calc(10px + env(safe-area-inset-top)); right: 12px; z-index: 70; display: flex; gap: 8px; align-items: center; }
 .acct .coin-bar { position: static; }
 .vol-slider { right: auto !important; left: 12px; }
+.acct { right: auto; left: 12px; z-index: 200; }
+.vol-slider { left: auto !important; right: 12px !important; }
+.shop-sheet { position: relative; z-index: 1; margin: auto; width: min(94vw, 560px); max-height: 90vh; overflow: auto; padding: 16px; border-radius: 20px; display: flex; flex-direction: column; gap: 12px; } .shop-sheet .shop { padding: 0; }
+.sell-pull { padding: 4px 8px; font-size: 12px; }

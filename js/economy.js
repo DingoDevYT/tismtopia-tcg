@@ -1,8 +1,8 @@
 // Coins: packs cost coins, matches pay coins, cards sell for coins, and a daily shop sells a few cards.
-const PACK_COST = 100, WIN_PAY = 60, LOSS_PAY = 25;
-const RVAL = { C: 10, U: 25, R: 60, UR: 200 }, FVAL = { normal: 1, rev: 2, holo: 3, full: 8 }; // a weak pack sells for about half its cost
+const PACK_COST = 300, WIN_PAY = 100, LOSS_PAY = 40; // packs resell for ~295 on average: worst 10% ~115, best 10% ~565
+const RVAL = { C: 10, U: 25, R: 60, UR: 200 }, FVAL = { normal: 1, rev: 1.5, holo: 2, full: 4 }; // a weak pack sells for about half its cost
 const COIN = '<img class="coin" src="art/coin.svg" alt="coins">';
-let coins = store.get('coins', 500);
+let coins = store.get('coins', 900);
 const setCoins = n => { coins = n; store.set('coins', coins); };
 const cardValue = (id, f = 'normal') => (RVAL[CARD[id].rarity || 'C'] || 10) * (FVAL[f] || 1);
 // Starter copies come back on every load, so they can't be sold (no free-money loop).
@@ -19,7 +19,7 @@ const shopHtml = () => `<section class="shop"><h3>Shop <small class="muted">new 
   `<div class="shop-item">${renderCard(c, { cls: 'mini', attrs: `data-act="view-card" data-id="${c.id}"` })}<button class="btn primary" data-act="buy" data-id="${c.id}">${COIN}${cardValue(c.id) * 2}</button></div>`).join('')}</div></section>`;
 
 const viewPacksNoShop = viewPacks;
-viewPacks = () => viewPacksNoShop().replace('data-p="' , 'data-p="').replace(/(wheel-open[^>]*>)Open</, `$1Open for ${COIN}${PACK_COST}<`).replace(/(<nav class="tabbar)/, `${shopHtml()}$1`);
+viewPacks = () => (viewPacksNoShop().replace('data-p="' , 'data-p="').replace(/(wheel-open[^>]*>)Open</, `$1Open for ${COIN}${PACK_COST}<`).replace(/(<nav class="tabbar)/, `<button class="btn wide shop-open" data-act="shop">${COIN} Shop</button>$1`) + (ui.shop ? `<div class="viewer"><div class="viewer-bg" data-act="shop"></div><div class="shop-sheet neu">${shopHtml()}<button class="btn wide" data-act="shop">Close</button></div></div>` : ''));
 const viewCollectionNoCoins = viewCollection;
 viewCollection = () => viewCollectionNoCoins();
 const viewerNoSell = viewer;
@@ -43,6 +43,14 @@ Object.assign(ACTS, {
     setCoins(coins + cardValue(v.id, v.finish)); store.set('collection', coll);
     if (!coll[v.id]?.f?.[v.finish]) ui.viewer.finish = 'normal';
   },
+  shop() { ui.shop = !ui.shop; },
+  'sell-pull'(d) {
+    const p = ui.open.cards[d.i], e = coll[p.id];
+    if (p.sold || !e?.f?.[p.finish] || e.n - keep(p.id) <= 0) return;
+    e.f[p.finish]--; e.n--; if (!e.n) delete coll[p.id]; p.sold = true;
+    setCoins(coins + cardValue(p.id, p.finish)); store.set('collection', coll);
+  },
+  'sell-all-pulls'() { ui.open.cards.forEach((_, i) => ACTS['sell-pull']({ i })); },
   buy(d) {
     const price = cardValue(d.id) * 2; if (coins < price) { ui.toast = 'Not enough coins'; return; }
     const e = (coll[d.id] ||= { n: 0, f: {} }); e.n++; e.f.normal = (e.f.normal || 0) + 1;
@@ -64,3 +72,13 @@ render = function () {
 
 const viewHomeNoCoins = viewHome;
 viewHome = () => viewHomeNoCoins().replace(/<div class="topbar">[\s\S]*?<\/div>/, '');
+
+// "Your pulls": sell any pull on the spot.
+const viewOpenNoSell = viewOpen;
+viewOpen = () => {
+  const o = ui.open, html = viewOpenNoSell(); if (o?.stage !== 'summary') return html;
+  let i = 0;
+  return html.replace(/<\/small><\/div>/g, () => { const p = o.cards[i], k = i++;
+    return '</small>' + (p.sold ? '<small class="muted">Sold</small>' : `<button class="btn sell-pull" data-act="sell-pull" data-i="${k}">Sell ${COIN}${cardValue(p.id, p.finish)}</button>`) + '</div>'; })
+    .replace('<div class="pull-grid">', `<button class="btn wide" data-act="sell-all-pulls">Sell all for ${COIN}${o.cards.filter(p => !p.sold).reduce((a, p) => a + cardValue(p.id, p.finish), 0)}</button><div class="pull-grid">`);
+};
