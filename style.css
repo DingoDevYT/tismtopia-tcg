@@ -1250,7 +1250,7 @@ body:has(#app[data-view="game"]) :is(.vol-btn, .vol-slider) { display: none !imp
 
 /* full art (not rainbow): the name row gets a soft dark pill so white text reads on pale art */
 .v-full:not(.v-rainbow) .head { background: rgba(10, 12, 25, .5) !important; border-radius: 99px; padding: .8cqw 2cqw .8cqw 2.4cqw !important; }
-@container app (min-width: 900px) { .wheel { --wh: clamp(300px, calc(100dvh - 370px), 470px); } } /* no header band on desktop, so the wheel can be taller */
+@container app (min-width: 900px) { .wheel { --wh: clamp(300px, calc(100dvh - 385px), 470px); } } /* no header band on desktop, so the wheel can be taller */
 .reveal .pull-tag { margin-top: 10px; } /* clear of the tilting card above it */
 .rainbow + .btn.wide { width: auto; margin: 12px 16px 0; } /* "Sell all" no longer runs edge to edge */
 

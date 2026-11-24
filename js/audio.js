@@ -131,3 +131,12 @@ vol.addEventListener('input', () => {
   else if (cur) { clearInterval(cur._fade); cur.volume = VOL; }
 });
 document.body.append(vol);
+// Phones: the slider hides behind a round speaker button and opens as a small popover under it (CSS decides; tap outside closes).
+const volBtn = Object.assign(document.createElement('button'), { className: 'vol-btn neu', type: 'button',
+  innerHTML: '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M3 9v6h4l5 4V5L7 9z"/><path class="wave" d="M15.5 8.5a5 5 0 0 1 0 7M18 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>' });
+volBtn.setAttribute('aria-label', 'Volume'); volBtn.setAttribute('aria-expanded', 'false');
+const syncVolBtn = () => volBtn.classList.toggle('off', VOL === 0);
+vol.addEventListener('input', syncVolBtn); syncVolBtn();
+volBtn.addEventListener('click', () => { volBtn.setAttribute('aria-expanded', String(document.body.classList.toggle('vol-open'))); });
+document.addEventListener('pointerdown', e => { if (document.body.classList.contains('vol-open') && !e.target.closest('.vol-slider, .vol-btn')) { document.body.classList.remove('vol-open'); volBtn.setAttribute('aria-expanded', 'false'); } }, true);
+document.body.append(volBtn);
