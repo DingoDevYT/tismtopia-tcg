@@ -95,7 +95,7 @@ render = function () {
   renderNoPay();
   if (ui.view !== 'game') {
     $app.insertAdjacentHTML('afterbegin', coinBar());
-    $app.querySelector('.tabbar')?.insertAdjacentHTML('beforeend', `<button class="${ui.view === 'shop' ? 'on' : ''}" data-act="shop" aria-label="shop">${COIN}</button>`);
+    $app.querySelector('.tabbar')?.insertAdjacentHTML('beforeend', `<button class="${ui.view === 'shop' ? 'on' : ''}" data-act="shop" aria-label="shop">${ICON.cart}</button>`);
   }
 };
 

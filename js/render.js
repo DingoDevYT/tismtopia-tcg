@@ -29,6 +29,7 @@ const ICON = Object.fromEntries(Object.entries({
   check: G('<path stroke-width="3" d="M5 12.5l4.5 4.5L19 7.5"/>'),
   chevron: G('<path stroke-width="2.4" d="M6 9l6 6 6-6"/>'),
   search: G('<circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/>'),
+  cart: G('<path d="M3 4h2.5l2.2 10.5h10.6L20.5 7H6.6"/><circle cx="9.5" cy="19" r="1.4"/><circle cx="17" cy="19" r="1.4"/>'),
   home: G('<path d="M4 11l8-7 8 7v9h-5v-5h-6v5H4z"/>'),
   cards: G('<rect x="5" y="3" width="11" height="16" rx="2"/><path d="M19 6v13a2 2 0 0 1-2 2H8"/>'),
   battle: G('<path d="M5 5l10 10M19 5L9 15M13 17l4-4M11 17l-4-4M16 16l3 3M8 16l-3 3"/>'),
