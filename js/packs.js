@@ -70,8 +70,8 @@ const edgeOf = c => (c.finish === 'full' || c.finish === 'rainbow') ? 'edge-full
 function viewOpen() {
   const o = ui.open, P = PACKS.find(p => p.id === o.pack);
   if (o.stage === 'tear') return `<div class="open-stage">
-    <p class="open-hint">Drag across the top to tear it open</p>
-    <div class="tear-zone">${packArt(P, 'big body')}${packArt(P, 'big strip')}<div class="tear-guide"></div></div>
+    <p class="open-hint">Swipe across the top to cut it open</p>
+    <div class="tear-zone"><div class="rays"></div>${packArt(P, 'big body')}${packArt(P, 'big strip')}<div class="tear-guide"></div><div class="cut"><i></i></div></div>
     <button class="btn sm" data-act="tear-now">Tap to open</button></div>`;
   if (o.stage === 'deck') return `<div class="open-stage deck-stage">
     <p class="open-hint">Spin the stack to peek at the edges</p>
@@ -104,7 +104,7 @@ Object.assign(ACTS, {
 function advance() { const o = ui.open; if (++o.i >= o.cards.length) o.stage = 'summary'; }
 function tearOpen() {
   const z = $app.querySelector('.tear-zone');
-  if (z && !calm) { z.classList.add('torn'); setTimeout(() => { ui.open.stage = 'deck'; render(); }, 750); }
+  if (z && !calm) { z.style.setProperty('--tear', 1); z.classList.add('torn'); setTimeout(() => { ui.open.stage = 'deck'; render(); }, 1100); }
   else { ui.open.stage = 'deck'; render(); }
 }
 // Finger gestures for opening: tear the strip, spin the deck, tilt and flick the revealed card.
@@ -129,7 +129,7 @@ document.addEventListener('pointermove', e => {
   if (!drag) return;
   const { kind, el, r } = drag, dx = e.clientX - drag.x0, dy = e.clientY - drag.y0;
   if (kind === 'tear') {
-    const t = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+    const t = Math.max(drag.t || 0, Math.min(1, (e.clientX - r.left) / r.width)); drag.t = t; // the cut only grows, like a blade
     el.style.setProperty('--tear', t);
     if (t > 0.92) { drag = null; tearOpen(); }
   } else if (kind === 'deck') {

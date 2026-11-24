@@ -881,3 +881,33 @@ img { -webkit-user-drag: none; }
 .card .head .type { display: none; } /* frame colour already says the card type; the room goes to the name */
 .card .name, .card.mini .name, .card.mini.k-character .name, .card.mini.k-main .name { font-size: 5.1cqw; }
 .shop-new { top: 0; left: 0; transform: translate(-35%, -35%) rotate(-8deg); z-index: 8; box-shadow: 0 2px 6px rgba(0, 0, 0, .3); } .shop-cell { overflow: visible; }
+
+/* ---------- opening v3: Pocket-style cut, glossy 3D pack ---------- */
+.open-stage { background: radial-gradient(ellipse at 50% 45%, rgba(255, 255, 255, .9), transparent 60%); }
+.tear-zone { perspective: 900px; }
+.tear-zone .pack { border-radius: 6px; box-shadow: 0 30px 50px rgba(20, 20, 60, .35); -webkit-box-reflect: below 6px linear-gradient(transparent 70%, rgba(255, 255, 255, .25)); }
+/* glossy foil: soft side shading and a sheen that drifts across */
+.tear-zone .pack::after { content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none;
+  background: linear-gradient(90deg, rgba(0, 0, 0, .28), transparent 9%, transparent 91%, rgba(0, 0, 0, .28)), linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, .45) 47%, transparent 58%);
+  background-size: 100% 100%, 250% 100%; animation: sheen 3.2s ease-in-out infinite; mix-blend-mode: screen; }
+@keyframes sheen { from { background-position: 0 0, 130% 0; } to { background-position: 0 0, -30% 0; } }
+.tear-zone .pack.body, .tear-zone .pack.strip { animation: packSway 4s ease-in-out infinite alternate; }
+@keyframes packSway { from { transform: rotateY(-7deg) rotateX(3deg); } to { transform: rotateY(7deg) rotateX(-2deg); } }
+/* the cut: a white-hot line that follows your finger, with a spark at the blade */
+.tear-zone .pack.strip { transform: none; transition: none; }
+.cut { position: absolute; left: 0; right: 0; top: 11%; height: 4px; z-index: 5; pointer-events: none; }
+.cut i { position: absolute; left: 0; top: 0; height: 100%; width: calc(var(--tear, 0) * 100%); border-radius: 4px; background: #fff; box-shadow: 0 0 8px #fff, 0 0 18px #bfe3ff, 0 0 34px #8fc8ff; }
+.cut i::after { content: ''; position: absolute; right: -14px; top: 50%; width: 28px; height: 28px; transform: translateY(-50%); border-radius: 50%; background: radial-gradient(circle, #fff 15%, rgba(190, 225, 255, .8) 40%, transparent 70%); opacity: calc(var(--tear, 0) * 20); }
+.tear-guide { opacity: calc(.9 - var(--tear, 0) * 3); }
+/* cut complete: the strip flies off up and to the right, light bursts out of the opening */
+.rays { position: absolute; left: 50%; top: 11%; width: 0; height: 0; z-index: 0; pointer-events: none; }
+.rays::before { content: ''; position: absolute; left: -260px; top: -260px; width: 520px; height: 520px; border-radius: 50%; opacity: 0;
+  background: repeating-conic-gradient(from 0deg, rgba(255, 255, 255, .9) 0 6deg, transparent 6deg 18deg), radial-gradient(circle, #fff, transparent 65%);
+  -webkit-mask: radial-gradient(circle, #000 20%, transparent 70%); mask: radial-gradient(circle, #000 20%, transparent 70%); }
+.tear-zone.torn .rays::before { animation: raysBurst 1s ease-out forwards; }
+@keyframes raysBurst { 0% { opacity: 0; transform: scale(.3) rotate(0); } 25% { opacity: 1; } 100% { opacity: 0; transform: scale(1.4) rotate(25deg); } }
+.tear-zone.torn .pack.strip { animation: stripFly .8s cubic-bezier(.25, .6, .35, 1) forwards; }
+@keyframes stripFly { 0% { transform: none; } 30% { transform: translate(10px, -40px) rotate(6deg); } 100% { transform: translate(140px, -320px) rotate(28deg) scale(.9); opacity: 0; } }
+.tear-zone.torn .pack.body { animation: packDrop .6s .45s ease-in forwards; }
+.tear-zone.torn .cut i { animation: cutFlash .4s ease-out forwards; }
+@keyframes cutFlash { 50% { box-shadow: 0 0 20px #fff, 0 0 60px #fff, 0 0 90px #bfe3ff; } 100% { opacity: 0; } }
