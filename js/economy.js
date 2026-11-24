@@ -95,11 +95,14 @@ viewOpen = () => {
 
 // "What's in this pack?": every card, in number order, with its share of all pulled cards (adds up to 100%).
 function oddsHtml() {
-  const rows = CARDS.filter(c => c.type !== 'captain').map(c => { const r = c.rarity || 'C', n = pool(r).length;
-    return { c, p: SLOTS.reduce((s, t) => s + (t.find(([, v]) => v === r)?.[0] || 0) / n, 0) / SLOTS.length }; })
-    .sort((a, b) => a.c.no.localeCompare(b.c.no));
-  return `<h3>What's in this pack</h3><small class="muted">Chance that any card you pull is this one</small><div class="grid odds">${rows.map(({ c, p }) =>
-    `<div class="cell coll-cell">${renderCard(c, { attrs: `data-act="view-card" data-id="${c.id}"` })}<small class="chip on">${(p * 100).toFixed(p < 0.01 ? 2 : 1)}%</small></div>`).join('')}</div>`;
+  // One entry per card per finish (Characters only get special finishes), rarest first.
+  const rows = CARDS.filter(c => c.type !== 'captain').flatMap(c => { const r = c.rarity || 'C', n = pool(r).length;
+    const p = SLOTS.reduce((s, t) => s + (t.find(([, v]) => v === r)?.[0] || 0) / n, 0) / SLOTS.length;
+    return (c.type === 'character' ? FINISH[r] : [[1, 'normal']]).map(([fp, f]) => ({ c, f, p: p * fp })); })
+    .sort((a, b) => a.p - b.p || a.c.no.localeCompare(b.c.no));
+  const pc = p => (p * 100).toFixed(p < 0.001 ? 3 : p < 0.01 ? 2 : 1) + '%';
+  return `<h3>What's in this pack</h3><small class="muted">Chance that any card you pull is this one, rarest first</small><div class="grid odds">${rows.map(({ c, f, p }) =>
+    `<div class="cell coll-cell">${renderCard(f === 'full' ? { ...c, crop: null } : c, { cls: FINISH_CLS[f] || '', attrs: `data-act="view-card" data-id="${c.id}" data-f="${f}"` })}<small class="chip on">${f === 'normal' ? '' : FINISH_NAME[f] + ' · '}${pc(p)}</small></div>`).join('')}</div>`;
 }
 const viewPacksNoOdds = viewPacks;
 viewPacks = () => viewPacksNoOdds() + (ui.odds ? `<div class="viewer"><div class="viewer-bg" data-act="odds"></div><div class="shop-sheet neu">${oddsHtml()}<button class="btn wide" data-act="odds">Close</button></div></div>` : '');
