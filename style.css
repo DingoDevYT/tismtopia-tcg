@@ -1372,3 +1372,18 @@ body:has(#app[data-view="game"]) :is(.vol-btn, .vol-slider) { display: none !imp
   .sub-prev { position: sticky; top: 72px; } .sub-prev summary { pointer-events: none; list-style: none; } .sub-prev summary::-webkit-details-marker { display: none; }
   .sub-stage .card { --cw: 250px; }
 }
+
+/* ===== Review submissions (js/review.js, owner only) and reviewer notes in My submissions (js/submit.js) ===== */
+.app[data-view="review"] { overflow-y: auto; } .app[data-view="review"] .tabbar { margin-top: 18px; }
+.sub-status.s-dev { background: #7348c9; text-transform: none; } .sub-status.s-pending { background: #8a96b0; }
+.sub-note { display: grid; gap: 4px; padding: 10px 12px; border-radius: 14px; } .sub-note b { font-size: 13px; } .sub-note p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.rv-entry { margin-top: 10px; } .rv-badge { display: inline-grid; place-items: center; min-width: 22px; height: 22px; margin-left: 8px; padding: 0 6px; border-radius: 99px; background: var(--accent); color: #fff; font-size: 12px; font-weight: 800; }
+.rv-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 16px; } .rv-tabs .chip { min-height: 40px; gap: 6px; } .rv-tabs .chip b { font-size: 12px; opacity: .7; }
+.rv-list { margin: 0 16px; } .rv-list .sub-mine-item small { overflow-wrap: anywhere; }
+@container app (min-width: 900px) { .pf-wrap :is(.rv-tabs, .rv-list) { margin-inline: 0; } }
+.rv-view > * { flex-shrink: 0; } /* a long sheet scrolls instead of squashing the card row */ .rv-view .stats-list { margin: 0; } .rv-view .row2 .btn, .rv-view > .btn { min-height: 44px; }
+.rv-words { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 14px; overflow-wrap: anywhere; }
+.rv-packs { display: grid; gap: 8px; margin-top: 8px; }
+.rv-pack { min-height: 44px; padding: 8px 14px; border-radius: 14px; background: var(--surface); box-shadow: var(--raise-sm); font: inherit; font-weight: 700; text-align: left; color: var(--ink); }
+.rv-pack.on { box-shadow: var(--inset), 0 0 0 2px var(--accent); color: var(--accent); }
+.cloud-ask .sheet .sub-field { margin-top: 8px; }

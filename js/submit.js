@@ -113,7 +113,8 @@ async function subPick(file) {
 }
 
 // ---------- My submissions: list, read-only viewer, edit and withdraw (pending only) ----------
-const SUB_STATUS = { pending: 'Pending', approved: 'Approved', rejected: 'Rejected' };
+const SUB_STATUS = { pending: 'Pending', approved: 'Approved', rejected: 'Rejected', dev: 'With the developer' };
+const subNote = r => (typeof r.review_note === 'string' && r.review_note.trim() ? `<div class="sub-note neu-in"><b>Note from Anonagon</b><p>${esc(r.review_note.slice(0, 500))}</p></div>` : '');
 const subStatus = r => (SUB_STATUS[r.status] ? r.status : 'pending');
 const subRow = id => ui.subList?.find(r => r.id === id);
 const subWhen = t => { const d = new Date(t); return isNaN(d) ? '' : d.toLocaleDateString(); };
@@ -135,7 +136,7 @@ async function subLoadList() {
 const subList = () => `<span class="sub-lbl" id="sub-mine">My submissions</span>${!ui.subList ? '<p class="muted">Loading… <span class="spin"></span></p>' : ui.subList.length
   ? `<div class="sub-mine">${ui.subList.map(r => { const s = subStatus(r), edited = r.updated_at && new Date(r.updated_at) - new Date(r.created_at) > 60e3;
     return `<div class="sub-mine-item neu-in" ${tappable('mine-open', `data-id="${esc(r.id)}" aria-label="View ${esc(cfClean(r.card?.form).name || 'card')}"`)}>${subRowCard(r, 'normal')}
-      <div><b>${esc(cfClean(r.card?.form).name || 'Card')}</b><span class="sub-status s-${s}">${SUB_STATUS[s]}</span><small>Sent ${subWhen(r.created_at)}${edited ? ` · edited ${subWhen(r.updated_at)}` : ''}</small></div></div>`; }).join('')}</div>`
+      <div><b>${esc(cfClean(r.card?.form).name || 'Card')}</b><span class="sub-status s-${s}">${SUB_STATUS[s]}</span><small>Sent ${subWhen(r.created_at)}${edited ? ` · edited ${subWhen(r.updated_at)}` : ''}${subNote(r) ? ' · has a note' : ''}</small></div></div>`; }).join('')}</div>`
   : '<p class="muted">Nothing sent yet.</p>'}`;
 // Tapping a submission: every finish it allows, full size; Edit / Withdraw while it's pending.
 function subMineView() {
@@ -144,8 +145,9 @@ function subMineView() {
   return `<div class="viewer"><div class="viewer-bg" data-act="mine-close"></div><div class="shop-sheet neu sub-mine-view">
     <h3>${esc(f.name || 'Card')} <span class="sub-status s-${s}">${SUB_STATUS[s]}</span></h3>
     <div class="sub-mine-fins">${subFins(f).map(k => `<figure>${subRowCard(r, k)}<figcaption class="muted">${k === 'normal' ? 'Normal' : FINISH_NAME[k]}</figcaption></figure>`).join('')}</div>
+    ${subNote(r)}
     ${s === 'pending' ? `<div class="row2"><button class="btn primary" data-act="mine-edit" data-id="${esc(r.id)}">Edit</button><button class="btn" data-act="mine-withdraw" data-id="${esc(r.id)}">Withdraw</button></div>`
-    : `<p class="muted">${s === 'approved' ? "This card was approved, so it's locked: any changes now go through Anonagon." : "This card was reviewed and not accepted, so it can't be changed. You can send a new version as a new card."}</p>`}
+    : `<p class="muted">${s === 'approved' ? "This card was approved, so it's locked: any changes now go through Anonagon." : s === 'dev' ? "Anonagon handed this card to the developer to fine-tune, so it's locked for now." : "This card was reviewed and not accepted, so it can't be changed. You can send a new version as a new card."}</p>`}
     <button class="btn wide" data-act="mine-close">Close</button></div></div>`;
 }
 const subAskHtml = () => (ui.mineAsk && subRow(ui.mineAsk) ? `<div class="cloud-ask">${sheet(`<h2>Withdraw this card?</h2><p class="muted center">"${esc(cfClean(subRow(ui.mineAsk).card?.form).name || 'Card')}" and its picture are deleted. This can't be undone.</p>
@@ -215,10 +217,10 @@ function subPreview(f) {
   return renderCard({ ...cfSafe(cfBuild(f)), no: 'NEW', art: subArt.url || '', crop: full ? f.cropFull : f.crop }, { cls: `sub-card ${FINISH_CLS[fin]}` });
 }
 const subFinChips = f => subFins(f).map(k => `<button class="chip${k === subFin(f) ? ' on' : ''}" data-act="sub-fin" data-f="${k}">${k === 'normal' ? 'Normal' : FINISH_NAME[k]}</button>`).join('');
-function subMeter(f) {
+function subMeter(f, readOnly) { // readOnly: the review screen (no checkbox, just whether it was ticked)
   const { band, pct } = cfBand(cfBuild(f)), [label, tip] = CF_BANDS[band];
-  return `<div class="sub-meter b${band}"><div class="progress"><i style="width:${pct.toFixed(0)}%"></i></div><b>${label}</b></div><p class="muted">${tip}</p>
-    ${band === 3 ? `<label class="sub-check"><input type="checkbox" data-f="anyway"${f.anyway ? ' checked' : ''}> Submit anyway</label><small class="sub-err" data-err="anyway"></small>` : ''}`;
+  return `<div class="sub-meter b${band}"><div class="progress"><i style="width:${pct.toFixed(0)}%"></i></div><b>${label}</b></div>${readOnly ? '' : `<p class="muted">${tip}</p>`}
+    ${band !== 3 ? '' : readOnly ? `<p class="muted">${f.anyway ? 'The submitter ticked "Submit anyway".' : ''}</p>` : `<label class="sub-check"><input type="checkbox" data-f="anyway"${f.anyway ? ' checked' : ''}> Submit anyway</label><small class="sub-err" data-err="anyway"></small>`}`;
 }
 // The card's one effect (a Character's optional passive): when it happens, what it does, how much.
 function subFx(f) {

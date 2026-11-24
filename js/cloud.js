@@ -115,7 +115,7 @@ async function cloudSubmitCard(payload, imageBlob, cutoutBlob) {
 async function cloudMySubmissions() {
   if (!CLOUD.url) return CLOUD_OFF;
   if (!cloud.user) return NO_USER;
-  return sbRun('Loading your submissions', async sb => ({ rows: need(await sb.from('submissions').select('id, created_at, updated_at, status, card, image_path').order('created_at', { ascending: false }).limit(50)) }));
+  return sbRun('Loading your submissions', async sb => ({ rows: need(await sb.from('submissions').select('id, created_at, updated_at, status, card, image_path, review_note').order('created_at', { ascending: false }).limit(50)) }));
 }
 // Only paths inside the player's own folder are ever touched (storage rules enforce the same).
 const ownPath = p => (typeof p === 'string' && cloud.user && p.startsWith(cloud.user.id + '/') && p.length <= 200 ? p : '');

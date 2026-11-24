@@ -12,7 +12,7 @@ function viewProfile() {
   const account = !CLOUD.url ? `<button class="btn wide" disabled>Sign in with Discord</button><p class="muted pf-note">Accounts are coming soon. Your progress is saved on this device.</p>`
     : !cloud.checked ? '<p class="muted center">Checking your account… <span class="spin"></span></p>'
     : u ? `<div class="pf-who"><span class="avatar">${u.avatar ? `<img src="${esc(u.avatar)}" alt="" referrerpolicy="no-referrer">` : ICON.character}</span><div><b>${esc(u.name)}</b><small class="cloud-last">${esc(lastSaveText())}</small></div></div>
-      <div class="row2"><button class="btn primary" data-act="cloud-save">Save now</button><button class="btn" data-act="cloud-out">Sign out</button></div>`
+      <div class="row2"><button class="btn primary" data-act="cloud-save">Save now</button><button class="btn" data-act="cloud-out">Sign out</button></div>${rvEntry()}`
     : `<button class="btn primary wide" data-act="cloud-in">Sign in with Discord</button><p class="muted pf-note">Keeps a copy of your progress online, so you can carry on from any device.</p>`;
   return `${header('Profile')}
   <div class="pf-wrap">

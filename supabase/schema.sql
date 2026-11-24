@@ -8,7 +8,8 @@
 --   2. Authentication > URL Configuration: Site URL = https://dingodevyt.github.io/tismtopia-tcg/
 --      Redirect URLs: add http://localhost:8123/ (local testing) and https://dingodevyt.github.io/tismtopia-tcg/
 --   3. Reviewing submissions: Table Editor > submissions (you see every row there; players only see their own).
---      Card pictures are in Storage > submissions, one folder per player id. Change `status` to approved / rejected by hand.
+--      Card pictures are in Storage > submissions, one folder per player id. Change `status` to approved / rejected by hand,
+--      or sign in to the game with an admin account and use Profile > Review submissions (admins: see the end of this file).
 
 -- ---------- tables ----------
 create table if not exists public.profiles (
@@ -129,3 +130,67 @@ create policy "submission art: update own" on storage.objects for update to auth
   with check (bucket_id = 'submissions' and (storage.foldername(name))[1] = (select auth.uid())::text);
 create policy "submission art: delete own" on storage.objects for delete to authenticated
   using (bucket_id = 'submissions' and (storage.foldername(name))[1] = (select auth.uid())::text);
+
+-- ---------- community cards: approved submissions are public (live migrations, applied in the dashboard) ----------
+-- Signed-out players read approved cards through approved_cards() and their pictures through this storage rule; everything else stays private.
+create or replace function public.is_approved_art(obj text) returns boolean language sql stable security definer set search_path = '' as $$
+  select exists (select 1 from public.submissions s where s.status = 'approved' and (s.image_path = obj or s.card ->> 'cutout' = obj));
+$$;
+drop policy if exists "submission art: read approved" on storage.objects;
+create policy "submission art: read approved" on storage.objects for select to anon, authenticated
+  using (bucket_id = 'submissions' and public.is_approved_art(name));
+
+-- ---------- reviewing in the game (js/review.js): admins, 'dev' status, pack and a note to the submitter ----------
+-- Add an admin (their id is in Authentication > Users): insert into public.admins values ('<user id>');
+create table if not exists public.admins (user_id uuid primary key references auth.users on delete cascade);
+alter table public.admins enable row level security;
+revoke all on public.admins from anon, authenticated;
+grant select on public.admins to authenticated;
+drop policy if exists "admins: read own" on public.admins;
+create policy "admins: read own" on public.admins for select to authenticated using ((select auth.uid()) = user_id);
+
+create or replace function public.is_admin() returns boolean language sql stable security definer set search_path = '' as $$
+  select exists (select 1 from public.admins a where a.user_id = (select auth.uid()));
+$$;
+
+-- status 'dev' = handed to the developer for hand-tuning. pack: null = approved but in no pack yet, else a pack id from js/packs.js
+-- (or 'community'). review_note: the reviewer's message, shown to the submitter.
+alter table public.submissions drop constraint if exists submissions_status_check;
+alter table public.submissions add constraint submissions_status_check check (status in ('pending', 'approved', 'rejected', 'dev'));
+alter table public.submissions add column if not exists pack text;
+alter table public.submissions add column if not exists review_note text;
+alter table public.submissions drop constraint if exists submissions_pack_check;
+alter table public.submissions add constraint submissions_pack_check check (pack is null or pack ~ '^[a-z0-9_-]{1,24}$');
+alter table public.submissions drop constraint if exists submissions_review_note_check;
+alter table public.submissions add constraint submissions_review_note_check check (char_length(review_note) <= 500);
+grant update (status, pack, review_note) on public.submissions to authenticated; -- the guard trigger below keeps these to admins
+
+drop policy if exists "submissions: admin read all" on public.submissions;
+drop policy if exists "submissions: admin review" on public.submissions;
+create policy "submissions: admin read all" on public.submissions for select to authenticated using ((select public.is_admin()));
+create policy "submissions: admin review" on public.submissions for update to authenticated using ((select public.is_admin())) with check ((select public.is_admin()));
+
+-- Players may still edit their own pending cards, but only an admin changes status, pack or review_note (dashboard / SQL editor, auth.uid() null, is allowed).
+create or replace function public.submissions_guard() returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  if (select auth.uid()) is not null and not public.is_admin()
+     and (new.status is distinct from old.status or new.pack is distinct from old.pack or new.review_note is distinct from old.review_note) then
+    raise exception 'Only a reviewer can change the status, pack or review note.';
+  end if;
+  return new;
+end $$;
+drop trigger if exists submissions_guard on public.submissions;
+create trigger submissions_guard before update on public.submissions for each row execute function public.submissions_guard();
+
+drop policy if exists "submission art: admin read all" on storage.objects;
+create policy "submission art: admin read all" on storage.objects for select to authenticated
+  using (bucket_id = 'submissions' and (select public.is_admin()));
+
+-- The public list the game loads (js/community.js). approved_at is the row's updated_at.
+drop function if exists public.approved_cards();
+create function public.approved_cards() returns table (id uuid, card jsonb, image_path text, approved_at timestamptz, pack text)
+language sql stable security definer set search_path = '' as $$
+  select s.id, s.card -> 'card', s.image_path, s.updated_at, s.pack
+  from public.submissions s where s.status = 'approved' order by s.created_at;
+$$;
+grant execute on function public.approved_cards() to anon, authenticated;
