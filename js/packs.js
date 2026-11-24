@@ -6,7 +6,7 @@ const PACKS = [
   { id: 'empirical', name: 'Empirical Ascension', colour: '#1f9bff' },
   { id: 'foreseen', name: 'Foreseen Knowledge', colour: '#5b1fd6' },
 ];
-const RARITY_NAME = { C: 'Common', U: 'Uncommon', R: 'Rare', UR: 'Ultra Rare' };
+const RARITY_NAME = { C: '★', U: '★★', R: '★★★', UR: '★★★★' }; // star rarity
 const FINISH_NAME = { normal: '', rev: 'Reverse Holo', holo: 'Holo', full: 'Full Art' };
 const FINISH_CLS = { normal: '', rev: 'v-rev', holo: 'v-holo', full: 'v-full v-holo' };
 
