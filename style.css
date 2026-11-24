@@ -790,3 +790,9 @@ img { -webkit-user-drag: none; }
 .card .mv-text { font-size: 3.9cqw; line-height: 1.12; }
 .card .move { padding: 1cqw 0; }
 .k-character .foot, .k-main .foot { padding-top: .3cqw; margin-bottom: -.8cqw; }
+
+/* Coins and shop (js/economy.js). */
+.coin { width: 1.2em; height: 1.2em; vertical-align: -.25em; margin-right: .2em; }
+.coin-bar { position: fixed; top: calc(10px + env(safe-area-inset-top)); left: 12px; z-index: 70; padding: 6px 12px; border-radius: 999px; font-size: 16px; }
+.shop { padding: 0 16px 90px; } .shop-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.shop-item { display: flex; flex-direction: column; gap: 6px; } .shop-item .btn { padding: 6px; } .center-text { text-align: center; }
