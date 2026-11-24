@@ -84,6 +84,9 @@ const OVERRIDES = {
  },
  "jimmy_arhakoth": {
   "cost": 2
+ },
+ "jegg_abigaia_v2": {
+  "name": "Abigaia"
  }
 };
 for (const c of [...CAPTAINS, ...CARDS]) Object.assign(c, OVERRIDES[c.id] || {});

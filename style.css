@@ -867,3 +867,6 @@ img { -webkit-user-drag: none; }
 .coll-cell.owned { position: relative; } .coll-cell.owned .card { opacity: .4; filter: saturate(.5); }
 .owned-tag { position: absolute; top: 38%; left: 50%; transform: translate(-50%, -50%) rotate(-12deg); z-index: 6; padding: 4px 12px; border-radius: 8px; background: rgba(30, 34, 50, .85); color: #fff; font-weight: 900; letter-spacing: .12em; font-size: 14px; pointer-events: none; }
 .owned-tag { transform: translate(-50%, -50%); background: rgba(10, 12, 20, .95); }
+/* Titles: one line on every card, smaller so the longest (22 characters) fits. */
+.card .name { font-size: 6.6cqw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.card.mini .name, .card.mini.k-character .name, .card.mini.k-main .name { font-size: 7.4cqw; }

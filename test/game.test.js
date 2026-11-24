@@ -206,4 +206,7 @@ assert(!ce.players[1 - ep].effects.some(x => x.id === 'e_slowmode'), 'purge step
 assert(m.phase === 'over' && m.winner === 0, 'reaching the Boredom limit loses');
 throws(() => apply(m, 0, { type: 'end' }), 'no actions after game over');
 `, { structuredClone });
+// Card names stay on one line: 22 characters max (the longest name when the limit was set).
+{ const x = {}; require('vm').runInNewContext(fs.readFileSync(__dirname + '/../js/cards-data.js', 'utf8') + fs.readFileSync(__dirname + '/../js/card-overrides.js', 'utf8') + ';this.A=[...CAPTAINS,...CARDS]', x);
+  for (const c of x.A) if (c.name.length > 22) throw new Error('FAIL: name too long (max 22): ' + c.name); }
 console.log('game.test.js: all checks passed');
