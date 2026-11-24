@@ -880,3 +880,4 @@ img { -webkit-user-drag: none; }
 .card .name, .card.mini .name, .card.mini.k-character .name, .card.mini.k-main .name { font-size: 4.1cqw; letter-spacing: -.05cqw; }
 .card .head .type { display: none; } /* frame colour already says the card type; the room goes to the name */
 .card .name, .card.mini .name, .card.mini.k-character .name, .card.mini.k-main .name { font-size: 5.1cqw; }
+.shop-new { top: 0; left: 0; transform: translate(-35%, -35%) rotate(-8deg); z-index: 8; box-shadow: 0 2px 6px rgba(0, 0, 0, .3); } .shop-cell { overflow: visible; }
