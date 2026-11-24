@@ -66,7 +66,7 @@ Object.assign(ACTS, {
     setCoins(coins + cardValue(v.id, v.finish)); store.set('collection', coll);
     if (!coll[v.id]?.f?.[v.finish]) ui.viewer.finish = 'normal';
   },
-  shop() { ui.shop = !ui.shop; },
+  shop() { ui.view = 'shop'; },
   odds(d) { ui.odds = ui.odds ? null : d.p; },
   'sell-pull'(d) {
     const p = ui.open.cards[d.i], e = coll[p.id];
@@ -95,8 +95,7 @@ render = function () {
   renderNoPay();
   if (ui.view !== 'game') {
     $app.insertAdjacentHTML('afterbegin', coinBar());
-    $app.querySelector('.tabbar')?.insertAdjacentHTML('beforeend', `<button class="${ui.shop ? 'on' : ''}" data-act="shop" aria-label="shop">${COIN}</button>`);
-    if (ui.shop) $app.insertAdjacentHTML('beforeend', `<div class="viewer"><div class="viewer-bg" data-act="shop"></div><div class="shop-sheet neu">${shopHtml()}<button class="btn wide" data-act="shop">Close</button></div></div>`);
+    $app.querySelector('.tabbar')?.insertAdjacentHTML('beforeend', `<button class="${ui.view === 'shop' ? 'on' : ''}" data-act="shop" aria-label="shop">${COIN}</button>`);
   }
 };
 
@@ -135,3 +134,22 @@ ACTS['cancel-pack'] = () => {
   for (const p of o.cards) { const e = coll[p.id]; if (!e) continue; e.n--; if (!--e.f[p.finish]) delete e.f[p.finish]; if (e.n <= 0) delete coll[p.id]; }
   store.set('collection', coll); setCoins(coins + price(o.pack)); ui.open = null; ui.view = 'packs';
 };
+
+// Shop screen: 6 slots, each card stays 24 hours and the slots change at staggered times (one leaves every 4 hours).
+const DAY = 864e5, SLOT_GAP = DAY / 6;
+function shopSlots() {
+  const now = Date.now(), list = CARDS.filter(c => c.type !== 'captain');
+  return Array.from({ length: 6 }, (_, i) => {
+    const turn = Math.floor((now + i * SLOT_GAP) / DAY), ends = (turn + 1) * DAY - i * SLOT_GAP;
+    let s = turn * 31 + i * 7919; const rnd = () => ((s = (s * 9301 + 49297) % 233280) / 233280);
+    return { c: list[Math.floor(rnd() * list.length)], ends };
+  });
+}
+const left = ms => { const h = Math.floor(ms / 36e5), m = Math.floor(ms % 36e5 / 6e4); return h ? `${h}h ${m}m` : `${m}m`; };
+function viewShop() {
+  return `<div class="shop-page"><h2>Shop</h2><p class="muted">Each card stays for 24 hours. One leaves every 4 hours.</p>
+  <div class="grid">${shopSlots().map(({ c, ends }) => `<div class="cell coll-cell shop-cell">${renderCard(c, { attrs: `data-act="view-card" data-id="${c.id}"` })}
+    <button class="btn primary wide" data-act="buy" data-id="${c.id}">${COIN}${fmt(cardValue(c.id) * 2)}</button>
+    <small class="muted leaves" data-ends="${ends}">Leaves in ${left(ends - Date.now())}</small></div>`).join('')}</div></div>${tabbar('shop')}${viewer()}`;
+}
+setInterval(() => { document.querySelectorAll('.leaves').forEach(el => { const ms = +el.dataset.ends - Date.now(); if (ms <= 0) return render(); el.textContent = 'Leaves in ' + left(ms); }); }, 30000);

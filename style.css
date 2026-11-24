@@ -838,3 +838,5 @@ img { -webkit-user-drag: none; }
 .viewer-top { display: flex; align-items: center; gap: 8px; } .viewer-top b { flex: 1; min-width: 0; }
 .viewer-top .fav { position: static; margin: 0; }
 .find-btn { flex-direction: column; gap: 2px; padding-top: 8px; padding-bottom: 8px; } .find-btn small { font-weight: 500; opacity: .85; font-size: 12px; }
+.shop-page { padding: 64px 16px 100px; overflow: auto; height: 100%; box-sizing: border-box; } .shop-page h2 { margin: 0 0 4px; }
+.shop-cell { display: flex; flex-direction: column; gap: 6px; align-items: stretch; } .shop-cell .leaves { text-align: center; }

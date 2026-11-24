@@ -299,7 +299,7 @@ function defendSheet() {
 function render() {
   const scrolls = [...$app.querySelectorAll('.grid, .scroll, .sheet')].map(el => el.scrollTop);
   const focus = document.activeElement?.id;
-  const views = { home: viewHome, deck: viewDeck, build: viewBuild, lobby: viewLobby, rules: viewRules, game: viewGame, packs: () => viewPacks(), open: () => (ui.open ? viewOpen() : viewPacks()), collection: () => viewCollection() };
+  const views = { home: viewHome, deck: viewDeck, build: viewBuild, lobby: viewLobby, rules: viewRules, game: viewGame, packs: () => viewPacks(), open: () => (ui.open ? viewOpen() : viewPacks()), collection: () => viewCollection(), shop: () => viewShop() };
   if (ui.view === 'game' && !game) ui.view = 'home';
   $app.dataset.view = ui.view;
   $app.innerHTML = views[ui.view]() + (ui.toast && ui.view !== 'game' ? `<div class="toast neu">${esc(ui.toast)}</div>` : '');
