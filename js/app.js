@@ -9,7 +9,7 @@ const uid = () => Math.random().toString(36).slice(2, 10);
 let decks = store.get('decks', null);
 // Old saves can hold placeholder cards that no longer exist: drop those, then add back any missing free starter.
 decks = (Array.isArray(decks) ? decks : []).map(d => ({ ...d, captain: CARD[d.captain]?.type === 'captain' ? d.captain : CAPTAINS[0].id,
-  cards: Object.fromEntries(Object.entries(d.cards || {}).filter(([id]) => CARD[id] && CARD[id].type !== 'captain')) })).filter(d => Object.keys(d.cards).length);
+  cards: Object.fromEntries(Object.entries(d.cards || {}).filter(([id]) => CARD[id] && CARD[id].type !== 'captain')) })).filter(d => Object.keys(d.cards).length && !/^All-Stars [AB]$/.test(d.name)); // retired 20-card starters
 decks.unshift(...STARTERS.filter(s => !decks.some(d => d.name === s.name)).map(s => ({ id: uid(), ...structuredClone(s) })));
 let myName = store.get('name', 'Player');
 const ui = { view: 'home', deckId: store.get('deck', decks[0].id), filter: 'all', zoom: null, sheet: null, defPick: null, toast: '', code: '', status: '', joinCode: '', tut: null };
