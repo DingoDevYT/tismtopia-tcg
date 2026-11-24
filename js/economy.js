@@ -14,6 +14,8 @@ const cardValue = (id, f = 'normal') => (RVAL[CARD[id].rarity || 'C'] || 10) * (
 // Starter copies come back on every load, so they can't be sold (no free-money loop).
 // Selling below 3 copies means you can no longer run a full set of this card in a deck.
 const lowWarn = (id, n) => `Sell ${CARD[id].name}? You'll have ${n - 1} left, and decks can use up to 3 copies of a card, so you won't be able to run a full set of it.`;
+const hasFin = (id, f) => (coll[id]?.f?.[f] || 0) > 0; // you own this exact version
+const ownedTag = (id, f) => hasFin(id, f) ? '<span class="owned-tag">OWNED</span>' : '';
 const FORDER = ['normal', 'holo', 'rev', 'full', 'rainbow']; // common to rare
 let sellAt = 0; const cooled = () => { const t = Date.now(); if (t - sellAt < 100) return false; sellAt = t; return true; }; // stops double-taps and spam
 const keep = id => Math.max(0, ...STARTERS.map(s => s.cards[id] || 0));
@@ -131,7 +133,7 @@ function oddsHtml() {
     .sort((a, b) => FORDER.indexOf(b.f) - FORDER.indexOf(a.f) || a.p - b.p || a.c.no.localeCompare(b.c.no));
   const pc = p => (p * 100).toFixed(p < 0.001 ? 3 : p < 0.01 ? 2 : 1) + '%';
   return `<h3>${esc(PACKS.find(p => p.id === ui.odds)?.name || 'This pack')}: ${fmt(price(ui.odds))} coins</h3><small class="muted">Chance that any card you pull is this one, rarest first</small><div class="grid odds">${rows.map(({ c, f, p }) =>
-    `<div class="cell coll-cell">${renderCard((f === 'full' || f === 'rainbow') ? { ...c, crop: null } : c, { cls: FINISH_CLS[f] || '', attrs: `data-act="view-card" data-id="${c.id}" data-f="${f}"` })}<small class="chip on">${starsOf(c.id, f)} · ${pc(p)}</small></div>`).join('')}</div>`;
+    `<div class="cell coll-cell${hasFin(c.id, f) ? ' owned' : ''}">${renderCard((f === 'full' || f === 'rainbow') ? { ...c, crop: null } : c, { cls: FINISH_CLS[f] || '', attrs: `data-act="view-card" data-id="${c.id}" data-f="${f}"` })}${ownedTag(c.id, f)}<small class="chip on">${starsOf(c.id, f)} · ${pc(p)}</small></div>`).join('')}</div>`;
 }
 const viewPacksNoOdds = viewPacks;
 viewPacks = () => viewPacksNoOdds() + (ui.odds ? `<div class="viewer"><div class="viewer-bg" data-act="odds"></div><div class="shop-sheet neu">${oddsHtml()}<button class="btn wide" data-act="odds">Close</button></div></div>` : '');
@@ -163,7 +165,7 @@ const left = ms => { const m = Math.floor(ms / 6e4), sec = Math.floor(ms % 6e4 /
 function viewShop() {
   const slots = shopSlots();
   return `<div class="shop-page"><h2>Shop</h2><p class="shop-timer">${ICON.time}New stock in <b class="leaves" data-ends="${slots[0].ends}">${left(slots[0].ends - Date.now())}</b></p><p class="muted center-text">Prices are 3x a card's sell value</p>
-  <div class="grid">${slots.map(({ c, f }) => `<div class="cell coll-cell shop-cell">${renderCard((f === 'full' || f === 'rainbow') ? { ...c, crop: null } : c, { cls: FINISH_CLS[f] || '', attrs: `data-act="shop-view" data-id="${c.id}" data-f="${f}"` })}${owned(c.id) ? '' : '<span class="new shop-new">NEW</span>'}
+  <div class="grid">${slots.map(({ c, f }) => `<div class="cell coll-cell shop-cell${hasFin(c.id, f) ? ' owned' : ''}">${renderCard((f === 'full' || f === 'rainbow') ? { ...c, crop: null } : c, { cls: FINISH_CLS[f] || '', attrs: `data-act="shop-view" data-id="${c.id}" data-f="${f}"` })}${owned(c.id) ? '' : '<span class="new shop-new">NEW</span>'}${ownedTag(c.id, f)}
     <small class="chip on shop-stars">${starsOf(c.id, f)}${f !== 'normal' ? ' · ' + FINISH_NAME[f] : ''}</small>
     <button class="btn primary wide" data-act="buy" data-id="${c.id}" data-f="${f}">${COIN}${fmt(cardValue(c.id, f) * SHOP_MARKUP)}</button></div>`).join('')}</div></div>${tabbar('shop')}${viewer()}`;
 }
