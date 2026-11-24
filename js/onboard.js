@@ -97,14 +97,25 @@ const onbStarter = () => STARTERS.find(s => s.name === onb.starter);
 let onbDealt = null;
 const onbPacks = () => (onbDealt?.[0] === onbStarter() ? onbDealt[1] : (onbDealt = [onbStarter(), starterPacks(onbStarter())])[1]);
 // Pull objects for the opening screens; NEW = the first copy you'll own.
-const onbCards = ids => { const seen = {}; return ids.map(id => ({ id, rarity: CARD[id].rarity || 'C', finish: 'normal', isNew: !(coll[id]?.n > 0) && (seen[id] = (seen[id] || 0) + 1) === 1 })); };
+// Fixed treats so the packs build up: holos from pack 3, reverse holos from pack 6, and pack 8 ends on a 4-star full art.
+// Each list is applied to that pack's Characters from the last card backwards (Items and Evils only come in normal).
+const ONB_FIN = { 3: ['holo'], 4: ['holo'], 5: ['holo'], 6: ['rev'], 7: ['rev', 'holo'], 8: ['full', 'rev', 'holo'] };
+function onbFinishes(ids, k) {
+  const out = ids.map(() => 'normal'), want = [...(ONB_FIN[k] || [])];
+  for (let i = ids.length - 1; i >= 0 && want.length; i--) if (CARD[ids[i]].type === 'character') out[i] = want.shift();
+  return out;
+}
+const ONB_RANK = { normal: 0, holo: 1, rev: 2, full: 3 }; // the shiny ones are revealed last, the best one at the very end
+const onbCards = (ids, k) => { const seen = {}, fin = onbFinishes(ids, k);
+  return ids.map((id, i) => ({ id, rarity: CARD[id].rarity || 'C', finish: fin[i], i })).sort((x, y) => ONB_RANK[x.finish] - ONB_RANK[y.finish] || x.i - y.i)
+    .map(({ id, rarity, finish }) => ({ id, rarity, finish, isNew: !(coll[id]?.n > 0) && (seen[id] = (seen[id] || 0) + 1) === 1 })); };
 // A free pack runs through the normal opening screens (packs.js viewOpen); `free` = its number, or 'rest' for "Open all the rest".
-const onbPack = k => ({ pack: PACKS[0].id, free: k, stage: 'tear', i: 0, cards: onbCards(onbPacks()[k - 1]) });
+const onbPack = k => ({ pack: PACKS[0].id, free: k, stage: 'tear', i: 0, cards: onbCards(onbPacks()[k - 1], k) });
 // Cards are added when a pack's summary shows, and only if that pack isn't counted yet: a reload never gives a pack twice or loses one.
 function onbGrant(o) {
   const from = o.free === 'rest' ? o.from : o.free;
   if (onb.opened !== from - 1) return;
-  for (const p of o.cards) { const e = (coll[p.id] ||= { n: 0, f: {} }); e.n++; e.f.normal = (e.f.normal || 0) + 1; }
+  for (const p of o.cards) { const e = (coll[p.id] ||= { n: 0, f: {} }); e.n++; e.f[p.finish] = (e.f[p.finish] || 0) + 1; }
   store.set('collection', coll);
   onbSave({ opened: o.free === 'rest' ? ONB_PACKS : o.free });
 }
@@ -143,7 +154,7 @@ Object.assign(ACTS, {
   'onb-next'() { ui.open = null; }, // the router opens the next pack, or finishes after the 8th
   'onb-rest'() { // skip the animations: every pack not counted yet, in one summary
     const o = ui.open, from = o.stage === 'summary' ? o.free + 1 : o.free;
-    ui.open = { pack: PACKS[0].id, free: 'rest', from, stage: 'summary', i: 0, cards: onbCards(onbPacks().slice(from - 1).flat()) };
+    ui.open = { pack: PACKS[0].id, free: 'rest', from, stage: 'summary', i: 0, cards: onbPacks().slice(from - 1).flatMap((ids, j) => onbCards(ids, from + j)) };
   },
 });
 // The free packs' own labels and buttons on the normal opening screens (economy.js already hides Sell and Back for them).
