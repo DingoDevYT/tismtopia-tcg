@@ -1,53 +1,387 @@
 <!doctype html>
+<html lang="en">
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Card Editor</title>
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="vendor/holo/holo.css">
 <style>
-  body { margin: 0; padding: 16px; overflow: auto !important; height: auto !important; }
-  .vars { display: flex; gap: 6px; overflow-x: auto; } .vars .card { width: 120px; flex: none; position: relative; }
-  #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; }
-  .c { padding: 12px; border-radius: 16px; }
-  .pic { width: 100%; aspect-ratio: 4/3; overflow: hidden; border-radius: 4px; background: #ccc; }
-  .pic img { width: 100%; height: 100%; object-fit: cover; }
-  label { display: block; font-size: 12px; } input[type=range] { width: 100%; }
+  [hidden] { display: none !important; }
+  body { height: 100vh; overflow: hidden; }
+  .ed { display: grid; grid-template: auto minmax(0, 1fr) / clamp(230px, 19vw, 310px) minmax(0, 1fr) clamp(250px, 20vw, 320px); gap: 14px; height: 100vh; padding: 14px; }
+  .topbar { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 18px; }
+  .topbar h1 { font-size: 19px; font-weight: 800; white-space: nowrap; }
+  #status { flex: 1; min-width: 0; font-size: 13px; font-weight: 500; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #status.err { color: #b3202a; font-weight: 800; }
+  .pane { display: flex; flex-direction: column; gap: 8px; min-height: 0; padding: 12px; overflow: auto; border-radius: 18px; }
+  .pane h3 { font-size: 12px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-top: 6px; }
+  .inp, select { font: inherit; font-size: 13px; color: var(--ink); background: var(--bg); box-shadow: var(--inset); border: 0; border-radius: 12px; padding: 7px 8px; min-width: 0; }
+  .filters { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .filters label { display: flex; align-items: center; gap: 5px; font-size: 12px; }
+  #count { font-size: 11px; }
+  #list { list-style: none; flex: 1; min-height: 0; overflow: auto; margin: 0 -6px; padding: 2px 6px; }
+  #list li { display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-radius: 10px; cursor: pointer; }
+  #list li:hover { background: rgba(52, 60, 85, .06); }
+  #list li.sel { background: var(--bg); box-shadow: var(--inset); }
+  .thumb { position: relative; flex: none; width: 46px; height: 30px; overflow: hidden; border-radius: 5px; background: #cfd5e0; }
+  .thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .meta { flex: 1; min-width: 0; line-height: 1.2; }
+  .meta b, .meta small { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .meta b { font-size: 13px; } .meta small { font-size: 11px; }
+  .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; visibility: hidden; }
+  .dot.d-ed { background: var(--glow); } .dot.d-un { background: var(--accent); }
+  li.edited .d-ed, li.unsaved .d-un { visibility: visible; }
+  .badge { font-size: 10px; font-weight: 800; padding: 1px 7px; border-radius: 99px; background: var(--gold); color: #3b2a00; }
+  /* centre: the selected card in every finish; the group being edited is large and sunk in */
+  #stage { container-type: inline-size; overflow: auto; padding: 12px 16px; border-radius: 18px; outline: none; }
+  #stage:focus-visible { box-shadow: var(--raise), 0 0 0 2px var(--glow); }
+  .stage-h { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+  .stage-h b { font-size: 16px; color: var(--accent); }
+  .stage-h small { font-size: 12px; }
+  .grp { padding: 10px 12px 12px; margin-bottom: 10px; border-radius: 18px; }
+  .grp.on { background: var(--bg); box-shadow: var(--inset); }
+  .grp-h { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; font-size: 13px; }
+  .grp-h .etag { display: none; font-size: 11px; padding: 1px 8px; border-radius: 99px; background: var(--accent); color: #fff; }
+  .grp.on .grp-h .etag { display: inline; }
+  .grp:not(.on) .grp-h b::after { content: ' · click a card to edit'; font-weight: 500; color: var(--muted); }
+  .fins { display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-end; gap: 18px; }
+  .fin { width: 104px; text-align: center; }
+  .grp.on .fin { width: min(300px, (100cqw - 28px - (var(--n) - 1) * 18px) / var(--n), (100vh - 400px) / 1.4); } /* 4px slack so rounding never wraps */
+  .fin .card { --cw: 100%; }
+  .fin figcaption { margin-top: 6px; font-size: 12px; color: var(--muted); }
+  .grp:not(.on) .fin { cursor: pointer; }
+  .grp.on .card { cursor: grab; touch-action: none; }
+  .fin.grabbing .card { cursor: grabbing; }
+  #stage.safe .v-full :is(.head, .text, .moves, .defb) { background: rgba(229, 83, 93, .3) !important; outline: 2px dashed rgba(229, 83, 93, .95); outline-offset: -2px; }
+  /* inspector */
+  .num { display: grid; grid-template-columns: 44px 1fr 74px; align-items: center; gap: 8px; font-size: 13px; }
+  .num input[type=range] { accent-color: var(--accent); min-width: 0; }
+  .row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chk { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+  .drop { padding: 12px; border: 2px dashed #b9c1d3; border-radius: 14px; text-align: center; font-size: 12px; font-weight: 500; color: var(--muted); }
+  .drop.over { border-color: var(--accent); background: rgba(229, 83, 93, .07); }
+  #imgInfo { font-size: 12px; font-weight: 500; word-break: break-all; }
+  dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; font-size: 12px; }
+  dt { color: var(--muted); font-weight: 500; } dd { word-break: break-word; }
+  #subNotes { font-size: 12px; font-weight: 500; white-space: pre-wrap; padding: 8px 10px; }
 </style>
-<p><button class="btn primary" id="save">Save</button> <span id="msg"></span></p>
-<div id="grid"></div>
+<body>
+<div class="ed">
+  <header class="topbar neu">
+    <h1>Card editor</h1>
+    <span class="chip" id="dirty">0 unsaved</span>
+    <span id="status">Loaded</span>
+    <button class="btn sm" id="undo" title="Undo (Ctrl+Z)">Undo</button>
+    <button class="btn sm" id="redo" title="Redo (Ctrl+Y)">Redo</button>
+    <button class="btn sm" id="revert">Revert all unsaved</button>
+    <button class="btn sm" id="loadSub">Load .tismcard.json</button>
+    <button class="btn sm primary" id="save" title="Save (Ctrl+S)">Save</button>
+    <input type="file" id="subFile" accept=".json,application/json" hidden>
+  </header>
+
+  <aside class="pane neu">
+    <input class="inp" id="q" type="search" placeholder="Search name, id or owner  ( / )" autocomplete="off">
+    <div class="filters">
+      <select id="fType"><option value="">All types</option><option value="captain">Captains</option><option value="character">Characters</option><option value="bit">Items</option><option value="evil">Evils</option></select>
+      <select id="fArt"><option value="">Any art</option><option value="has">Has art</option><option value="missing">Missing art</option></select>
+      <select id="sort"><option value="no">By number</option><option value="name">By name</option><option value="owner">By owner</option></select>
+      <span></span>
+      <label><input type="checkbox" id="fUnsaved"> Unsaved</label>
+      <label><input type="checkbox" id="fFull"> Full-art crop set</label>
+    </div>
+    <small id="count"></small>
+    <ul id="list"></ul>
+  </aside>
+
+  <main id="stage" class="neu" tabindex="0">
+    <div class="stage-h"><b id="editing">Editing: standard crop</b>
+      <small>Drag to pan · wheel or pinch to zoom · double-click to reset · after a click: arrows move the picture (Shift ×5), + / − zoom, Esc back to the list</small></div>
+    <div id="groups"></div>
+  </main>
+
+  <aside class="pane neu" id="insp">
+    <h3>Crop · <span id="gName">standard</span></h3>
+    <label class="num">X <input type="range" id="rx" min="0" max="100" step="0.1"><input class="inp" type="number" id="nx" min="0" max="100" step="0.1"></label>
+    <label class="num">Y <input type="range" id="ry" min="0" max="100" step="0.1"><input class="inp" type="number" id="ny" min="0" max="100" step="0.1"></label>
+    <label class="num">Zoom <input type="range" id="rzoom" min="1" max="4" step="0.01"><input class="inp" type="number" id="nzoom" min="1" max="4" step="0.01"></label>
+    <div class="row"><button class="btn sm" id="copyFull">Copy standard → full art</button><button class="btn sm" id="reset">Reset this crop</button></div>
+    <label class="chk"><input type="checkbox" id="safe"> Safe zones on full art (header, text, moves)</label>
+    <div id="subBox" hidden>
+      <h3>Submission</h3>
+      <div class="neu-in" id="subNotes"></div>
+      <div class="row" style="margin-top:8px"><button class="btn sm" id="copyJson">Copy card JSON</button><button class="btn sm" id="saveSubImg">Save image to art/local</button></div>
+    </div>
+    <h3>Image</h3>
+    <div class="drop" id="drop">Drop a PNG, JPG or WebP here<br><button class="btn sm" id="pick" style="margin-top:6px">Replace image…</button><input type="file" id="file" accept="image/png,image/jpeg,image/webp" hidden></div>
+    <div id="imgInfo"></div>
+    <h3>Card</h3>
+    <dl id="facts"></dl>
+  </aside>
+</div>
 <script src="js/cards-data.js"></script>
+<script>const BASE_CARDS = structuredClone([...CAPTAINS, ...CARDS]); // before the overrides land, so resetting a key goes back to the generated value</script>
 <script src="js/card-overrides.js"></script>
 <script src="js/cards.js"></script>
 <script src="js/render.js"></script>
 <script src="js/rainbow.js"></script>
-<script>
-// Edits js/card-overrides.js and writes uploads to art/local/ through the browser's folder access.
-const all = [...CAPTAINS, ...CARDS], ov = structuredClone(OVERRIDES), $ = s => document.querySelector(s);
-const get = id => (ov[id] ||= {});
-const vars = c => (c.type === 'character' ? ['', 'v-holo', 'v-rev', 'v-full'] : ['']).map(v => renderCard(c, { cls: v })).join('');
-function draw() {
-  $('#grid').innerHTML = all.map(c => { const cr = c.crop || { x: 50, y: 50, zoom: 1 };
-    return `<div class="c neu" data-id="${c.id}"><b>${c.name}</b> <small>${c.type}</small>
-    <div class="vars">${vars(c)}</div>
-    <label>X <input type="range" min="0" max="100" value="${cr.x}" data-k="x"></label>
-    <label>Y <input type="range" min="0" max="100" value="${cr.y}" data-k="y"></label>
-    <label>Zoom <input type="range" min="1" max="3" step="0.05" value="${cr.zoom}" data-k="zoom"></label>
-    ${c.type === 'character' ? `<label><input type="checkbox" data-k="rainbow" ${c.rainbow ? 'checked' : ''}> Rainbow full art</label>` : ''}
-    <label>Replace image <input type="file" accept="image/*"></label></div>`; }).join('');
+<script src="js/cardfile.js"></script>
+<script type="module">
+// Owner's card editor: tunes art crops (crop = normal/holo/reverse, cropFull = full art/rainbow) and art per card, and saves
+// js/card-overrides.js through tools/serve.py (PUT, localhost only). Only the selected card's previews are ever re-rendered.
+const $ = s => document.querySelector(s);
+const DEF = { x: 50, y: 50, zoom: 1 }, AXES = ['x', 'y', 'zoom'];
+const FIN = { normal: ['Normal', ''], holo: ['Holo', 'v-holo'], rev: ['Reverse holo', 'v-rev'], full: ['Full art', 'v-full v-holo'], rainbow: ['Rainbow 5★', 'v-full v-holo v-rainbow'] };
+const GRP = f => (f === 'full' || f === 'rainbow' ? 'cropFull' : 'crop');
+const TYPE = { captain: 'Captain', character: 'Character', bit: 'Item', evil: 'Evil' };
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v)), rnd = (v, d) => Math.round(v * d) / d;
+
+// ---- state: ov = working overrides, saved = what the file holds (the retired `rainbow` flag is dropped on load, so it goes on the next save)
+const tidy = o => { const r = structuredClone(o); for (const k in r) { delete r[k].rainbow; if (!Object.keys(r[k]).length) delete r[k]; } return r; };
+let saved = tidy(OVERRIDES), ov = structuredClone(saved), sel = null, grp = 'crop', raf = 0, saving = false, nSub = 0, nDrag = 0;
+const entries = BASE_CARDS.map(b => ({ k: b.id, id: b.id, base: { ...b, no: CARD[b.id].no } }));
+const peek = e => (e.sub ? e.edits : ov[e.id]);
+const raw = e => ({ ...e.base, ...peek(e) });
+const view = e => (e.sub ? cfSafe(raw(e)) : raw(e)); // submitted text is untrusted: escaped before renderCard
+const put = (e, o) => { if (e.sub) e.edits = o || {}; else if (o && Object.keys(o).length) ov[e.id] = o; else delete ov[e.id]; };
+const setKey = (e, k, v) => { const o = { ...peek(e) }; if (v === undefined) delete o[k]; else o[k] = v; put(e, o); };
+const sig = o => (o && Object.keys(o).length ? JSON.stringify(o) : '');
+const dirty = e => !e.sub && sig(ov[e.id]) !== sig(saved[e.id]);
+const nDirty = () => entries.filter(dirty).length;
+const curCrop = (e, g = grp) => raw(e)[g] || DEF;
+
+// ---- undo: one snapshot of the card's overrides per edit; quick repeats of the same kind of edit merge
+const undo = [], redo = [];
+function begin(e, tag) {
+  const t = undo.at(-1), now = performance.now();
+  if (redo.length || !(t && t.e === e && t.tag === tag && now - t.at < 700)) undo.push({ e, tag, prev: structuredClone(peek(e)) });
+  undo.at(-1).at = now; redo.length = 0;
 }
-$('#grid').addEventListener('input', async e => {
-  const el = e.target, id = el.closest('.c').dataset.id, c = all.find(x => x.id === id), k = el.dataset.k;
-  if (el.type === 'file') {
-    const f = el.files[0], name = `${id}-custom.${f.name.split('.').pop().toLowerCase()}`;
-    if (!(await fetch('art/local/' + name, { method: 'PUT', body: f })).ok) return alert('Upload failed: run py tools/serve.py and open the editor on localhost:8123');
-    c.art = get(id).art = `art/local/${name}?v=${Date.now()}`;
-  } else if (k === 'rainbow') c.rainbow = get(id).rainbow = el.checked;
-  else { c.crop = get(id).crop = { ...(c.crop || { x: 50, y: 50, zoom: 1 }), [k]: +el.value }; }
-  el.closest('.c').querySelector('.vars').innerHTML = vars(c); // redraw only this card
+function step(from, to) {
+  const h = from.pop(); if (!h) return say('Nothing to ' + (from === undo ? 'undo' : 'redo'));
+  to.push({ e: h.e, tag: '', at: 0, prev: structuredClone(peek(h.e)) });
+  put(h.e, h.prev);
+  if (sel === h.e) { renderStage(); renderInspector(); } else select(h.e);
+  paint();
+}
+const setCrop = (e, c) => { setKey(e, grp, { x: rnd(clamp(c.x, 0, 100), 100), y: rnd(clamp(c.y, 0, 100), 100), zoom: rnd(clamp(c.zoom, 1, 4), 1000) }); schedule(); };
+
+// ---- list (plain DOM, built once; filtering only hides and reorders rows)
+const rows = new Map(), list = $('#list');
+function addRow(e) {
+  const c = raw(e), li = document.createElement('li');
+  li.innerHTML = `<span class="thumb"></span><span class="meta"><b>${esc(c.name)}</b><small>${e.sub ? '<span class="badge">Submission</span> ' : ''}${esc(c.artist || 'no owner')} · ${TYPE[c.type]} · ${esc(c.no)}</small></span><i class="dot d-ed" title="Has overrides"></i><i class="dot d-un" title="Unsaved changes"></i>`;
+  li._e = e; rows.set(e, li); updRow(e); return li;
+}
+const styleImg = (img, cr) => { const s = cropStyle(cr); if (s) img.setAttribute('style', s.slice(8, -1)); else img.removeAttribute('style'); };
+function updRow(e) {
+  const li = rows.get(e), c = raw(e), t = li.querySelector('.thumb');
+  li.classList.toggle('edited', !e.sub && !!sig(ov[e.id])); li.classList.toggle('unsaved', dirty(e));
+  if (t._src !== c.art) { t._src = c.art; t.innerHTML = c.art ? `<img src="${esc(c.art)}" alt="" loading="lazy" onerror="this.remove()">` : ''; }
+  const img = t.firstChild; if (img) styleImg(img, c.crop);
+}
+function applyFilter() {
+  const q = $('#q').value.trim().toLowerCase(), t = $('#fType').value, a = $('#fArt').value, un = $('#fUnsaved').checked, fu = $('#fFull').checked;
+  const nm = e => raw(e).name, by = { no: () => 0, name: (x, y) => nm(x).localeCompare(nm(y)), owner: (x, y) => (raw(x).artist || '~').localeCompare(raw(y).artist || '~') || nm(x).localeCompare(nm(y)) }[$('#sort').value];
+  let n = 0;
+  for (const e of [...entries].sort((x, y) => !!y.sub - !!x.sub || by(x, y))) {
+    const c = raw(e), li = rows.get(e);
+    const ok = (!q || `${c.name} ${c.id} ${c.artist || ''}`.toLowerCase().includes(q)) && (!t || c.type === t) && (!a || !!c.art === (a === 'has')) && (!un || dirty(e)) && (!fu || !!c.cropFull);
+    li.hidden = !ok; n += ok; list.append(li);
+  }
+  $('#count').textContent = `${n} of ${entries.length} cards`;
+}
+function select(e) {
+  if (!e) return;
+  rows.get(sel)?.classList.remove('sel'); sel = e;
+  const li = rows.get(e); li.classList.add('sel'); li.scrollIntoView({ block: 'nearest' });
+  renderStage(); renderInspector(); paint();
+}
+const moveSel = d => { const vis = [...list.children].filter(li => !li.hidden), i = vis.findIndex(li => li._e === sel); select(vis[clamp(i + d, 0, vis.length - 1)]?._e); };
+
+// ---- centre stage
+const finsOf = e => { const c = raw(e); return e.sub ? c.finishes : c.type === 'character' ? Object.keys(FIN) : ['normal']; };
+function renderStage() {
+  const c = view(sel), fins = finsOf(sel).filter(f => FIN[f]);
+  const groups = ['crop', 'cropFull'].map(g => [g, fins.filter(f => GRP(f) === g)]).filter(([, l]) => l.length);
+  $('#groups').innerHTML = groups.map(([g, l]) => `<section class="grp" data-g="${g}" style="--n:${l.length}">
+    <div class="grp-h"><b>${g === 'crop' ? 'Standard crop' : 'Full-art crop'}</b><small>${l.map(f => FIN[f][0]).join(' · ')}</small><span class="etag">Editing</span></div>
+    <div class="fins">${l.map(f => `<figure class="fin" data-f="${f}">${renderCard(c, { cls: FIN[f][1] })}<figcaption>${FIN[f][0]}</figcaption></figure>`).join('')}</div></section>`).join('');
+  setGroup(groups.some(([g]) => g === grp) ? grp : 'crop');
+}
+function setGroup(g) {
+  grp = g;
+  for (const s of document.querySelectorAll('.grp')) s.classList.toggle('on', s.dataset.g === g);
+  $('#editing').textContent = `Editing: ${g === 'crop' ? 'standard' : 'full-art'} crop`; $('#gName').textContent = g === 'crop' ? 'standard' : 'full art';
+  $('#copyFull').hidden = g !== 'cropFull' && !finsOf(sel).some(f => GRP(f) === 'cropFull');
+  schedule();
+}
+const schedule = () => (raf ||= requestAnimationFrame(paint));
+function paint() {
+  cancelAnimationFrame(raf); raf = 0;
+  const c = raw(sel);
+  for (const fin of document.querySelectorAll('#groups .fin')) { const img = fin.querySelector('.art img'); if (img) styleImg(img, c[GRP(fin.dataset.f)]); }
+  const cr = c[grp] || DEF;
+  for (const k of AXES) for (const el of [$('#r' + k), $('#n' + k)]) if (el !== document.activeElement) el.value = rnd(cr[k], k === 'zoom' ? 100 : 10);
+  updRow(sel);
+  const n = nDirty(); $('#dirty').textContent = `${n} unsaved`; $('#dirty').classList.toggle('on', n > 0); $('#save').disabled = !n;
+  $('#undo').disabled = !undo.length; $('#redo').disabled = !redo.length;
+}
+
+// ---- direct manipulation. Cover-fit image, object-position x% and scale(z) around x%: a picture point u lands at z*u - x/100*K,
+// K = z*coverWidth - boxWidth (the hidden width), so dragging dx pixels is -100*dx/K percent and zooming keeps the point under the pointer.
+const stage = $('#stage'), groupsEl = $('#groups');
+function metrics(fin) {
+  const art = fin.querySelector('.art'), img = art?.querySelector('img');
+  if (!img?.naturalWidth) return null;
+  const r = art.getBoundingClientRect(), s = Math.max(r.width / img.naturalWidth, r.height / img.naturalHeight);
+  return { r, cw: img.naturalWidth * s, ch: img.naturalHeight * s };
+}
+let drag = null, switched = 0;
+groupsEl.addEventListener('pointerdown', ev => {
+  stage.focus({ preventScroll: true });
+  const fin = ev.target.closest('.fin'); if (!fin || ev.button) return;
+  if (GRP(fin.dataset.f) !== grp) { switched = performance.now(); return setGroup(GRP(fin.dataset.f)); }
+  const m = metrics(fin); if (!m) return;
+  ev.preventDefault(); fin.setPointerCapture(ev.pointerId); fin.classList.add('grabbing');
+  drag = { fin, m, id: ev.pointerId, x0: ev.clientX, y0: ev.clientY, cr: { ...curCrop(sel) }, moved: false };
 });
-$('#save').onclick = async () => {
-  const r = await fetch('js/card-overrides.js', { method: 'PUT', body: `// Written by editor.html: per-card art, crop and rainbow full-art overrides, applied on top of cards-data.js.\nconst OVERRIDES = ${JSON.stringify(ov, null, 1)};\nfor (const c of [...CAPTAINS, ...CARDS]) Object.assign(c, OVERRIDES[c.id] || {});\n` });
-  if (!r.ok) return alert('Save failed (' + r.status + ')');
-  $('#msg').textContent = 'Saved ' + new Date().toLocaleTimeString();
+groupsEl.addEventListener('pointermove', ev => {
+  if (!drag || ev.pointerId !== drag.id) return;
+  const { m, cr } = drag, dx = ev.clientX - drag.x0, dy = ev.clientY - drag.y0, kx = cr.zoom * m.cw - m.r.width, ky = cr.zoom * m.ch - m.r.height;
+  if (!drag.moved) { if (!dx && !dy) return; drag.moved = true; begin(sel, 'drag' + ++nDrag); }
+  setCrop(sel, { x: kx > .5 ? cr.x - 100 * dx / kx : cr.x, y: ky > .5 ? cr.y - 100 * dy / ky : cr.y, zoom: cr.zoom });
+});
+const endDrag = () => { drag?.fin.classList.remove('grabbing'); drag = null; };
+groupsEl.addEventListener('pointerup', endDrag); groupsEl.addEventListener('pointercancel', endDrag);
+groupsEl.addEventListener('wheel', ev => {
+  const fin = ev.target.closest('.fin'); if (!fin || GRP(fin.dataset.f) !== grp) return;
+  ev.preventDefault(); const m = metrics(fin); if (!m) return;
+  const cr = curCrop(sel), d = ev.deltaY * (ev.deltaMode === 1 ? 16 : ev.deltaMode === 2 ? 400 : 1);
+  const z = clamp(cr.zoom * Math.exp(-d * (ev.ctrlKey ? .01 : .0015)), 1, 4); // ctrlKey = trackpad pinch
+  const keep = (v, p, cov, box) => { const k1 = z * cov - box; return k1 > .5 ? 100 * (z * (p + v / 100 * (cr.zoom * cov - box)) / cr.zoom - p) / k1 : v; };
+  begin(sel, 'wheel'); setCrop(sel, { x: keep(cr.x, ev.clientX - m.r.left, m.cw, m.r.width), y: keep(cr.y, ev.clientY - m.r.top, m.ch, m.r.height), zoom: z });
+}, { passive: false });
+// a double-click that started by switching groups is not a reset
+groupsEl.addEventListener('dblclick', ev => { const fin = ev.target.closest('.fin'); if (fin && GRP(fin.dataset.f) === grp && performance.now() - switched > 600) resetCrop(); });
+const nudge = (dx, dy, dz) => { const cr = curCrop(sel); begin(sel, 'key'); setCrop(sel, { x: cr.x + dx, y: cr.y + dy, zoom: cr.zoom + dz }); };
+function resetCrop() { begin(sel, 'reset'); setKey(sel, grp, undefined); schedule(); }
+
+// ---- inspector
+for (const k of AXES) for (const p of ['r', 'n']) $('#' + p + k).addEventListener('input', ev => {
+  const v = parseFloat(ev.target.value); if (!Number.isFinite(v)) return;
+  begin(sel, 'field-' + k); setCrop(sel, { ...curCrop(sel), [k]: v });
+});
+$('#copyFull').onclick = () => { begin(sel, 'copy'); setKey(sel, 'cropFull', { ...curCrop(sel, 'crop') }); schedule(); say('Copied the standard crop to full art'); };
+$('#reset').onclick = resetCrop;
+$('#safe').onchange = ev => stage.classList.toggle('safe', ev.target.checked);
+function renderInspector() {
+  const c = raw(sel), sub = sel.sub;
+  $('#subBox').hidden = !sub; $('#drop').hidden = !!sub;
+  if (sub) { $('#subNotes').textContent = sub.form.notes || 'No notes.'; $('#saveSubImg').disabled = !sub.image; }
+  const facts = [['Id', c.id], ['Number', c.no], ['Type', TYPE[c.type] + (c.main ? ' (Main)' : '')], c.type !== 'captain' && ['Cost', c.cost ?? 1],
+    c.type === 'character' && ['HP / DEF', `${c.hp} HP (${maxHp(c)} in play) · DEF ${c.def} (armour ${baseArmor(c)})`], ['Rarity', c.rarity || (sub ? 'not set' : '-')], ['Owner', c.artist || '-']].filter(Boolean);
+  $('#facts').innerHTML = facts.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join('');
+  const info = $('#imgInfo'), path = c.art ? (sub ? `embedded in the file (${Math.round(c.art.length * .75 / 1024)} KB)` : c.art.split('?')[0]) : '';
+  if (!c.art) { info.textContent = 'No image: the card shows its type icon.'; return; }
+  info.textContent = path; const probe = new Image();
+  probe.onload = () => { if (raw(sel).art === c.art) info.textContent = `${probe.naturalWidth} × ${probe.naturalHeight} px · ${path}`; };
+  probe.onerror = () => { if (raw(sel).art === c.art) info.textContent = `Missing on this PC: ${path}`; };
+  probe.src = c.art;
+}
+
+// ---- replace image: downscale to <= 700 px wide, PUT to art/local/<id>-custom.<ext>, point the override at it
+async function replaceImage(file) {
+  const e = sel, ext = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' }[file?.type];
+  if (!ext || e.sub) return say('Use a PNG, JPG or WebP image', true);
+  try {
+    say('Uploading…');
+    const bmp = await createImageBitmap(file); let body = file;
+    if (bmp.width > 700) {
+      const cv = Object.assign(document.createElement('canvas'), { width: 700, height: Math.round(bmp.height * 700 / bmp.width) });
+      cv.getContext('2d').drawImage(bmp, 0, 0, cv.width, cv.height);
+      body = await new Promise(res => cv.toBlob(res, file.type, .92));
+    }
+    const name = `${e.id}-custom.${ext}`, r = await fetch('art/local/' + name, { method: 'PUT', body });
+    if (!r.ok) throw new Error(`server said ${r.status}`);
+    begin(e, 'art'); setKey(e, 'art', `art/local/${name}?v=${Date.now()}`);
+    if (sel === e) { renderStage(); renderInspector(); } paint();
+    say(`Uploaded art/local/${name} (${bmp.width > 700 ? 'scaled to 700 px wide' : bmp.width + ' px wide'}); Save to keep it`);
+  } catch (err) { say('Image upload failed: ' + err.message + ' (run py tools/serve.py and open this page on localhost:8123)', true); }
+}
+$('#pick').onclick = () => $('#file').click();
+$('#file').onchange = ev => { replaceImage(ev.target.files[0]); ev.target.value = ''; };
+const drop = $('#drop');
+drop.ondragover = ev => { ev.preventDefault(); drop.classList.add('over'); };
+drop.ondragleave = () => drop.classList.remove('over');
+drop.ondrop = ev => { ev.preventDefault(); drop.classList.remove('over'); replaceImage(ev.dataTransfer.files[0]); };
+
+// ---- submissions (.tismcard.json from the Submit-a-card screen): cfRead validates and rebuilds the card, cfSafe escapes it for display
+async function loadSub(file) {
+  try {
+    if (!file) return;
+    if (file.size > 6e6) throw new Error('the file is over 6 MB');
+    const r = cfRead(JSON.parse(await file.text()));
+    const e = { k: 'sub:' + ++nSub, id: r.card.id, sub: r, base: { ...r.card, art: r.image || undefined, no: 'NEW' }, edits: {} };
+    entries.unshift(e); addRow(e); applyFilter(); select(e);
+    say(`Loaded submission "${r.card.name}"`);
+  } catch (err) { say('Could not load that card file: ' + err.message, true); }
+}
+$('#loadSub').onclick = () => $('#subFile').click();
+$('#subFile').onchange = ev => { loadSub(ev.target.files[0]); ev.target.value = ''; };
+$('#copyJson').onclick = async () => {
+  const json = JSON.stringify({ ...sel.sub.card, crop: curCrop(sel, 'crop'), cropFull: curCrop(sel, 'cropFull') }, null, 1);
+  try { await navigator.clipboard.writeText(json); say('Card JSON copied'); } catch (err) { say('Copy failed: ' + err.message, true); }
 };
-draw();
+$('#saveSubImg').onclick = async () => {
+  const img = sel.sub.image, ext = { png: 'png', jpeg: 'jpg', webp: 'webp' }[/^data:image\/(\w+);/.exec(img)?.[1]];
+  const name = `submission-${sel.id.slice(4).replace(/_/g, '-') || 'card'}.${ext}`;
+  try { const r = await fetch('art/local/' + name, { method: 'PUT', body: await (await fetch(img)).blob() }); if (!r.ok) throw new Error(`server said ${r.status}`); say('Saved art/local/' + name); }
+  catch (err) { say('Image save failed: ' + err.message, true); }
+};
+
+// ---- save / revert / status
+function say(text, err = false) { const s = $('#status'); s.textContent = s.title = text; s.classList.toggle('err', err); }
+async function save() {
+  if (saving) return; if (!nDirty()) return say('Nothing to save');
+  saving = true; say('Saving…');
+  const text = `// Written by editor.html: per-card overrides (art, crop = normal/holo/reverse, cropFull = full art/rainbow, balance tweaks), applied on top of cards-data.js.\nconst OVERRIDES = ${JSON.stringify(ov, null, 1)};\nfor (const c of [...CAPTAINS, ...CARDS]) Object.assign(c, OVERRIDES[c.id] || {});\n`;
+  try {
+    const r = await fetch('js/card-overrides.js', { method: 'PUT', body: text });
+    if (!r.ok) throw new Error(`server said ${r.status} ${r.statusText}`);
+    saved = structuredClone(ov); entries.forEach(updRow); paint(); say('Saved ' + new Date().toLocaleTimeString());
+  } catch (err) { say('Save failed: ' + err.message + ' (run py tools/serve.py and open this page on localhost:8123)', true); }
+  finally { saving = false; }
+}
+$('#save').onclick = save;
+$('#undo').onclick = () => step(undo, redo);
+$('#redo').onclick = () => step(redo, undo);
+$('#revert').onclick = () => {
+  const n = nDirty(); if (!n || !confirm(`Throw away ${n} unsaved change${n > 1 ? 's' : ''}?`)) return;
+  ov = structuredClone(saved); undo.length = redo.length = 0; entries.forEach(updRow); renderStage(); renderInspector(); paint(); say('Reverted unsaved changes');
+};
+addEventListener('beforeunload', ev => { if (nDirty()) { ev.preventDefault(); ev.returnValue = ''; } });
+
+// ---- keyboard
+addEventListener('keydown', ev => {
+  const a = document.activeElement, typing = /^(INPUT|SELECT|TEXTAREA)$/.test(a?.tagName), k = ev.key, mod = ev.ctrlKey || ev.metaKey;
+  if (mod && k.toLowerCase() === 's') { ev.preventDefault(); return save(); }
+  if (mod && /^[zy]$/i.test(k) && a !== $('#q')) { ev.preventDefault(); return k.toLowerCase() === 'y' || ev.shiftKey ? step(redo, undo) : step(undo, redo); }
+  if (mod || ev.altKey) return;
+  if (k === '/' && !typing) { ev.preventDefault(); return $('#q').focus(); }
+  const s = ev.shiftKey ? 5 : 1, z = { '+': .05, '=': .05, '-': -.05, '_': -.05 }[k];
+  if (a === stage) {
+    const d = { ArrowLeft: [s, 0], ArrowRight: [-s, 0], ArrowUp: [0, s], ArrowDown: [0, -s] }[k];
+    if (d) { ev.preventDefault(); return nudge(d[0], d[1], 0); }
+    if (k === 'Escape') return a.blur();
+  }
+  if (z && !typing) { ev.preventDefault(); return nudge(0, 0, z); }
+  if ((k === 'ArrowDown' || k === 'ArrowUp') && (!typing || a === $('#q'))) { ev.preventDefault(); moveSel(k === 'ArrowDown' ? 1 : -1); }
+});
+for (const id of ['#q', '#fType', '#fArt', '#sort', '#fUnsaved', '#fFull']) $(id).addEventListener('input', applyFilter);
+list.addEventListener('click', ev => { const li = ev.target.closest('li'); if (li) select(li._e); });
+
+for (const e of entries) addRow(e);
+applyFilter(); select(entries[0]);
+Object.assign(window, { ED: { entries, get ov() { return ov; }, get sel() { return sel; }, get grp() { return grp; }, undo, redo, select, setGroup, save, loadSub } }); // handle for checking it from the console
 </script>
+</body>
+</html>
