@@ -141,7 +141,7 @@ const TC = CARD[Object.keys(STARTER.cards).find(id => CARD[id].type === 'charact
 const TM = TC.moves.find(m => m.cost === 1 && !m.ability);
 const TUT = [
   { text: `Welcome to Tismtopia! Bore your opponent out: whoever reaches ${BORE_MAX} Boredom loses. This quick battle shows you how.`, next: true },
-  { text: 'This is you: your Captain card and your meters. Boredom (grey) is your health: fill it up and you lose. Creativity (orange) is your hype: land hits to build it, then spend it on your Captain\'s Super (the marked notch).', sel: `${MY} .hud`, next: true },
+  { text: 'This is you: your Captain card and your meters. Boredom (grey) is your health: fill it up and you lose. Creativity (orange) is your hype: you gain 1 every turn, then spend it on your Captain\'s Super (the marked notch).', sel: `${MY} .hud`, next: true },
   { text: "Every turn you gain 2 Actions. Playing a card costs 1, and each move shows its cost. Actions you don't spend are saved for next turn (up to 5), so you can save up for big moves.", sel: '.pips', next: true },
   { text: `Tap ${TC.name} in your hand, then tap Play.`, sel: () => (ui.zoom ? '.dim [data-a*=\'"play"\']' : `.hand .card[data-id="${TC.id}"]`), done: g => g.players[0].field.length > 0 },
   { text: `Characters attack with moves, each costing Actions. Tap ${TC.name} on the field and use ${TM.name} (1 Action). Nobody can block, so its damage goes straight to their Boredom.`,
@@ -149,7 +149,7 @@ const TUT = [
   { text: "Their Boredom went up by the attack's damage. You're out of Actions, so tap End Turn.", sel: '[data-act=end]', done: g => g.turn === 1 },
   { text: "The bot's turn. When it attacks, you pick which of your Characters blocks. The blocker takes the attack's damage minus its armour (the shield number).",
     sel: () => (game.phase !== 'defend' ? null : ui.defPick != null ? '.sheet [data-a*=\'"defend"\']' : '.sheet .field .card'), done: g => !!g.roll || (g.turn === 0 && g.turnNo > 2) },
-  { text: 'Damage that gets through lowers HP; damage past a Character’s HP spills to the next one, and only what’s left after the whole field becomes Boredom. Landing damage also moves 1 Creativity from them to you.', next: true },
+  { text: 'Damage that gets through lowers HP; damage past a Character’s HP spills to the next one, and only what’s left after the whole field becomes Boredom.', next: true },
   { text: 'Items are instant and last a few turns. Evils stay until removed. Tap your Captain to use its Super once you have enough Creativity, or your meters for the log, manual fixes, or to leave.', next: true },
   { text: "That's the basics! Finish this battle against the bot, then build your own deck.", next: 'Got it' },
 ];
