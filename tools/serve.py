@@ -4,6 +4,11 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     def end_headers(self):
         self.send_header('Cache-Control', 'no-cache')
         super().end_headers()
+    def send_head(self):  # GET/HEAD: review/ holds the art key (review/asset-key.txt), so this PC only, never the LAN
+        nc = lambda p: os.path.normcase(os.path.realpath(p)) + os.sep
+        if nc(self.translate_path(self.path)).startswith(nc(os.path.join(root, 'review'))) and self.client_address[0] not in ('127.0.0.1', '::1'):
+            self.send_error(403); return None
+        return super().send_head()
     def do_PUT(self):  # card editor saves: only from this PC, only the overrides file or images in art/local/
         p = self.path.split('?')[0].lstrip('/')
         ok = p == 'js/card-overrides.js' or (p.startswith('art/local/') and '/' not in p[10:] and '..' not in p)

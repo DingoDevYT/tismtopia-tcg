@@ -84,10 +84,10 @@ function renderCard(c, o = {}) {
   const cls = o.cls ? ' ' + o.cls : '', style = (o.style ? ` style="${o.style}"` : '') + (o.attrs ? ' ' + o.attrs : '');
   if (!c) return `<div class="card back${cls}"${style}><div class="frame"></div></div>`;
   const kind = kindOf(c), isCh = c.type === 'character', hp = o.hp ?? (isCh ? maxHp(c) : c.hp), turns = o.turns ?? c.dur, def = o.def ?? (isCh ? baseArmor(c) : c.def);
-  // Art lives only on computers that ran tools/apply-cards.js; elsewhere the image fails and the placeholder underneath shows.
+  // Art: art/local/ on the owner's PC, decrypted from assets/ for members elsewhere (js/assets.js); until it's there the placeholder underneath shows.
   // Rainbow cards swap in the repainted art from js/rainbow.js: the cached result straight away, else processed on load (pages without it show the plain art).
   const rbw = /\bv-rainbow\b/.test(cls), rbOn = rbw && typeof RB !== 'undefined', rbUrl = rbOn && RB[c.art];
-  const art = `<span class="ph">${ICON[c.type]}</span>${c.art ? `<img src="${rbUrl || c.art}" alt="" onerror="this.remove()"${rbOn ? ` data-art="${c.art}"${rbUrl ? ' data-rb="1"' : ' onload="rainbowize(this)"'}` : c.type === 'character' && !c.main ? ' onload="tone(this)"' : ''}${cropStyle(/\bv-full\b/.test(cls) ? c.cropFull : c.crop)}>` : ''}`; // full art has its own crop (cropFull; none = cover)
+  const art = `<span class="ph">${ICON[c.type]}</span>${c.art ? `<img ${assetSrc(rbUrl || c.art)} alt="" onerror="this.remove()"${rbOn ? ` data-art="${c.art}"${rbUrl ? ' data-rb="1"' : ' onload="rainbowize(this)"'}` : c.type === 'character' && !c.main ? ' onload="tone(this)"' : ''}${cropStyle(/\bv-full\b/.test(cls) ? c.cropFull : c.crop)}>` : ''}`; // full art has its own crop (cropFull; none = cover)
   // Characters read like Pokemon cards: HP top right, DEF as a shield on the art, moves on one panel.
   const isChar = c.type === 'character';
   const hpTag = isChar ? `<span class="hp${hp < maxHp(c) ? ' hurt' : ''}"><i>HP</i>${hp}</span>` : '';
@@ -95,7 +95,7 @@ function renderCard(c, o = {}) {
   const body = isChar
     ? `${c.text ? `<div class="text passive">${c.text}</div>` : ''}<div class="moves">${c.moves.map(mv => renderMove(mv, o.bonus)).join('')}</div>`
     : `<div class="text">${c.text}</div><div class="tag">${c.type === 'bit' ? (isInstant(c) ? `${ICON.instant}Instant` : `${ICON.time}${turns} turn${turns > 1 ? 's' : ''}`) : c.type === 'evil' ? `${ICON.forever}Forever` : `${ICON.captain}${c.style}`}</div>`;
-  const tv = c.type === 'character' && !c.main && TONE[c.art];
+  const tv = c.type === 'character' && !c.main && TONE[assetUrl(c.art)]; // tone() keys by the src it loaded from
   // Foil finishes use the holo effect layers (vendor/holo/holo.css): v-holo = rare holo, v-rev = reverse holo, v-full = full-art ultra rare.
   const fin = /\bv-full\b/.test(cls) ? ' data-rarity="rare ultra" data-supertype="pokémon"' : /\bv-rev\b/.test(cls) ? ' data-rarity="reverse holo"' : /\bv-holo\b/.test(cls) ? ' data-rarity="rare holo"' : '';
   const layers = fin ? '<div class="holo__shine"></div><div class="holo__glare"></div>' : '';
@@ -107,7 +107,7 @@ function renderCard(c, o = {}) {
   </div></div>`;
 }
 
-const renderAvatar = (c, cls = '') => `<span class="avatar${cls}">${ICON.captain}${c.art ? `<img src="${c.art}" alt="" onerror="this.remove()">` : ''}</span>`;
+const renderAvatar = (c, cls = '') => `<span class="avatar${cls}">${ICON.captain}${c.art ? `<img ${assetSrc(c.art)} alt="" onerror="this.remove()">` : ''}</span>`;
 // Boredom is health (lose at BORE_MAX); Creativity is hype up to 10, with the Captain's Super cost marked on the bar.
 // The Super notch lights up once you can afford it; Boredom turns to warning colours from 7.
 const meter = (k, v, max, sup) => `<div class="meter ${k}${k === 'bore' && v >= 7 ? ' warn' : ''}"><span>${ICON[k]}${k === 'goof' ? 'Creativity' : 'Boredom'}</span><b>${v}/${max}</b>
@@ -167,5 +167,7 @@ const PRELOAD = (() => {
   const arts = [...new Set([...CAPTAINS, ...CARDS].map(c => c.art).filter(Boolean))];
   const extra = ['art/logo.png', 'art/card-back.jpg', ...['heehn', 'empirical', 'foreseen'].map(id => 'art/local/pack-' + id + '.png'),
     ...['illusion.png', 'glitter.png', 'grain.webp', 'galaxy.jpg', 'cosmos-bottom.png', 'cosmos-middle-trans.png', 'cosmos-top-trans.png'].map(f => 'vendor/holo/img/' + f)];
-  return [...arts, ...extra].map(src => { const i = new Image(); i.decoding = 'async'; if (arts.includes(src)) i.onload = () => toneOf(i, src); i.src = src; return i; });
+  return [...arts, ...extra].map(src => { const i = new Image(); i.decoding = 'async'; if (arts.includes(src)) i.onload = () => toneOf(i, src); const u = assetUrl(src, true); if (u) i.src = u; return i; }); // locked: queues the decryption instead
 })();
+// Locked (js/assets.js): each art's frame colour is worked out as it's decrypted instead (rainbow cards never run tone()).
+if (typeof addEventListener === 'function') addEventListener('asset', e => { if (!e.detail.startsWith('art/')) return; const u = assetUrl(e.detail), i = new Image(); i.onload = () => toneOf(i, u); i.src = u; });

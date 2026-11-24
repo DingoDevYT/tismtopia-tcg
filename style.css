@@ -168,6 +168,7 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
 .card .art { height: 44%; flex: none; overflow: hidden; border-radius: 2cqw; box-shadow: 0 0 0 1cqw rgba(255, 255, 255, .9), 0 1cqw 2.5cqw rgba(0, 0, 0, .18); }
 .card .art { position: relative; }
 .card .art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+img[data-asset] { visibility: hidden; } /* still being decrypted (js/assets.js): the placeholder underneath shows */
 .card .ph { width: 100%; height: 100%; display: grid; place-items: center; color: var(--tint);
   background: radial-gradient(circle at 50% 45%, rgba(255, 255, 255, .96) 30%, rgba(255, 255, 255, .7) 80%), repeating-linear-gradient(45deg, var(--tint) 0 .5cqw, transparent .5cqw 3cqw); }
 .card .ph .i { width: 34%; height: 50%; opacity: .32; }

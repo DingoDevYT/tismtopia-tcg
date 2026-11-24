@@ -121,12 +121,14 @@
 <script>const BASE_CARDS = structuredClone([...CAPTAINS, ...CARDS]); // before the overrides land, so resetting a key goes back to the generated value</script>
 <script src="js/card-overrides.js"></script>
 <script src="js/cards.js"></script>
+<script src="js/assets.js"></script>
 <script src="js/render.js"></script>
 <script src="js/rainbow.js"></script>
 <script src="js/cardfile.js"></script>
 <script type="module">
 // Owner's card editor: tunes art crops (crop = normal/holo/reverse, cropFull = full art/rainbow) and art per card, and saves
 // js/card-overrides.js through tools/serve.py (PUT, localhost only). Only the selected card's previews are ever re-rendered.
+// New pictures land in art/local/ (plaintext, git-ignored): run node tools/encrypt-assets.js and commit assets/ to publish them.
 const $ = s => document.querySelector(s);
 const DEF = { x: 50, y: 50, zoom: 1 }, AXES = ['x', 'y', 'zoom'];
 const FIN = { normal: ['Normal', ''], holo: ['Holo', 'v-holo'], rev: ['Reverse holo', 'v-rev'], full: ['Full art', 'v-full v-holo'], rainbow: ['Rainbow 5★', 'v-full v-holo v-rainbow'] };
@@ -347,7 +349,9 @@ async function save() {
   try {
     const r = await fetch('js/card-overrides.js', { method: 'PUT', body: text });
     if (!r.ok) throw new Error(`server said ${r.status} ${r.statusText}`);
-    saved = structuredClone(ov); entries.forEach(updRow); paint(); say('Saved ' + new Date().toLocaleTimeString());
+    const newArt = Object.keys({ ...ov, ...saved }).some(k => ov[k]?.art !== saved[k]?.art);
+    saved = structuredClone(ov); entries.forEach(updRow); paint();
+    say('Saved ' + new Date().toLocaleTimeString() + (newArt ? '. Run node tools/encrypt-assets.js and commit assets/ to publish new art.' : ''));
   } catch (err) { say('Save failed: ' + err.message + ' (run py tools/serve.py and open this page on localhost:8123)', true); }
   finally { saving = false; }
 }

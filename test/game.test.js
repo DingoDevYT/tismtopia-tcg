@@ -1,7 +1,7 @@
 // Self-check for the rules engine. Run: node test/game.test.js
 const fs = require('fs'), vm = require('vm'), path = require('path');
 // syntax-check every browser script too, so a broken app.js can't ship (the rules tests don't load it)
-for (const f of ['js/app.js', 'js/packs.js', 'js/audio.js', 'js/render.js', 'js/rainbow.js', 'js/cards.js', 'js/cards-data.js', 'js/game.js', 'js/cardfile.js', 'js/art-tools.js', 'js/cloud.js', 'js/profile.js', 'js/submit.js', 'js/community.js', 'js/review.js', 'js/onboard.js', 'js/tour.js']) new vm.Script(fs.readFileSync(path.join(__dirname, '..', f), 'utf8'), { filename: f });
+for (const f of ['js/app.js', 'js/packs.js', 'js/audio.js', 'js/assets.js', 'js/render.js', 'js/rainbow.js', 'js/cards.js', 'js/cards-data.js', 'js/game.js', 'js/cardfile.js', 'js/art-tools.js', 'js/cloud.js', 'js/profile.js', 'js/submit.js', 'js/community.js', 'js/review.js', 'js/onboard.js', 'js/tour.js']) new vm.Script(fs.readFileSync(path.join(__dirname, '..', f), 'utf8'), { filename: f });
 const load = files => files.map(f => fs.readFileSync(path.join(__dirname, '..', f), 'utf8')).join('\n');
 const src = load(['test/fixture-cards.js', 'js/cards.js', 'js/game.js']).replace('const BORE_MAX = 10;', 'const BORE_MAX = 99;').replace('const DECK_SIZE = 40;', 'const DECK_SIZE = 20;').replace('const HP_SCALE = 1.2;', 'const HP_SCALE = 2;');
 
@@ -210,7 +210,7 @@ throws(() => apply(m, 0, { type: 'end' }), 'no actions after game over');
 { const x = {}; require('vm').runInNewContext(fs.readFileSync(__dirname + '/../js/cards-data.js', 'utf8') + fs.readFileSync(__dirname + '/../js/card-overrides.js', 'utf8') + ';this.A=[...CAPTAINS,...CARDS]', x);
   for (const c of x.A) if (c.name.length > 22) throw new Error('FAIL: name too long (max 22): ' + c.name); }
 // The browser loads these as one shared scope: two files declaring the same name breaks everything after it.
-new Function(['cards-data', 'card-overrides', 'cards', 'render', 'rainbow', 'game', 'app', 'pack-sets', 'packs', 'economy', 'audio', 'cardfile', 'art-tools', 'cloud', 'profile', 'submit', 'community', 'review', 'onboard', 'tour'].map(f => fs.readFileSync(__dirname + '/../js/' + f + '.js', 'utf8')).join('\n;\n'));
+new Function(['cards-data', 'card-overrides', 'cards', 'assets', 'render', 'rainbow', 'game', 'app', 'pack-sets', 'packs', 'economy', 'audio', 'cardfile', 'art-tools', 'cloud', 'profile', 'submit', 'community', 'review', 'onboard', 'tour'].map(f => fs.readFileSync(__dirname + '/../js/' + f + '.js', 'utf8')).join('\n;\n'));
 // New players (js/onboard.js): each starter dealt as 8 packs of 5 holding exactly its 40 cards, no pack with two of a card, strongest
 // card last in each pack, the deck those packs make is legal; and only the public site (github.io) or ?gate=1 forces the sign-in gate.
 { const x = { structuredClone }, ob = fs.readFileSync(__dirname + '/../js/onboard.js', 'utf8').split('// ---------------- browser only')[0];
@@ -235,7 +235,7 @@ new Function(['cards-data', 'card-overrides', 'cards', 'render', 'rainbow', 'gam
   ok(!gateOn('github.io.evil.com', '') && !gateOn('localhost', '?gate=10'), 'lookalikes do not match');
   `, x); }
 // Submitted cards (js/cardfile.js): untrusted forms are clamped, effects come only from the menu, a card file round-trips, junk is refused.
-{ const x = { Image: function () {} }; vm.runInNewContext(['cards-data', 'cards', 'render', 'cardfile'].map(f => fs.readFileSync(__dirname + '/../js/' + f + '.js', 'utf8')).join('\n;\n') + `;
+{ const x = { Image: function () {} }; vm.runInNewContext(['cards-data', 'cards', 'assets', 'render', 'cardfile'].map(f => fs.readFileSync(__dirname + '/../js/' + f + '.js', 'utf8')).join('\n;\n') + `;
   const ok = (c, m) => { if (!c) throw new Error('FAIL: cardfile: ' + m); };
   const f = cfClean({ type: 'character', name: 'x'.repeat(40), hp: 99, def: -5, cost: 9, fx: { trig: 'passive', eff: 'goof' }, moves: [{ name: 'Hit', power: 50, eff: 'heal', n: 2 }, { ability: true, eff: 'dmg' }, {}], fins: { rainbow: true, evil: true }, hack: 1 });
   ok(f.name.length === 22 && f.cost === 3 && f.moves.length === 2 && f.moves[0].power === CF_POW[1] && !('hack' in f), 'clamps values');
@@ -255,7 +255,7 @@ new Function(['cards-data', 'card-overrides', 'cards', 'render', 'rainbow', 'gam
   ok(cfBand(cfBuild(cfClean({ hp: 8, def: 16, cost: 0, fx: { trig: 'passive', eff: 'atk', n: 3 }, moves: [{ name: 'a', power: 6, cost: 1 }, { name: 'b', power: 6, cost: 1 }] }))).band === 3, 'an overloaded card is Too strong');
 `, x); }
 // Full art (v-full) takes its crop from cropFull, other finishes from crop; no cropFull = plain cover, as before.
-{ const x = { Image: function () {} }; vm.runInNewContext(['cards-data', 'cards', 'render'].map(f => fs.readFileSync(__dirname + '/../js/' + f + '.js', 'utf8')).join('\n;\n') + `;
+{ const x = { Image: function () {} }; vm.runInNewContext(['cards-data', 'cards', 'assets', 'render'].map(f => fs.readFileSync(__dirname + '/../js/' + f + '.js', 'utf8')).join('\n;\n') + `;
   const c = { ...CARDS.find(c => c.type === 'character'), art: 'a.png', crop: { x: 10, y: 20, zoom: 2 }, cropFull: { x: 70, y: 30, zoom: 1.5 } };
   this.r = [renderCard(c), renderCard({ ...c, crop: null }, { cls: 'v-full v-holo' }), renderCard({ ...c, crop: null, cropFull: undefined }, { cls: 'v-full v-holo v-rainbow' })];`, x);
   if (!x.r[0].includes('object-position:10% 20%') || !x.r[1].includes('object-position:70% 30%') || x.r[2].includes('object-position')) throw new Error('FAIL: full-art crop should come from cropFull'); }
@@ -273,7 +273,7 @@ new Function(['cards-data', 'card-overrides', 'cards', 'render', 'rainbow', 'gam
   for (const c of x.A) for (const mv of c.moves || []) if (/heals/.test(mv.text || '') && !JSON.stringify(mv.onHit || mv.ops || []).includes('-')) throw new Error('FAIL: ' + c.name + ' says it heals but its op deals damage');
   for (const c of x.A) for (const mv of c.moves || []) if (/more damage/.test(mv.text || '') && /"hp","target",-/.test(JSON.stringify(mv.onHit || []))) throw new Error('FAIL: ' + c.name + ' says more damage but its op heals'); }
 // Community cards (js/community.js): approved rows are validated, escaped, numbered after the built-ins and playable.
-{ const x = { Image: function () {}, structuredClone }; vm.runInNewContext(['cards-data', 'cards', 'render', 'game', 'cardfile', 'community'].map(f => fs.readFileSync(__dirname + '/../js/' + f + '.js', 'utf8')).join('\n;\n') + `;
+{ const x = { Image: function () {}, structuredClone }; vm.runInNewContext(['cards-data', 'cards', 'assets', 'render', 'game', 'cardfile', 'community'].map(f => fs.readFileSync(__dirname + '/../js/' + f + '.js', 'utf8')).join('\n;\n') + `;
   const ok = (c, m) => { if (!c) throw new Error('FAIL: community: ' + m); };
   const base = CARDS.length, card = { id: 'sub_x', type: 'character', name: 'Jonathan', hp: 4, def: 14, cost: 1, text: 'When played: +1 Action this turn.', onPlay: [['actions', 'me', 1]], artist: 'anon',
     moves: [{ name: 'Sweepkick', cost: 1, power: 2 }, { name: 'Wind-dash', cost: 2, power: 4, text: 'On a hit, your Boredom -1.', onHit: [['bore', 'me', -1]] }], crop: { x: 20, y: 20, zoom: 2 }, cropFull: { x: 16, y: 44, zoom: 1 }, finishes: ['normal', 'holo', 'full'] };
@@ -314,4 +314,21 @@ new Function(['cards-data', 'card-overrides', 'cards', 'render', 'rainbow', 'gam
   cmRegister([pr('a6000000-0000-0000-0000-000000000006', 'Comm One', 'community')], CARDS, CARD); cmPacks(CARDS, ps, pk);
   ok(ps.community.join() === 'community_a6000000' && pk.at(-1) === CM_PACK && pk.length === 3 && ps.empirical.join() === 'e1', 'one card makes the Community Pack; a refresh drops cards no longer listed');
 `, x); }
-console.log('game.test.js: all checks passed');
+// Encrypted art and audio: tools/encrypt-assets.js writes what js/assets.js decrypts with WebCrypto (same names, same format); a changed byte
+// or a file moved to another path is refused. The plaintext and the key are never tracked.
+(async () => {
+  const tool = require('../tools/encrypt-assets.js'), key = require('crypto').randomBytes(32), plain = require('crypto').randomBytes(5000), p = 'art/local/test_card.png';
+  const c = { crypto: require('crypto').webcrypto, TextEncoder, atob };
+  vm.runInNewContext(fs.readFileSync(__dirname + '/../js/assets.js', 'utf8') + ';this.x = { asKeys, asName, asDecrypt, assetUrl }', c);
+  const x = c.x, k = await x.asKeys(key.toString('base64')), bin = tool.encrypt(key, p, plain), u8 = b => new Uint8Array(b);
+  const ok = (c, msg) => { if (!c) throw new Error('FAIL: ' + msg); }, refused = pr => pr.then(() => false, () => true);
+  ok(Buffer.from(await x.asDecrypt(k.aes, p, u8(bin))).equals(plain), 'browser decrypts what the tool encrypted');
+  ok((await x.asName(k.hmac, p)) === tool.name(key, p) && /^[0-9a-f]{32}$/.test(tool.name(key, p)), 'browser and tool derive the same file name');
+  ok(tool.encrypt(key, p, plain).equals(bin) && !tool.encrypt(key, p, Buffer.concat([plain, Buffer.from('x')])).subarray(0, 12).equals(bin.subarray(0, 12)), 'same file = same bytes; changed file = new IV');
+  const bad = Buffer.from(bin); bad[100] ^= 1;
+  ok(await refused(x.asDecrypt(k.aes, p, u8(bad))), 'a flipped byte is refused');
+  ok(await refused(x.asDecrypt(k.aes, 'art/local/other.png', u8(bin))), 'a file encrypted for one path does not decrypt under another');
+  ok(tool.decrypt(key, p, bin).equals(plain) && x.assetUrl('art/local/a.png?v=1') === 'art/local/a.png?v=1', 'tool round trip; plain mode passes paths through');
+  const tracked = require('child_process').execSync('git ls-files art/local audio/local review', { cwd: __dirname + '/..' }).toString().trim();
+  ok(!tracked, 'no plaintext art/audio and no review/ in git: ' + tracked.slice(0, 200));
+})().then(() => console.log('game.test.js: all checks passed'), e => { console.error(e.message); process.exit(1); });

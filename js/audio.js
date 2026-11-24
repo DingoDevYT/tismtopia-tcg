@@ -1,5 +1,5 @@
-// Music and fanfares. The tracks live in audio/local/ and are never uploaded (they aren't ours to publish),
-// so the public site is silent and anyone with the files gets the soundtrack. Loops crossfade; fanfares cut in.
+// Music and fanfares. The tracks live in audio/local/ on the owner's PC (git-ignored); the public site has only the encrypted copies
+// in assets/, which js/assets.js decrypts for signed-in members (a track may start a moment late on a first visit). Loops crossfade; fanfares cut in.
 const MUSIC = {
   title: 'title', home: 'home', packs: 'choose-pack', open: 'pack-opening', collection: 'my-cards', build: 'my-cards',
   deck: 'choose-deck', lobby: 'battle-menu', rules: 'home', battle: 'battle', winning: 'battle-winning', losing: 'battle-losing', results: 'battle-results',
@@ -8,7 +8,8 @@ let VOL = store.get('volume', 0.5); const FADE = 1400;
 let musicOn = VOL > 0, unlocked = false, cur = null, curKey = '', wantKey = '', fanfaring = false, titleDone = false;
 let lastPhase = null, lastReveal = '';
 const tracks = {}; // one Audio per track, created on demand and reused
-const track = name => (tracks[name] ||= Object.assign(new Audio(`audio/local/${name}.mp3`), { preload: 'auto' }));
+// locked (js/assets.js): no src until the track is decrypted; asking again fills it in
+const track = name => { const t = (tracks[name] ||= Object.assign(new Audio(), { preload: 'auto' })), u = !t.src && assetUrl(`audio/local/${name}.mp3`); if (u) t.src = u; return t; };
 
 function fade(el, to, ms, done) { // timer-based so fades still finish when the tab isn't being painted
   const from = el.volume, t0 = Date.now();
@@ -27,10 +28,11 @@ function playLoop(key) {
 }
 function fanfare(name) {
   if (!musicOn || !unlocked) return;
+  const f = track(name); if (!f.src) return; // not decrypted yet: skipped (it would never end, and the music would wait for it)
   fanfaring = true;
   if (cur) { cur.pause(); cur.volume = 0; } curKey = '';             // fanfares cut in, no fade
   Object.values(tracks).forEach(t => { if (t !== cur && !t.loop) { t.pause(); } });
-  const f = track(name); f.loop = false; f.currentTime = 0; f.volume = VOL; f.play().catch(() => {});
+  f.loop = false; f.currentTime = 0; f.volume = VOL; f.play().catch(() => {});
   f.onended = () => { fanfaring = false; playLoop(wantKey); };
 }
 
@@ -70,8 +72,8 @@ function syncMusic() {
   playLoop(musicKey());
 }
 
-// Sound effects (audio/local/sfx/, same rule as the music): played by comparing state before and after each render.
-const sfx = (name, loop) => { if (!musicOn || !unlocked) return; const a = new Audio(`audio/local/sfx/${name}.wav`); a.volume = Math.min(1, VOL * 1.3); a.loop = !!loop; a.play().catch(() => {}); return a; };
+// Sound effects (audio/local/sfx/, same rule as the music; one not decrypted yet is skipped): played by comparing state before and after each render.
+const sfx = (name, loop) => { if (!musicOn || !unlocked) return; const u = assetUrl(`audio/local/sfx/${name}.wav`); if (!u) return; const a = new Audio(u); a.volume = Math.min(1, VOL * 1.3); a.loop = !!loop; a.play().catch(() => {}); return a; };
 let drumAudio = null; // the drumroll loops for the whole aura cutscene, then stops on the reveal
 const stopRoll = () => { if (drumAudio) { drumAudio.pause(); drumAudio = null; } };
 let prev = null, prevOpen = '';
@@ -106,6 +108,15 @@ addEventListener('click', e => { if (e.target.closest('button')) sfx('ui_button_
 const renderNoMusic = render;
 render = function () { renderNoMusic(); syncMusic(); syncSfx(); };
 
+// Locked (js/assets.js): the title music and the sound effects are fetched as soon as the key arrives (the sfx behind the art on screen),
+// and a loop that was wanted before it was decrypted starts when it arrives.
+addEventListener('asset-key', () => {
+  ['ui_button_1', 'cardDraw', 'PlayerTurnBegin', 'OpponentTurnBegin', 'pokemonPlay', 'PlayTrainer', 'damageToken', 'colorlessAttackSmall', 'colorlessAttackBig', 'knockOut_002',
+    'packopen_4_ripopen', 'packopen_6_A_cardflip', 'packopen_11_rarereveal', 'packopen_2_handreveal', 'packopen_10_drumroll', 'versus_rewards_2_barfillsparkle', 'ui_reward_coinreward']
+    .forEach(n => assetUrl(`audio/local/sfx/${n}.wav`, true));
+  assetUrl('audio/local/title.mp3');
+});
+addEventListener('asset', e => { if (cur && !cur.src && e.detail.endsWith('.mp3')) { curKey = ''; syncMusic(); } });
 // Browsers only allow sound after a tap: the first one anywhere starts the music.
 addEventListener('pointerdown', () => { if (!unlocked) { unlocked = true; syncMusic(); } }, { capture: true });
 // Phones: pause when the app is in the background, pick up again when it comes back.

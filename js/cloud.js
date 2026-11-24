@@ -58,6 +58,7 @@ async function cloudUser() {
   cloud.checked = true;
   if (v !== 'yes') return (cloud.user = null); // only a verified member counts as signed in
   const u = s.user, m = u.user_metadata || {}, av = String(m.avatar_url || '');
+  assetKeyLoad(); // a verified member: the key for the encrypted art and audio (js/assets.js; once per tab)
   return (cloud.user = { id: u.id, name: String(m.custom_claims?.global_name || m.full_name || m.name || 'Player').slice(0, 32), avatar: /^https:\/\/cdn\.discordapp\.com\/[\w/.-]+(\?[\w=&.-]*)?$/.test(av) ? av : '' });
 }
 // Is this account in the Tismtopia Discord server? Asked once per page load. Right after a Discord sign-in the Discord token goes to
@@ -92,7 +93,7 @@ async function cloudSignOut() {
   if (!CLOUD.url) return CLOUD_OFF;
   if (cloud.dirty && cloud.synced && cloud.user) await cloudSaveGame(); // keep the last few changes
   const r = await sbRun('Sign-out', async sb => { need(await sb.auth.signOut()); return {}; });
-  if (r.ok) { clearTimeout(cloud.timer); Object.assign(cloud, { user: null, synced: false, timer: 0 }); ui.subList = null; }
+  if (r.ok) { clearTimeout(cloud.timer); Object.assign(cloud, { user: null, synced: false, timer: 0 }); ui.subList = null; assetForget(); }
   return r;
 }
 

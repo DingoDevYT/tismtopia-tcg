@@ -59,7 +59,7 @@ function openPack(packId) {
   return { pack: packId, cards, stage: 'tear', i: 0, god };
 }
 
-const packArt = (p, cls = '') => `<div class="pack ${cls}" style="--pc:${p.colour}"><img src="art/local/pack-${p.id}.png" alt="" onerror="this.remove()"><div class="pack-fallback"><img src="art/logo.png" alt=""><b>${p.name}</b><small>5 cards</small></div></div>`;
+const packArt = (p, cls = '') => `<div class="pack ${cls}" style="--pc:${p.colour}"><img ${assetSrc(`art/local/pack-${p.id}.png`)} alt="" onerror="this.remove()"><div class="pack-fallback"><img src="art/logo.png" alt=""><b>${p.name}</b><small>5 cards</small></div></div>`;
 
 // Pack select: a wheel like TCG Pocket. Swipe or use the arrows; tap the centre pack (or Open) to open it.
 function viewPacks() {

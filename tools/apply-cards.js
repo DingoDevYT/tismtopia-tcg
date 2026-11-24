@@ -1,6 +1,6 @@
 // Puts the review tool's accepted cards into the game:  node tools/apply-cards.js
 // Writes js/cards-data.js (CAPTAINS, CARDS, STARTERS) and copies each card's chosen art to art/local/ (git-ignored,
-// so the art stays on this computer; anyone without it sees the placeholder icon).
+// so the plaintext stays on this computer). Then run node tools/encrypt-assets.js and commit assets/ to publish the art (members only).
 const fs = require('fs'), path = require('path'), os = require('os');
 const root = path.join(__dirname, '..');
 const ART = process.env.TISM_ART || path.join(os.homedir(), 'Downloads', 'arte TismTopia');
