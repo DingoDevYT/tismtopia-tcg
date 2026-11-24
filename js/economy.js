@@ -82,6 +82,12 @@ Object.assign(ACTS, {
     e.f[p.finish]--; e.n--; if (!e.n) delete coll[p.id]; p.sold = true;
     setCoins(coins + cardValue(p.id, p.finish)); store.set('collection', coll);
   },
+  'unsell-pull'(d) { // take a sold pull back for what it sold for
+    const p = ui.open.cards[d.i], v = cardValue(p.id, p.finish); if (!p.sold) return;
+    if (coins < v) return setTimeout(() => toast('Not enough coins to take it back'));
+    const e = (coll[p.id] ||= { n: 0, f: {} }); e.n++; e.f[p.finish] = (e.f[p.finish] || 0) + 1; p.sold = false;
+    setCoins(coins - v); store.set('collection', coll);
+  },
   'sell-all-pulls'() {
     // warn once, naming every card that would drop below 3 copies
     const left = {}; ui.open.cards.filter(p => !p.sold).forEach(p => { left[p.id] = (left[p.id] ?? coll[p.id]?.n ?? 0) - 1; });
@@ -124,7 +130,7 @@ viewOpen = () => {
   const o = ui.open, html = viewOpenNoSell(); if (o?.stage !== 'summary') return html;
   let i = 0;
   return html.replace(/<\/small><\/div>/g, () => { const p = o.cards[i], k = i++;
-    return '</small>' + (p.sold ? '<small class="muted">Sold</small>' : `<button class="btn sell-pull" data-act="sell-pull" data-i="${k}">Sell ${COIN}${fmt(cardValue(p.id, p.finish))}</button>`) + '</div>'; })
+    return '</small>' + (p.sold ? `<button class="btn sell-pull" data-act="unsell-pull" data-i="${k}">Undo sell</button>` : `<button class="btn sell-pull" data-act="sell-pull" data-i="${k}">Sell ${COIN}${fmt(cardValue(p.id, p.finish))}</button>`) + '</div>'; })
     .replace('<div class="pull-grid">', `<button class="btn wide" data-act="sell-all-pulls">Sell all for ${COIN}${fmt(o.cards.filter(p => !p.sold).reduce((a, p) => a + cardValue(p.id, p.finish), 0))}</button><div class="pull-grid">`);
 };
 

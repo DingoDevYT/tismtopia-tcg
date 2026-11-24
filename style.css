@@ -1065,3 +1065,12 @@ img { -webkit-user-drag: none; }
 /* only the first card flips as the five come out of the pack; after that you just flick to the next */
 .stack .card.flick.enter { animation: cardIn .35s cubic-bezier(.2, 1.3, .4, 1), sway 6s ease-in-out .35s infinite alternate; }
 .from-pack .stack .card.flick.enter { animation: flipFace .3s 1.03s ease-out both, sway 6s ease-in-out 1.4s infinite alternate; }
+
+/* the cut pack is drawn in front of the real five cards and falls away from them: one object, not two */
+.stack > .pack-leave { grid-area: 1 / 1; z-index: 6; pointer-events: none; animation: none; }
+.pack-leave .pack3d { transform: none !important; animation: none !important; }
+.from-pack .stack { animation: none; }
+.pack-leave .pack.body { animation: packFall .7s .35s ease-in forwards !important; }
+@keyframes packFall { to { transform: translateY(75vh) rotate(4deg); opacity: 0; } }
+.from-pack .flip-back { animation-delay: .9s; }
+.from-pack .stack .card.flick.enter { animation: flipFace .3s 1.18s ease-out both, sway 6s ease-in-out 1.5s infinite alternate; }
