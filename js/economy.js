@@ -158,3 +158,9 @@ function viewShop() {
     <button class="btn primary wide" data-act="buy" data-id="${c.id}" data-f="${f}">${COIN}${fmt(cardValue(c.id, f) * SHOP_MARKUP)}</button></div>`).join('')}</div></div>${tabbar('shop')}${viewer()}`;
 }
 setInterval(() => { document.querySelectorAll('.leaves').forEach(el => { const ms = +el.dataset.ends - Date.now(); if (ms <= 0) return render(); el.textContent = left(ms); }); }, 1000);
+
+// Shop tile on the home screen, next to Collection.
+const viewHomeNoShop = viewHome;
+viewHome = () => viewHomeNoShop().replace('<small>Your cards</small></button>', '<small>Your cards</small></button><button class="tile neu" data-act="shop">${ICON.cart}<b>Shop</b><small>New stock every 30 min</small></button>'.replace('${ICON.cart}', ICON.cart));
+// app.js drew the first screen before this file loaded: draw it again so the shop tab and coins show straight away.
+render();
