@@ -29,7 +29,7 @@ const shopHtml = () => `<section class="shop"><h3>Shop <small class="muted">new 
   `<div class="shop-item">${renderCard(c, { cls: 'mini', attrs: `data-act="view-card" data-id="${c.id}"` })}<button class="btn primary" data-act="buy" data-id="${c.id}">${COIN}${fmt(cardValue(c.id) * 2)}</button></div>`).join('')}</div></section>`;
 
 const viewPacksNoShop = viewPacks;
-viewPacks = () => (viewPacksNoShop().replace('data-p="' , 'data-p="').replace(/(wheel-open[^>]*data-p="([^"]*)"[^>]*>)Open<\/button>/, (m, a, pk) => `${a}Open for ${COIN}${fmt(price(pk))}</button><button class="btn odds-btn" data-act="odds" data-p="${pk}">What's in this pack?</button>`).replace(/(<nav class="tabbar)/, `<button class="btn wide shop-open" data-act="shop">${COIN} Shop</button>$1`) + (ui.shop ? `<div class="viewer"><div class="viewer-bg" data-act="shop"></div><div class="shop-sheet neu">${shopHtml()}<button class="btn wide" data-act="shop">Close</button></div></div>` : ''));
+viewPacks = () => (viewPacksNoShop().replace('data-p="' , 'data-p="').replace(/(wheel-open[^>]*data-p="([^"]*)"[^>]*>)Open<\/button>/, (m, a, pk) => `${a}Open for ${COIN}${fmt(price(pk))}</button><button class="btn odds-btn" data-act="odds" data-p="${pk}">What's in this pack?</button>`).replace(/(<nav class="tabbar)/, `<button class="btn wide shop-open" data-act="shop">${COIN} Shop</button>$1`));
 const viewCollectionNoCoins = viewCollection;
 viewCollection = () => viewCollectionNoCoins();
 const viewerNoSell = viewer;
@@ -93,7 +93,11 @@ render = function () {
     paidPhase = game.phase;
   } else paidPhase = null;
   renderNoPay();
-  if (ui.view !== 'game') $app.insertAdjacentHTML('afterbegin', coinBar());
+  if (ui.view !== 'game') {
+    $app.insertAdjacentHTML('afterbegin', coinBar());
+    $app.querySelector('.tabbar')?.insertAdjacentHTML('beforeend', `<button class="${ui.shop ? 'on' : ''}" data-act="shop" aria-label="shop">${COIN}</button>`);
+    if (ui.shop) $app.insertAdjacentHTML('beforeend', `<div class="viewer"><div class="viewer-bg" data-act="shop"></div><div class="shop-sheet neu">${shopHtml()}<button class="btn wide" data-act="shop">Close</button></div></div>`);
+  }
 };
 
 const viewHomeNoCoins = viewHome;

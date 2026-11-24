@@ -830,3 +830,4 @@ img { -webkit-user-drag: none; }
 @keyframes rainbow-shift { to { background-position: 300% 300%; } }
 @keyframes rainbow-glint { 50% { background-position: center, 100% 100%; } }
 .card.v-rainbow .holo__shine { display: none; }
+.tabbar .coin { width: 22px; height: 22px; margin: 0; vertical-align: middle; }
