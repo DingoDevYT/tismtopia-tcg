@@ -68,6 +68,7 @@ function viewHome() {
   <div class="tiles">
     <button class="tile neu" data-act="tutorial">${ICON.school}<b>Tutorial</b><small>Learn by playing</small></button>
     <button class="tile neu" data-act="bot">${ICON.bot}<b>Practice</b><small>Play vs the bot</small></button>
+    <button class="tile neu" data-act="go" data-to="lobby">${ICON.battle}<b>Battle</b><small>Play a friend</small></button>
     <button class="tile neu" data-act="go" data-to="packs">${ICON.main}<b>Open Packs</b><small>${typeof ownedCount === 'function' ? ownedCount() : 0} of ${CARDS.length} owned</small></button>
     <button class="tile neu" data-act="go" data-to="collection">${ICON.search}<b>Collection</b><small>Your cards</small></button>
     <button class="tile neu" data-act="go" data-to="deck">${ICON.cards}<b>Deck Builder</b><small>${decks.length} deck${decks.length > 1 ? 's' : ''}</small></button>
