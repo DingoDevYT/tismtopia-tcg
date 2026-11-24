@@ -820,3 +820,4 @@ img { -webkit-user-drag: none; }
 .lineup .card.picked { opacity: 1; transform: translateY(-4px); }
 .viewer-card.dust { animation: dust .7s ease-in forwards; }
 @keyframes dust { to { opacity: 0; filter: blur(6px) saturate(0); transform: translateY(-30px) scale(1.08); -webkit-mask-image: radial-gradient(circle, transparent 60%, #000 61%); } }
+.odds { display: flex; flex-direction: column; gap: 4px; } .odds div { display: grid; grid-template-columns: 70px 1fr auto; gap: 8px; align-items: center; padding: 4px 0; border-bottom: 1px solid rgba(52, 60, 85, .1); }

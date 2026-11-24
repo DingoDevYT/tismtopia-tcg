@@ -1,5 +1,5 @@
 // Coins: packs cost coins, matches pay coins, cards sell for coins, and a daily shop sells a few cards.
-const PACK_COST = 300, WIN_PAY = 100, LOSS_PAY = 40; // packs resell for ~295 on average: worst 10% ~115, best 10% ~565
+const PACK_COST = 600, WIN_PAY = 100, LOSS_PAY = 40; // 10-card packs resell for roughly their price on average
 const RVAL = { C: 10, U: 25, R: 60, UR: 200 }, FVAL = { normal: 1, rev: 1.5, holo: 2, full: 4 }; // a weak pack sells for about half its cost
 const COIN = '<img class="coin" src="art/coin.svg" alt="coins">';
 let coins = store.get('coins', 900);
@@ -23,7 +23,7 @@ const shopHtml = () => `<section class="shop"><h3>Shop <small class="muted">new 
   `<div class="shop-item">${renderCard(c, { cls: 'mini', attrs: `data-act="view-card" data-id="${c.id}"` })}<button class="btn primary" data-act="buy" data-id="${c.id}">${COIN}${cardValue(c.id) * 2}</button></div>`).join('')}</div></section>`;
 
 const viewPacksNoShop = viewPacks;
-viewPacks = () => (viewPacksNoShop().replace('data-p="' , 'data-p="').replace(/(wheel-open[^>]*>)Open</, `$1Open for ${COIN}${PACK_COST}<`).replace(/(<nav class="tabbar)/, `<button class="btn wide shop-open" data-act="shop">${COIN} Shop</button>$1`) + (ui.shop ? `<div class="viewer"><div class="viewer-bg" data-act="shop"></div><div class="shop-sheet neu">${shopHtml()}<button class="btn wide" data-act="shop">Close</button></div></div>` : ''));
+viewPacks = () => (viewPacksNoShop().replace('data-p="' , 'data-p="').replace(/(wheel-open[^>]*>)Open</, `$1Open for ${COIN}${PACK_COST}<`).replace(/(<nav class="tabbar)/, `<button class="btn wide" data-act="odds">What's in this pack?</button><button class="btn wide shop-open" data-act="shop">${COIN} Shop</button>$1`) + (ui.shop ? `<div class="viewer"><div class="viewer-bg" data-act="shop"></div><div class="shop-sheet neu">${shopHtml()}<button class="btn wide" data-act="shop">Close</button></div></div>` : ''));
 const viewCollectionNoCoins = viewCollection;
 viewCollection = () => viewCollectionNoCoins();
 const viewerNoSell = viewer;
@@ -51,6 +51,7 @@ Object.assign(ACTS, {
     if (!coll[v.id]?.f?.[v.finish]) ui.viewer.finish = 'normal';
   },
   shop() { ui.shop = !ui.shop; },
+  odds() { ui.odds = !ui.odds; },
   'sell-pull'(d) {
     const p = ui.open.cards[d.i], e = coll[p.id];
     if (p.sold || !e?.f?.[p.finish] || e.n - keep(p.id) <= 0) return;
@@ -89,3 +90,14 @@ viewOpen = () => {
     return '</small>' + (p.sold ? '<small class="muted">Sold</small>' : `<button class="btn sell-pull" data-act="sell-pull" data-i="${k}">Sell ${COIN}${cardValue(p.id, p.finish)}</button>`) + '</div>'; })
     .replace('<div class="pull-grid">', `<button class="btn wide" data-act="sell-all-pulls">Sell all for ${COIN}${o.cards.filter(p => !p.sold).reduce((a, p) => a + cardValue(p.id, p.finish), 0)}</button><div class="pull-grid">`);
 };
+
+// "What's in this pack?": every card and its chance to show up at least once in a pack.
+function oddsHtml() {
+  const rows = CARDS.filter(c => c.type !== 'captain').map(c => { const r = c.rarity || 'C', n = pool(r).length;
+    const miss = SLOTS.reduce((m, t) => m * (1 - (t.find(([, v]) => v === r)?.[0] || 0) / n), 1); return { c, p: 1 - miss }; })
+    .sort((a, b) => a.p - b.p || a.c.name.localeCompare(b.c.name));
+  return `<h3>What's in this pack</h3><small class="muted">Chance to get each card at least once in a 10-card pack</small><div class="odds">${rows.map(({ c, p }) =>
+    `<div><span class="rar r-${c.rarity || 'C'}">${RARITY_NAME[c.rarity || 'C']}</span><b>${esc(c.name)}</b><span>${(p * 100).toFixed(p < 0.1 ? 1 : 0)}%</span></div>`).join('')}</div>`;
+}
+const viewPacksNoOdds = viewPacks;
+viewPacks = () => viewPacksNoOdds() + (ui.odds ? `<div class="viewer"><div class="viewer-bg" data-act="odds"></div><div class="shop-sheet neu">${oddsHtml()}<button class="btn wide" data-act="odds">Close</button></div></div>` : '');
