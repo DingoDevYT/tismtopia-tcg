@@ -120,7 +120,12 @@ function advance() { const o = ui.open; if (++o.i >= o.cards.length) o.stage = '
 function tearOpen() {
   const z = $app.querySelector('.tear-zone');
   const go = () => { Object.assign(ui.open, { stage: 'reveal', i: 0, fresh: true }); render(); };
-  if (z && !calm) { if (typeof sfx === 'function') sfx('packopen_4_ripopen'); go(); } // the reveal screen plays the pack falling away in front of the real cards
+  if (z && !calm) {
+    // hand the pack over to the reveal screen exactly as it is: same spot, same 3D turn, then it opens in front of the real cards
+    const from = z.getBoundingClientRect(), turn = getComputedStyle(z).getPropertyValue('--t') || '0';
+    if (typeof sfx === 'function') sfx('packopen_4_ripopen'); go();
+    const pl = $app.querySelector('.pack-leave'), w = pl?.parentElement; if (pl) { const to = pl.getBoundingClientRect(); w.style.setProperty('--t', turn); w.style.setProperty('--dx', `${from.left + from.width / 2 - (to.left + to.width / 2)}px`); w.style.setProperty('--dy', `${from.top + from.height / 2 - (to.top + to.height / 2)}px`); }
+  }
   else go();
 }
 // Finger gestures for opening: tear the strip, spin the deck, tilt and flick the revealed card.

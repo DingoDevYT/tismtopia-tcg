@@ -1089,3 +1089,17 @@ img { -webkit-user-drag: none; }
 .from-pack .stack .card.flick.enter { animation: flipFace .3s 1.43s ease-out both, sway 6s ease-in-out 1.75s infinite alternate; }
 @keyframes cardsOut { from { transform: translateY(60px) scale(.94); } }
 .from-pack .stack .stack-back { animation: none; }
+
+/* the pack keeps its 3D look while it opens on the reveal screen */
+.pack-leave { animation: none !important; }
+.pack-leave .pack3d { transform: rotateX(3deg) rotateY(calc(var(--t, 0) * 16deg)) !important; }
+.tear-zone.torn.pack-leave .pack-shade { opacity: 1; transition: none; }
+.pack-leave .pack-shade { animation: pouchOff .75s .5s cubic-bezier(.5, 0, .75, .2) forwards; }
+@keyframes pouchOff { from { transform: translateZ(6px); } to { transform: translateZ(6px) translateY(80vh); } }
+@keyframes stripFly { 0% { transform: translateZ(6px); } 30% { transform: translateZ(6px) translate(10px, -40px) rotate(6deg); } 100% { transform: translateZ(6px) translate(140px, -320px) rotate(28deg) scale(.9); opacity: 0; } }
+/* pack and cards share one 3D space: the cards leave the pouch at its turn and position, then ease to face you */
+.stack-wrap { perspective: 900px; }
+.pack-leave { translate: var(--dx, 0) var(--dy, 0); }
+.from-pack .stack { transform-style: preserve-3d; animation: cardsOut 1s .2s cubic-bezier(.2, .8, .3, 1) both; }
+@keyframes cardsOut { from { transform: translate(var(--dx, 0px), calc(var(--dy, 0px) + 60px)) rotateX(3deg) rotateY(calc(var(--t, 0) * 16deg)) scale(.94); } }
+.from-pack .stack .stack-back { transform: translate(calc(var(--k) * 5px), calc(var(--k) * 5px)) translateZ(calc(var(--k) * -6px)) rotate(calc(var(--k) * 1.5deg)); }
