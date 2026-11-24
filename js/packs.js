@@ -91,7 +91,7 @@ function viewOpen() {
     if (big && !cur.cine && !calm) {
       clearTimeout(cineTimer); cineTimer = setTimeout(() => { if (ui.open?.cards[ui.open.i] === cur) { cur.cine = true; render(); } }, big === ' pull-5' ? 3200 : 2300);
       return `<div class="open-stage reveal cine${big}${o.god ? ' god' : ''}" data-act="skip-cine"><div class="aura"></div><div class="aura a2"></div><div class="sparks">${'<i></i>'.repeat(14)}</div>
-        <div class="cine-card"></div><p class="open-hint cine-hint">Something special…</p></div>`;
+        <div class="cine-card"></div></div>`;
     }
     const fresh = o.fresh; o.fresh = false;
     return `<div class="open-stage reveal${rare ? ' rare r-' + cur.rarity : ''}${big}${o.god ? ' god' : ''}${fresh ? ' from-pack' : ''}" data-act="next-card">
