@@ -939,3 +939,23 @@ img { -webkit-user-drag: none; }
 .tear-zone.torn .pack.body { clip-path: polygon(0 11%, 100% 11%, 100% 100%, 0 100%); }
 .tear-zone .pack.strip { clip-path: polygon(0 0, 100% 0, 100% 11%, 0 11%); }
 .tear-zone.torn .pack-shade { opacity: 0; transition: opacity .3s; }
+
+/* ---------- pack v5: pillow pouch, flat crimped seals, cards bulging the middle ---------- */
+.pack3d > .pack, .pack-shade, .pack-back { -webkit-mask: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20100%20171.4'%20preserveAspectRatio%3D'none'%3E%3Cpath%20d%3D'M0%2C0%20H100%20V9%20C100%2C11%2097%2C12%2097%2C16%20C98.8%2C50%2099.5%2C70%2099.5%2C85.7%20C99.5%2C100%2098.8%2C125%2097%2C155%20C97%2C159%20100%2C160%20100%2C162%20V171.4%20H0%20V162%20C0%2C160%203%2C159%203%2C155%20C1.2%2C125%200.5%2C100%200.5%2C85.7%20C0.5%2C70%201.2%2C50%203%2C16%20C3%2C12%200%2C11%200%2C9%20Z'%2F%3E%3C%2Fsvg%3E") 0 0 / 100% 100% no-repeat; mask: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20100%20171.4'%20preserveAspectRatio%3D'none'%3E%3Cpath%20d%3D'M0%2C0%20H100%20V9%20C100%2C11%2097%2C12%2097%2C16%20C98.8%2C50%2099.5%2C70%2099.5%2C85.7%20C99.5%2C100%2098.8%2C125%2097%2C155%20C97%2C159%20100%2C160%20100%2C162%20V171.4%20H0%20V162%20C0%2C160%203%2C159%203%2C155%20C1.2%2C125%200.5%2C100%200.5%2C85.7%20C0.5%2C70%201.2%2C50%203%2C16%20C3%2C12%200%2C11%200%2C9%20Z'%2F%3E%3C%2Fsvg%3E") 0 0 / 100% 100% no-repeat; border-radius: 0; }
+.pack-back { inset: 0; }
+/* shadows: the sides curve away, and the foil dips where it pinches into each seal */
+.pack-shade { mix-blend-mode: multiply; opacity: 1;
+  background:
+    linear-gradient(to bottom, transparent 8.8%, rgba(0, 0, 0, .55) 9.4%, rgba(0, 0, 0, .15) 12%, transparent 17%),
+    linear-gradient(to top, transparent 5.4%, rgba(0, 0, 0, .55) 6%, rgba(0, 0, 0, .15) 8.5%, transparent 13%),
+    linear-gradient(90deg, rgba(0, 0, 0, .6), rgba(0, 0, 0, .12) 12%, transparent 26%, transparent 74%, rgba(0, 0, 0, .12) 88%, rgba(0, 0, 0, .6)),
+    linear-gradient(#fff, #fff); }
+/* highlights: a soft ridge down the bulge that follows the tilt, plus crimp ridges on the flat seals */
+.pack-shade::after { content: ''; position: absolute; inset: 0; mix-blend-mode: screen;
+  background:
+    radial-gradient(ellipse 22% 55% at var(--lx, 38%) 50%, rgba(255, 255, 255, .55), transparent 72%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, .5) 0 1.5px, transparent 1.5px 4px) 0 0 / 100% 9% no-repeat,
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, .5) 0 1.5px, transparent 1.5px 4px) 0 100% / 100% 5.5% no-repeat; }
+.tear-zone .pack::after { display: none; } /* the old flat sheen */
+.pack3d { filter: drop-shadow(0 26px 22px rgba(20, 20, 60, .35)); }
+.tear-zone.torn .pack.body { clip-path: polygon(0 11%, 100% 11%, 100% 100%, 0 100%); }
