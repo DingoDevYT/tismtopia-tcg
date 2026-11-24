@@ -850,3 +850,4 @@ img { -webkit-user-drag: none; }
 /* Collection cards tilt toward the pointer with the holo shine. */
 .coll-cell .card { transform: perspective(700px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transition: transform .15s ease-out; }
 .coll-cell .card:not(.held) { --rx: 0deg; --ry: 0deg; }
+#fx { z-index: 300; } /* effects (disintegrate, floating text) draw over the card viewer and popups */
