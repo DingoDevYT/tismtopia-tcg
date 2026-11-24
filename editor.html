@@ -4,15 +4,15 @@
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="vendor/holo/holo.css">
 <style>
-  body { font: 14px system-ui; margin: 16px; background: #eee; overflow: auto !important; height: auto !important; }
-  .vars { display: flex; gap: 6px; overflow-x: auto; } .vars .card { width: 160px; flex: none; position: relative; }
-  #grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
-  .c { background: #fff; padding: 8px; border-radius: 8px; }
+  body { margin: 0; padding: 16px; overflow: auto !important; height: auto !important; }
+  .vars { display: flex; gap: 6px; overflow-x: auto; } .vars .card { width: 120px; flex: none; position: relative; }
+  #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; }
+  .c { padding: 12px; border-radius: 16px; }
   .pic { width: 100%; aspect-ratio: 4/3; overflow: hidden; border-radius: 4px; background: #ccc; }
   .pic img { width: 100%; height: 100%; object-fit: cover; }
   label { display: block; font-size: 12px; } input[type=range] { width: 100%; }
 </style>
-<p>Chrome/Edge on PC. <button id="open">1. Open the Tismtopia TCG folder</button> <button id="save" disabled>2. Save</button> <span id="msg"></span></p>
+<p>Chrome/Edge on PC. <button class="btn" id="open">1. Open the Tismtopia TCG folder</button> <button class="btn primary" id="save" disabled>2. Save</button> <span id="msg"></span></p>
 <div id="grid"></div>
 <script src="js/cards-data.js"></script>
 <script src="js/card-overrides.js"></script>
@@ -23,10 +23,11 @@
 let dir = null;
 const all = [...CAPTAINS, ...CARDS], ov = structuredClone(OVERRIDES), $ = s => document.querySelector(s);
 const get = id => (ov[id] ||= {});
+const vars = c => (c.type === 'character' ? ['', 'v-holo', 'v-rev', 'v-full'] : ['']).map(v => renderCard(c, { cls: v })).join('');
 function draw() {
   $('#grid').innerHTML = all.map(c => { const cr = c.crop || { x: 50, y: 50, zoom: 1 };
-    return `<div class="c" data-id="${c.id}"><b>${c.name}</b> <small>${c.type}</small>
-    <div class="vars">${(c.type === 'character' ? ['', 'v-holo', 'v-rev', 'v-full'] : ['']).map(v => renderCard(c, { cls: v })).join('')}</div>
+    return `<div class="c neu" data-id="${c.id}"><b>${c.name}</b> <small>${c.type}</small>
+    <div class="vars">${vars(c)}</div>
     <label>X <input type="range" min="0" max="100" value="${cr.x}" data-k="x"></label>
     <label>Y <input type="range" min="0" max="100" value="${cr.y}" data-k="y"></label>
     <label>Zoom <input type="range" min="1" max="3" step="0.05" value="${cr.zoom}" data-k="zoom"></label>
@@ -43,7 +44,7 @@ $('#grid').addEventListener('input', async e => {
     c.art = get(id).art = `art/local/${name}?v=${Date.now()}`;
   } else if (k === 'rainbow') c.rainbow = get(id).rainbow = el.checked;
   else { c.crop = get(id).crop = { ...(c.crop || { x: 50, y: 50, zoom: 1 }), [k]: +el.value }; }
-  draw();
+  el.closest('.c').querySelector('.vars').innerHTML = vars(c); // redraw only this card
 });
 $('#open').onclick = async () => { dir = await showDirectoryPicker({ mode: 'readwrite' }); $('#save').disabled = false; $('#msg').textContent = 'Folder open'; };
 $('#save').onclick = async () => {
