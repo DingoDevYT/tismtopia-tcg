@@ -12,6 +12,8 @@ const setCoins = n => { coins = n; store.set('coins', coins); clearInterval(tick
     document.querySelectorAll('.coin-bar b').forEach(b => { b.textContent = fmt(shown); }); if (shown === coins) clearInterval(tick); }, 30); };
 const cardValue = (id, f = 'normal') => (RVAL[CARD[id].rarity || 'C'] || 10) * (FVAL[f] || 1);
 // Starter copies come back on every load, so they can't be sold (no free-money loop).
+// Selling below 3 copies means you can no longer run a full set of this card in a deck.
+const lowWarn = (id, n) => `Sell ${CARD[id].name}? You'll have ${n - 1} left, and decks can use up to 3 copies of a card, so you won't be able to run a full set of it.`;
 const keep = id => Math.max(0, ...STARTERS.map(s => s.cards[id] || 0));
 // Account corner on every screen but battles: your name/captain, then your coins.
 const coinBar = () => `<div class="acct"><button class="profile neu" data-act="rename-me" aria-label="Change your name">${renderAvatar(CARD[deck().captain] || CAPTAINS[0])}<b>${esc(myName)}</b></button><div class="coin-bar neu">${COIN}<b>${fmt(shown)}</b></div></div>`;
@@ -50,6 +52,7 @@ Object.assign(ACTS, {
   sell() {
     const v = ui.viewer, e = coll[v.id];
     if (!e?.f?.[v.finish] || e.n - keep(v.id) <= 0) return;
+    if (!v.dusting && e.n - 1 < 3 && !confirm(lowWarn(v.id, e.n))) return;
     if (!v.dusting) { v.dusting = true; disintegrate(document.querySelector('.viewer-card .card.picked') || document.querySelector('.viewer-card .card')); setTimeout(() => { ACTS.sell(); v.dusting = false; render(); }, 1300); return false; }
     e.f[v.finish]--; e.n--; if (!e.n) delete coll[v.id];
     setCoins(coins + cardValue(v.id, v.finish)); store.set('collection', coll);
@@ -60,10 +63,11 @@ Object.assign(ACTS, {
   'sell-pull'(d) {
     const p = ui.open.cards[d.i], e = coll[p.id];
     if (p.sold || !e?.f?.[p.finish] || e.n - keep(p.id) <= 0) return;
+    if (!d.all && e.n - 1 < 3 && !confirm(lowWarn(p.id, e.n))) return;
     e.f[p.finish]--; e.n--; if (!e.n) delete coll[p.id]; p.sold = true;
     setCoins(coins + cardValue(p.id, p.finish)); store.set('collection', coll);
   },
-  'sell-all-pulls'() { ui.open.cards.forEach((_, i) => ACTS['sell-pull']({ i })); },
+  'sell-all-pulls'() { if (!confirm('Sell all of these pulls? Some may leave you with fewer than 3 copies of a card.')) return; ui.open.cards.forEach((_, i) => ACTS['sell-pull']({ i, all: true })); },
   buy(d) {
     const price = cardValue(d.id) * 2; if (coins < price) { ui.toast = 'Not enough coins'; return; }
     const e = (coll[d.id] ||= { n: 0, f: {} }); e.n++; e.f.normal = (e.f.normal || 0) + 1;
