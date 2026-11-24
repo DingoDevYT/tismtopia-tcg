@@ -201,5 +201,13 @@ render = function () {
   if (ui.pre) $app.insertAdjacentHTML('beforeend', preHtml());
 };
 
+// Deck builder piles: your best copies of a card stacked, best on top (e.g. a full art over two holos).
+function pile(id, n, cls = '', attrs = '') {
+  const c = CARD[id], fins = Object.entries(coll[id]?.f || {}).flatMap(([f, k]) => Array(Math.max(0, k)).fill(f)).sort((x, y) => FORDER.indexOf(y) - FORDER.indexOf(x)).slice(0, Math.max(1, n));
+  if (!fins.length) fins.push('normal');
+  return `<div class="pile" style="--n:${fins.length - 1}">${fins.map((f, k) => renderCard((f === 'full' || f === 'rainbow') ? { ...c, crop: null } : c,
+    { cls: `${cls} ${FINISH_CLS[f] || ''}${k ? ' behind' : ''}`, style: `--k:${k}`, attrs: k ? '' : attrs })).join('')}</div>`;
+}
+
 // app.js drew the first screen before this file loaded: draw it again so the shop tab and coins show straight away.
 render();

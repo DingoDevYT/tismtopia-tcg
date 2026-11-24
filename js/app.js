@@ -88,7 +88,7 @@ function viewDeck() {
     <div><small>Captain</small><b>${cap ? cap.name : 'None yet'}</b><p>${cap ? `${cap.style} playstyle` : 'Your Captain leads your strategy.'}</p>
     <button class="btn sm" data-act="sheet" data-s="captain">${cap ? 'Change' : 'Pick a captain'}</button></div></div>
   <div class="checks">${probs.length ? probs.slice(0, 3).map(p => `<span class="bad">${esc(p)}</span>`).join('') : `<span>${ICON.check}Ready to battle</span>`}</div>
-  <div class="grid g4">${Object.entries(d.cards).map(([id, n]) => `<div class="cell">${renderCard(CARD[id], { cls: 'mini', attrs: tappable('zoom', `data-id="${id}"`) })}<span class="count">×${n}</span></div>`).join('')
+  <div class="grid g4">${Object.entries(d.cards).map(([id, n]) => `<div class="cell">${typeof pile === 'function' ? pile(id, n, 'mini', tappable('zoom', `data-id="${id}"`)) : renderCard(CARD[id], { cls: 'mini', attrs: tappable('zoom', `data-id="${id}"`) })}<span class="count">×${n}</span></div>`).join('')
     || '<p class="muted center" style="grid-column:1/-1">No cards yet. Tap Add cards.</p>'}</div>
   <div class="bar"><button class="btn sm" data-act="copy-deck">Copy code</button><button class="btn sm" data-act="import-deck">Import</button><button class="btn primary sm" style="margin-left:auto" data-act="go" data-to="build">Add cards</button></div>
   ${tabbar('deck')}${overlay()}`;
@@ -99,7 +99,7 @@ function viewBuild() {
   return `${header('Add Cards')}
   <div class="panel neu"><div class="chips">${['all', 'character', 'bit', 'evil'].map(f =>
     `<button class="chip${ui.filter === f ? ' on' : ''}" data-act="filter" data-f="${f}">${f === 'all' ? 'All' : LABEL[f]}</button>`).join('')}</div></div>
-  <div class="grid">${list.map(c => `<div class="cell${own(c.id) ? '' : ' locked'}">${renderCard(c, { attrs: tappable('zoom', `data-id="${c.id}"`) })}
+  <div class="grid">${list.map(c => `<div class="cell${own(c.id) ? '' : ' locked'}">${typeof pile === 'function' ? pile(c.id, Math.min(3, own(c.id)), '', tappable('zoom', `data-id="${c.id}"`)) : renderCard(c, { attrs: tappable('zoom', `data-id="${c.id}"`) })}
     <div class="stepper neu"><button data-act="step" data-id="${c.id}" data-d="-1" aria-label="Remove ${esc(c.name)}">−</button><span>${d.cards[c.id] || 0}/${Math.min(c.main ? 1 : MAX_COPIES, own(c.id))}</span><button data-act="step" data-id="${c.id}" data-d="1" aria-label="Add ${esc(c.name)}">+</button></div></div>`).join('')}</div>
   <div class="bar"><b>${n}/${DECK_SIZE}</b><div class="progress"><i style="width:${Math.min(100, (n / DECK_SIZE) * 100)}%"></i></div><button class="btn primary sm" data-act="go" data-to="deck">Done</button></div>
   ${overlay()}`;

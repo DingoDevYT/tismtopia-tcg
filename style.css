@@ -851,3 +851,7 @@ img { -webkit-user-drag: none; }
 .coll-cell .card { transform: perspective(700px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transition: transform .15s ease-out; }
 .coll-cell .card:not(.held) { --rx: 0deg; --ry: 0deg; }
 #fx { z-index: 300; } /* effects (disintegrate, floating text) draw over the card viewer and popups */
+/* Deck builder piles: copies peek out behind the best one. */
+.pile { position: relative; margin: calc(var(--n) * 4px) calc(var(--n) * 4px) 0 0; } .pile .card { position: relative; z-index: 4; }
+.pile .card.behind { position: absolute; inset: 0; z-index: calc(4 - var(--k)); transform: translate(calc(var(--k) * 4px), calc(var(--k) * -4px)); filter: brightness(calc(1 - var(--k) * .1)); pointer-events: none; }
+.pile { width: calc(100% - var(--n) * 4px); box-sizing: border-box; } .pile .card { width: 100%; }
