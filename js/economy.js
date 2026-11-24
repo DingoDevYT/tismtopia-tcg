@@ -36,7 +36,11 @@ const viewerNoSell = viewer;
 viewer = () => {
   const v = ui.viewer, html = viewerNoSell(); if (!v) return html;
   const have = coll[v.id]?.f?.[v.finish] || 0, spare = (coll[v.id]?.n || 0) - keep(v.id);
-  const sell = have && spare > 0 ? `<button class="btn wide" data-act="sell">Sell one for ${COIN}${fmt(cardValue(v.id, v.finish))}</button>` : '';
+  // Missing card: point to the pack that can give it, with the chance per pack.
+  const pk = !coll[v.id]?.n && PACKS.find(p => PACK_SET[p.id]?.includes(v.id));
+  const get = pk ? (() => { const r = CARD[v.id].rarity || 'C', n = pool(r, pk.id).length, miss = SLOTS.reduce((m, t) => m * (1 - (t.find(([, x]) => x === r)?.[0] || 0) / n), 1);
+    return `<button class="btn primary wide" data-act="goto-pack" data-p="${pk.id}">Get it in ${esc(pk.name)}: ${((1 - miss) * 100).toFixed(1)}% per pack</button>`; })() : '';
+  const sell = get || (have && spare > 0 ? `<button class="btn wide" data-act="sell">Sell one for ${COIN}${fmt(cardValue(v.id, v.finish))}</button>` : '');
   const fs = Object.entries(coll[v.id]?.f || {}).filter(([, n]) => n > 0).sort(([a], [b]) => FORDER.indexOf(a) - FORDER.indexOf(b));
   // Every copy you own as a row of big cards, the chosen finish first.
   // One stack per finish: copies sit behind each other so only their edges show.
@@ -51,6 +55,7 @@ Object.assign(ACTS, {
     if (coins < price(d.p)) { ui.toast = `This pack costs ${fmt(price(d.p))} coins: sell cards or win matches`; return; }
     const r = pickPack(d); if (r !== false) setCoins(coins - price(d.p)); return r;
   },
+  'goto-pack'(d) { ui.viewer = null; ui.view = 'packs'; ui.packIdx = PACKS.findIndex(p => p.id === d.p); },
   sell() {
     const v = ui.viewer, e = coll[v.id];
     if (!e?.f?.[v.finish] || e.n - keep(v.id) <= 0) return;
