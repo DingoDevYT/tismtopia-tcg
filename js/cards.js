@@ -50,6 +50,9 @@ const RULES = [
   ['Deck rules', `${DECK_SIZE} cards plus 1 Captain. Max 3 copies of a card.`],
 ];
 
-[...CAPTAINS, ...CARDS].forEach((c, i) => { c.no = String(i + 1).padStart(3, '0'); });
+// Captains get their own letter codes (AAA, AAB, ...); every other card is numbered from 001.
+const letters = i => [2, 1, 0].map(p => String.fromCharCode(65 + Math.floor(i / 26 ** p) % 26)).join('');
+CAPTAINS.forEach((c, i) => { c.no = letters(i); });
+CARDS.forEach((c, i) => { c.no = String(i + 1).padStart(3, '0'); });
 // Null prototype so ids like "__proto__" from a pasted code or the network look up as missing.
 const CARD = Object.assign(Object.create(null), Object.fromEntries([...CAPTAINS, ...CARDS].map(c => [c.id, c])));
