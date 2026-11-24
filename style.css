@@ -763,3 +763,10 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
 
 /* Phones: the glare layer follows the pointer, so it does nothing on small battle cards but still costs a blend pass. */
 @media (hover: none) { [data-view="game"] .card:not(.zoom) .holo__glare { display: none; } }
+
+/* Title screen (js/audio.js): logo and "tap anywhere", fades out on the first tap. */
+.title-screen { position: fixed; inset: 0; z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px; background: var(--bg, #e8ecf2); cursor: pointer; transition: opacity .4s; }
+.title-screen img { width: min(80vw, 420px); }
+.title-screen p { font-weight: 700; opacity: .7; animation: title-pulse 1.6s ease-in-out infinite; }
+.title-screen.gone { opacity: 0; pointer-events: none; }
+@keyframes title-pulse { 50% { opacity: .25; } }

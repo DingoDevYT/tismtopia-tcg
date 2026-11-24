@@ -108,6 +108,12 @@ document.addEventListener('visibilitychange', () => {
   else if (musicOn && unlocked) { if (fanfaring) { fanfaring = false; } curKey = ''; syncMusic(); }
 });
 
+// Title screen: browsers block sound until the first tap, so the game opens on the logo and that tap starts the music.
+const title = Object.assign(document.createElement('div'), { className: 'title-screen',
+  innerHTML: '<img src="art/logo.png" alt="Tismtopia TCG"><p>Tap anywhere to start</p>' });
+title.addEventListener('pointerdown', () => { title.classList.add('gone'); setTimeout(() => title.remove(), 400); });
+document.body.append(title);
+
 // Mute button, always in the corner.
 const muteBtn = Object.assign(document.createElement('button'), { className: 'mute-btn neu', type: 'button' });
 const drawMute = () => {
