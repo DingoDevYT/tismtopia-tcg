@@ -245,3 +245,13 @@ render();
 // God packs say so on every step: cutting, the stack, each card and the summary.
 const viewOpenNoGod = viewOpen;
 viewOpen = () => { const html = viewOpenNoGod(); return ui.open?.god && ui.open.stage !== 'reveal' ? '<p class="god-tag">GOD PACK</p>' + html : html; };
+
+// Card viewer on phones: the row of copies can be wider than the screen, so keep the chosen version centred.
+let lastPicked = '';
+const renderNoCentre = render;
+render = function () {
+  renderNoCentre();
+  const v = ui.viewer, key = v ? v.id + v.finish : '';
+  if (key && key !== lastPicked) { const el = $app.querySelector('.viewer-card.copies .stack.picked'); el?.parentElement && (el.parentElement.scrollLeft = el.offsetLeft - (el.parentElement.clientWidth - el.offsetWidth) / 2); }
+  lastPicked = key;
+};

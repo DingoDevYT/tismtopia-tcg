@@ -1153,3 +1153,4 @@ img { -webkit-user-drag: none; }
 @keyframes deckTurnIn { from { transform: none; } }
 .first-flip .flip-back { animation: flipAway .28s .15s ease-in both; }
 .first-flip .stack .card.flick.enter { animation: flipFace .3s .43s ease-out both, sway 6s ease-in-out .8s infinite alternate; }
+.viewer-info .chips { flex-wrap: wrap; justify-content: center; }
