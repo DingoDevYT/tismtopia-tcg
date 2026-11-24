@@ -77,7 +77,7 @@ function renderCard(c, o = {}) {
   const kind = kindOf(c), isCh = c.type === 'character', hp = o.hp ?? (isCh ? maxHp(c) : c.hp), turns = o.turns ?? c.dur, def = o.def ?? (isCh ? baseArmor(c) : c.def);
   // Art lives only on computers that ran tools/apply-cards.js; elsewhere the image fails and the placeholder underneath shows.
   // Rainbow cards swap in the repainted art from js/rainbow.js: the cached result straight away, else processed on load (pages without it show the plain art).
-  const rbw = /\bv-rainbow\b/.test(cls) || c.rainbow && /v-full/.test(cls), rbOn = rbw && typeof RB !== 'undefined', rbUrl = rbOn && RB[c.art];
+  const rbw = /\bv-rainbow\b/.test(cls), rbOn = rbw && typeof RB !== 'undefined', rbUrl = rbOn && RB[c.art];
   const art = `<span class="ph">${ICON[c.type]}</span>${c.art ? `<img src="${rbUrl || c.art}" alt="" onerror="this.remove()"${rbOn ? ` data-art="${c.art}"${rbUrl ? ' data-rb="1"' : ' onload="rainbowize(this)"'}` : c.type === 'character' && !c.main ? ' onload="tone(this)"' : ''}${cropStyle(c.crop)}>` : ''}`;
   // Characters read like Pokemon cards: HP top right, DEF as a shield on the art, moves on one panel.
   const isChar = c.type === 'character';
