@@ -88,7 +88,7 @@ function viewDeck() {
     <div><small>Captain</small><b>${cap ? cap.name : 'None yet'}</b><p>${cap ? `${cap.style} playstyle` : 'Your Captain leads your strategy.'}</p>
     <button class="btn sm" data-act="sheet" data-s="captain">${cap ? 'Change' : 'Pick a captain'}</button></div></div>
   <div class="checks">${probs.length ? probs.slice(0, 3).map(p => `<span class="bad">${esc(p)}</span>`).join('') : `<span>${ICON.check}Ready to battle</span>`}</div>
-  <div class="grid g4">${Object.entries(d.cards).map(([id, n]) => `<div class="cell">${typeof pile === 'function' ? pile(id, n, 'mini', tappable('zoom', `data-id="${id}"`)) : renderCard(CARD[id], { cls: 'mini', attrs: tappable('zoom', `data-id="${id}"`) })}<span class="count">×${n}</span></div>`).join('')
+  <div class="grid">${Object.entries(d.cards).map(([id, n]) => `<div class="cell">${typeof pile === 'function' ? pile(id, n, '', tappable('zoom', `data-id="${id}"`)) : renderCard(CARD[id], { cls: 'mini', attrs: tappable('zoom', `data-id="${id}"`) })}<span class="count">×${n}</span></div>`).join('')
     || '<p class="muted center" style="grid-column:1/-1">No cards yet. Tap Add cards.</p>'}</div>
   <div class="bar"><button class="btn sm" data-act="copy-deck">Copy code</button><button class="btn sm" data-act="import-deck">Import</button><button class="btn primary sm" style="margin-left:auto" data-act="go" data-to="build">Add cards</button></div>
   ${tabbar('deck')}${overlay()}`;
