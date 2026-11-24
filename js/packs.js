@@ -72,6 +72,7 @@ function viewPacks() {
 
 // Edge colour of a card in the stack: foil and rares glint so you can peek before revealing.
 const edgeOf = c => (c.finish === 'full' || c.finish === 'rainbow') ? 'edge-full' : c.finish === 'holo' ? 'edge-holo' : c.finish === 'rev' ? 'edge-rev' : c.rarity === 'UR' || c.rarity === 'R' ? 'edge-gold' : '';
+let cineTimer = null;
 function viewOpen() {
   const o = ui.open, P = PACKS.find(p => p.id === o.pack);
   if (o.stage === 'tear') return `<div class="open-stage">
@@ -86,9 +87,16 @@ function viewOpen() {
     const cur = o.cards[o.i], c = CARD[cur.id], rare = cur.rarity === 'R' || cur.rarity === 'UR' || cur.finish !== 'normal';
     const behind = o.cards.slice(o.i + 1).map((n, k) => `<div class="stack-back ${edgeOf(n)}" style="--k:${k + 1}"></div>`).join('');
     const big = cur.finish === 'rainbow' ? ' pull-5' : cur.finish === 'full' ? ' pull-4' : '';
-    return `<div class="open-stage reveal${rare ? ' rare r-' + cur.rarity : ''}${big}${o.god ? ' god' : ''}" data-act="next-card">
+    // 4 and 5 star: a charging aura cutscene on the face-down card before the reveal (tap to skip)
+    if (big && !cur.cine && !calm) {
+      clearTimeout(cineTimer); cineTimer = setTimeout(() => { if (ui.open?.cards[ui.open.i] === cur) { cur.cine = true; render(); } }, big === ' pull-5' ? 3200 : 2300);
+      return `<div class="open-stage reveal cine${big}${o.god ? ' god' : ''}" data-act="skip-cine"><div class="aura"></div><div class="aura a2"></div><div class="sparks">${'<i></i>'.repeat(14)}</div>
+        <div class="cine-card"></div><p class="open-hint cine-hint">Something special…</p></div>`;
+    }
+    const fresh = o.fresh; o.fresh = false;
+    return `<div class="open-stage reveal${rare ? ' rare r-' + cur.rarity : ''}${big}${o.god ? ' god' : ''}${fresh ? ' from-pack' : ''}" data-act="next-card">
       ${rare ? '<div class="burst"></div>' : ''}${big ? `<div class="big-rays"></div><p class="big-tag">${cur.finish === 'rainbow' ? '★★★★★ RAINBOW' : '★★★★ FULL ART'}</p>` : ''}${o.god ? '<p class="god-tag">GOD PACK</p>' : ''}
-      <div class="stack" data-act="noop">${behind}${renderCard((cur.finish === 'full' || cur.finish === 'rainbow') ? { ...c, crop: null } : c, { cls: `zoom flick enter ${FINISH_CLS[cur.finish]}` })}</div>
+      <div class="stack" data-act="noop">${behind}${renderCard((cur.finish === 'full' || cur.finish === 'rainbow') ? { ...c, crop: null } : c, { cls: `zoom flick enter ${FINISH_CLS[cur.finish]}` })}<div class="flip-back"></div></div>
       <p class="pull-tag">${cur.isNew ? '<span class="new">NEW</span>' : ''}${starsOf(cur.id, cur.finish)}${cur.finish !== 'normal' ? ` · ${FINISH_NAME[cur.finish]}` : ''}</p>
       <p class="open-hint">Drag to tilt · flick to the side for the next card (${o.i + 1}/${o.cards.length})</p></div>`;
   }
@@ -102,6 +110,7 @@ Object.assign(ACTS, {
   'wheel-step'(d) { wheelGo((ui.packIdx || 0) + Number(d.d)); return false; },
   'wheel-to'(d) { if (Date.now() - lastSwipe < 350) return false; wheelGo(Number(d.i)); return false; },
   'pick-pack'(d) { if (Date.now() - lastSwipe < 350) return false; ui.open = openPack(d.p); ui.view = 'open'; }, // a swipe isn't a tap
+  'skip-cine'() { clearTimeout(cineTimer); const c = ui.open?.cards[ui.open.i]; if (c) c.cine = true; },
   'tear-now'() { tearOpen(); return false; },
   'start-reveal'() { ui.open.stage = 'reveal'; ui.open.i = 0; },
   'next-card'() { flick(-1); return false; },
@@ -110,8 +119,9 @@ Object.assign(ACTS, {
 function advance() { const o = ui.open; if (++o.i >= o.cards.length) o.stage = 'summary'; }
 function tearOpen() {
   const z = $app.querySelector('.tear-zone');
-  if (z && !calm) { z.style.setProperty('--tear', 1); z.classList.add('torn'); setTimeout(() => { ui.open.stage = 'deck'; render(); }, 1100); }
-  else { ui.open.stage = 'deck'; render(); }
+  const go = () => { Object.assign(ui.open, { stage: 'reveal', i: 0, fresh: true }); render(); };
+  if (z && !calm) { z.style.setProperty('--tear', 1); z.classList.add('torn'); if (typeof sfx === 'function') sfx('packopen_4_ripopen'); setTimeout(go, 900); }
+  else go();
 }
 // Finger gestures for opening: tear the strip, spin the deck, tilt and flick the revealed card.
 let drag = null, deckRot = [-25, 12];

@@ -1002,3 +1002,51 @@ img { -webkit-user-drag: none; }
 .god { background: radial-gradient(ellipse at 50% 40%, rgba(255, 216, 74, .35), transparent 70%); }
 .dev-panel { position: fixed; left: 12px; bottom: 90px; z-index: 400; display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 14px; font-size: 12px; }
 .god-tag { position: fixed; top: calc(64px + env(safe-area-inset-top)); }
+
+/* ---------- 4/5 star cutscene: the face-down card charges up before it reveals ---------- */
+.cine { overflow: hidden; display: grid; place-items: center; cursor: pointer; }
+.cine-card { position: relative; z-index: 3; width: min(250px, 62vw); aspect-ratio: 5 / 7; border-radius: 14px; background: #f4f6fa url(art/card-back.jpg) center / cover; box-shadow: inset 0 0 0 5px #f4f6fa;
+  animation: cineShake 2.3s ease-in forwards; }
+.pull-5 .cine-card { animation-duration: 3.2s; }
+@keyframes cineShake { 0% { transform: scale(.85); } 30% { transform: scale(1) rotate(0); } 60% { transform: scale(1.04) rotate(-1.5deg); } 70% { transform: scale(1.05) rotate(1.5deg); } 80% { transform: scale(1.07) rotate(-2deg); } 90% { transform: scale(1.1) rotate(2deg); filter: brightness(1.6); } 100% { transform: scale(1.15); filter: brightness(5); } }
+.aura { position: absolute; left: 50%; top: 50%; width: 520px; height: 520px; margin: -260px 0 0 -260px; z-index: 2; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, rgba(190, 140, 255, .95), rgba(140, 90, 255, .5) 35%, transparent 65%); animation: auraPulse 2.3s ease-in forwards; }
+.aura.a2 { animation-delay: .4s; opacity: 0; }
+.pull-5 .aura { background: conic-gradient(from 0deg, #ff6fa8, #ffd36b, #6bffa0, #6bd5ff, #b06bff, #ff6fa8); -webkit-mask: radial-gradient(circle, #000 15%, transparent 62%); mask: radial-gradient(circle, #000 15%, transparent 62%); animation: auraPulse 3.2s ease-in forwards, bigSpin 2s linear infinite; }
+@keyframes auraPulse { 0% { opacity: 0; transform: scale(.3); } 25% { opacity: .7; transform: scale(.7); } 50% { opacity: .5; transform: scale(.8); } 75% { opacity: .9; transform: scale(1); } 100% { opacity: 1; transform: scale(1.6); } }
+.sparks i { position: absolute; left: 50%; top: 50%; z-index: 2; width: 6px; height: 6px; border-radius: 50%; background: #fff; box-shadow: 0 0 10px #fff, 0 0 20px #b06bff; opacity: 0; animation: spark 1.2s ease-in infinite; }
+.pull-5 .sparks i { box-shadow: 0 0 10px #fff, 0 0 20px #ffd36b; }
+.sparks i:nth-child(odd) { animation-duration: 1.6s; }
+.sparks i:nth-child(1) { --a: 0deg; animation-delay: 0.00s; }
+.sparks i:nth-child(2) { --a: 26deg; animation-delay: 0.13s; }
+.sparks i:nth-child(3) { --a: 52deg; animation-delay: 0.26s; }
+.sparks i:nth-child(4) { --a: 78deg; animation-delay: 0.39s; }
+.sparks i:nth-child(5) { --a: 104deg; animation-delay: 0.52s; }
+.sparks i:nth-child(6) { --a: 130deg; animation-delay: 0.65s; }
+.sparks i:nth-child(7) { --a: 156deg; animation-delay: 0.78s; }
+.sparks i:nth-child(8) { --a: 182deg; animation-delay: 0.91s; }
+.sparks i:nth-child(9) { --a: 208deg; animation-delay: 1.04s; }
+.sparks i:nth-child(10) { --a: 234deg; animation-delay: 1.17s; }
+.sparks i:nth-child(11) { --a: 260deg; animation-delay: 1.30s; }
+.sparks i:nth-child(12) { --a: 286deg; animation-delay: 1.43s; }
+.sparks i:nth-child(13) { --a: 312deg; animation-delay: 1.56s; }
+.sparks i:nth-child(14) { --a: 338deg; animation-delay: 1.69s; }
+@keyframes spark { 0% { opacity: 0; transform: rotate(var(--a)) translateY(-230px) scale(.5); } 30% { opacity: 1; } 100% { opacity: 0; transform: rotate(var(--a)) translateY(-10px) scale(1.4); } }
+.cine-hint { position: absolute; bottom: 12%; z-index: 4; letter-spacing: .2em; animation: guidePulse .8s ease-in-out infinite alternate; }
+
+/* ---------- the literal five cards: they rise out of the cut pack, then each top card flips from its back ---------- */
+.stack > .card, .stack > .flip-back { grid-area: 1 / 1; }
+.flip-back { width: var(--cw, 250px); aspect-ratio: 5 / 7; border-radius: 14px; z-index: 5; pointer-events: none; background: #f4f6fa url(art/card-back.jpg) center / cover; box-shadow: inset 0 0 0 5px #f4f6fa;
+  transform-origin: 50% 50%; animation: flipAway .28s ease-in forwards; }
+.from-pack .flip-back { animation-delay: .75s; }
+@keyframes flipAway { to { transform: perspective(900px) rotateY(90deg); visibility: hidden; } }
+.stack .card.flick.enter { animation: flipFace .3s .28s ease-out both, sway 6s ease-in-out .6s infinite alternate; }
+.from-pack .stack .card.flick.enter { animation-delay: 1.03s, 1.4s; }
+@keyframes flipFace { from { transform: perspective(900px) rotateY(-90deg); } }
+.from-pack .stack { animation: fromPack .75s cubic-bezier(.2, .9, .3, 1.05) both; }
+@keyframes fromPack { from { transform: translateY(55vh) scale(.85); opacity: 0; } 40% { opacity: 1; } }
+.god .big-tag { top: calc(9% + 52px); } /* sits under the GOD PACK banner */
+/* one size for the face card, the cards behind it and the flipping back, so they read as the same five cards */
+.reveal .stack { --cw: min(260px, 64vw); }
+.reveal .stack .card.zoom { width: var(--cw); --cw: min(260px, 64vw); }
+.reveal .stack .stack-back, .reveal .stack .flip-back { width: var(--cw); }

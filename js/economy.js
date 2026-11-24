@@ -57,7 +57,7 @@ viewer = () => {
 const pickPack = ACTS['pick-pack'];
 Object.assign(ACTS, {
   'pick-pack'(d) {
-    if (coins < price(d.p)) { ui.toast = `This pack costs ${fmt(price(d.p))} coins: sell cards or win matches`; return; }
+    if (coins < price(d.p)) { setTimeout(() => toast(`This pack costs ${fmt(price(d.p))} coins: sell cards or win matches`)); return; }
     const r = pickPack(d); if (r !== false) setCoins(coins - price(d.p)); return r;
   },
   'goto-pack'(d) { ui.viewer = null; ui.view = 'packs'; ui.packIdx = PACKS.findIndex(p => p.id === d.p); },
@@ -88,9 +88,9 @@ Object.assign(ACTS, {
     const low = Object.entries(left).filter(([id, n]) => n < 3).map(([id, n]) => `${CARD[id].name} (${Math.max(n, keep(id))} left)`);
     if (low.length && !confirm(`Sell all of these pulls? These would drop below 3 copies, the most a deck can use:\n\n${low.join('\n')}`)) return; ui.open.cards.forEach((_, i) => ACTS['sell-pull']({ i, all: true })); },
   buy(d) {
-    const f = d.f || 'normal', price = cardValue(d.id, f) * SHOP_MARKUP; if (coins < price) { ui.toast = 'Not enough coins'; return; }
+    const f = d.f || 'normal', price = cardValue(d.id, f) * SHOP_MARKUP; if (coins < price) { setTimeout(() => toast('Not enough coins')); return; }
     const e = (coll[d.id] ||= { n: 0, f: {} }); e.n++; e.f[f] = (e.f[f] || 0) + 1;
-    setCoins(coins - price); store.set('collection', coll); ui.toast = `Bought ${CARD[d.id].name}`;
+    setCoins(coins - price); store.set('collection', coll); setTimeout(() => toast(`Bought ${CARD[d.id].name}`));
   },
 });
 

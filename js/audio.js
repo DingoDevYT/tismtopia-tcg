@@ -56,11 +56,12 @@ function syncMusic() {
   } else lastPhase = null;
   const o = ui.open;
   if (ui.view === 'open' && o?.stage === 'reveal') {
-    const c = o.cards[o.i], tag = o.pack + o.cards.map(x => x.id).join() + o.i;
+    const c = o.cards[o.i], bigPull = c.finish === 'full' || c.finish === 'rainbow', tag = o.pack + o.cards.map(x => x.id).join() + o.i + (bigPull && !c.cine ? 'cine' : '');
     if (tag !== lastReveal) {
       lastReveal = tag;
       const name = c.finish === 'rainbow' ? 'fanfare-rainbow' : c.finish === 'full' ? (c.rarity === 'UR' ? 'fanfare-crown' : 'fanfare-2star') : c.rarity === 'UR' ? 'fanfare-1star' : c.rarity === 'R' || c.finish !== 'normal' ? 'fanfare-4diamond' : '';
-      if (o.god && o.i === 0) fanfare('fanfare-crown'); // god pack: the biggest fanfare as the first card lands
+      if (bigPull && !c.cine) sfx('packopen_10_drumroll'); // build-up during the aura; the fanfare waits for the reveal
+      else if (o.god && o.i === 0) fanfare('fanfare-crown'); // god pack: the biggest fanfare as the first card lands
       else if (name) fanfare(name);
     }
   }
