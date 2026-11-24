@@ -1,5 +1,6 @@
 // Coins: packs cost coins, matches pay coins, cards sell for coins, and a daily shop sells a few cards.
-const PACK_COST = 600, WIN_PAY = 100, LOSS_PAY = 40; // 10-card packs resell for roughly their price on average
+const PACK_PRICE = { heehn: 600, empirical: 800, foreseen: 1000 }, price = pk => PACK_PRICE[pk] || 600;
+const WIN_PAY = 100, LOSS_PAY = 40; // 10-card packs resell for roughly their price on average
 const RVAL = { C: 10, U: 25, R: 60, UR: 200 }, FVAL = { normal: 1, rev: 1.5, holo: 2, full: 4 }; // a weak pack sells for about half its cost
 const fmt = n => Math.round(n).toLocaleString('en-US'); // 10000 -> 10,000
 const COIN = '<img class="coin" src="art/coin.svg" alt="coins">';
@@ -24,7 +25,7 @@ const shopHtml = () => `<section class="shop"><h3>Shop <small class="muted">new 
   `<div class="shop-item">${renderCard(c, { cls: 'mini', attrs: `data-act="view-card" data-id="${c.id}"` })}<button class="btn primary" data-act="buy" data-id="${c.id}">${COIN}${fmt(cardValue(c.id) * 2)}</button></div>`).join('')}</div></section>`;
 
 const viewPacksNoShop = viewPacks;
-viewPacks = () => (viewPacksNoShop().replace('data-p="' , 'data-p="').replace(/(wheel-open[^>]*>)Open<\/button>/, `$1Open for ${COIN}${fmt(PACK_COST)}</button><button class="btn odds-btn" data-act="odds">What's in this pack?</button>`).replace(/(<nav class="tabbar)/, `<button class="btn wide shop-open" data-act="shop">${COIN} Shop</button>$1`) + (ui.shop ? `<div class="viewer"><div class="viewer-bg" data-act="shop"></div><div class="shop-sheet neu">${shopHtml()}<button class="btn wide" data-act="shop">Close</button></div></div>` : ''));
+viewPacks = () => (viewPacksNoShop().replace('data-p="' , 'data-p="').replace(/(wheel-open[^>]*data-p="([^"]*)"[^>]*>)Open<\/button>/, (m, a, pk) => `${a}Open for ${COIN}${fmt(price(pk))}</button><button class="btn odds-btn" data-act="odds" data-p="${pk}">What's in this pack?</button>`).replace(/(<nav class="tabbar)/, `<button class="btn wide shop-open" data-act="shop">${COIN} Shop</button>$1`) + (ui.shop ? `<div class="viewer"><div class="viewer-bg" data-act="shop"></div><div class="shop-sheet neu">${shopHtml()}<button class="btn wide" data-act="shop">Close</button></div></div>` : ''));
 const viewCollectionNoCoins = viewCollection;
 viewCollection = () => viewCollectionNoCoins();
 const viewerNoSell = viewer;
@@ -34,15 +35,17 @@ viewer = () => {
   const sell = have && spare > 0 ? `<button class="btn wide" data-act="sell">Sell one for ${COIN}${fmt(cardValue(v.id, v.finish))}</button>` : '';
   const fs = Object.entries(coll[v.id]?.f || {}).filter(([, n]) => n > 0).sort(([a], [b]) => (b === v.finish) - (a === v.finish));
   // Every copy you own as a row of big cards, the chosen finish first.
-  const row = fs.flatMap(([f, n]) => Array.from({ length: n }, () => renderCard(f === 'full' ? { ...CARD[v.id], crop: null } : CARD[v.id], { cls: `zoom view ${FINISH_CLS[f] || ''}${f === v.finish ? ' picked' : ''}`, attrs: `data-act="viewer-finish" data-f="${f}"` }))).join('');
+  // One stack per finish: copies sit behind each other so only their edges show.
+  const row = fs.map(([f, n]) => `<div class="stack${f === v.finish ? ' picked' : ''}" data-act="viewer-finish" data-f="${f}" style="--n:${Math.min(n, 6) - 1}">${Array.from({ length: Math.min(n, 6) }, (_, k) =>
+    renderCard(f === 'full' ? { ...CARD[v.id], crop: null } : CARD[v.id], { cls: `zoom view ${FINISH_CLS[f] || ''}${k ? ' behind' : ' picked'}`, style: `--k:${k}` })).join('')}${n > 1 ? `<span class="chip on stack-n">×${n}</span>` : ''}</div>`).join('');
   return (row ? html.replace(/<div class="viewer-card">[\s\S]*?<\/div>\s*<div class="viewer-info/, `<div class="viewer-card copies">${row}</div><div class="viewer-info`) : html).replace('<button class="btn wide" data-act="close-viewer">', sell + '<button class="btn wide" data-act="close-viewer">');
 };
 
 const pickPack = ACTS['pick-pack'];
 Object.assign(ACTS, {
   'pick-pack'(d) {
-    if (coins < PACK_COST) { ui.toast = `Packs cost ${fmt(PACK_COST)} coins: sell cards or win matches`; return; }
-    const r = pickPack(d); if (r !== false) setCoins(coins - PACK_COST); return r;
+    if (coins < price(d.p)) { ui.toast = `This pack costs ${fmt(price(d.p))} coins: sell cards or win matches`; return; }
+    const r = pickPack(d); if (r !== false) setCoins(coins - price(d.p)); return r;
   },
   sell() {
     const v = ui.viewer, e = coll[v.id];
@@ -53,7 +56,7 @@ Object.assign(ACTS, {
     if (!coll[v.id]?.f?.[v.finish]) ui.viewer.finish = 'normal';
   },
   shop() { ui.shop = !ui.shop; },
-  odds() { ui.odds = !ui.odds; },
+  odds(d) { ui.odds = ui.odds ? null : d.p; },
   'sell-pull'(d) {
     const p = ui.open.cards[d.i], e = coll[p.id];
     if (p.sold || !e?.f?.[p.finish] || e.n - keep(p.id) <= 0) return;
@@ -96,12 +99,12 @@ viewOpen = () => {
 // "What's in this pack?": every card, in number order, with its share of all pulled cards (adds up to 100%).
 function oddsHtml() {
   // One entry per card per finish (Characters only get special finishes), rarest first.
-  const rows = CARDS.filter(c => c.type !== 'captain').flatMap(c => { const r = c.rarity || 'C', n = pool(r).length;
+  const rows = CARDS.filter(c => c.type !== 'captain').flatMap(c => { const r = c.rarity || 'C', n = pool(r, ui.odds).length; if (!PACK_SET[ui.odds]?.includes(c.id)) return [];
     const p = SLOTS.reduce((s, t) => s + (t.find(([, v]) => v === r)?.[0] || 0) / n, 0) / SLOTS.length;
-    return (c.type === 'character' ? FINISH[r] : [[1, 'normal']]).map(([fp, f]) => ({ c, f, p: p * fp })); })
+    return (c.type === 'character' ? boosted(FINISH[r], ui.odds) : [[1, 'normal']]).map(([fp, f]) => ({ c, f, p: p * fp })); })
     .sort((a, b) => a.p - b.p || a.c.no.localeCompare(b.c.no));
   const pc = p => (p * 100).toFixed(p < 0.001 ? 3 : p < 0.01 ? 2 : 1) + '%';
-  return `<h3>What's in this pack</h3><small class="muted">Chance that any card you pull is this one, rarest first</small><div class="grid odds">${rows.map(({ c, f, p }) =>
+  return `<h3>${esc(PACKS.find(p => p.id === ui.odds)?.name || 'This pack')}: ${fmt(price(ui.odds))} coins</h3><small class="muted">Chance that any card you pull is this one, rarest first</small><div class="grid odds">${rows.map(({ c, f, p }) =>
     `<div class="cell coll-cell">${renderCard(f === 'full' ? { ...c, crop: null } : c, { cls: FINISH_CLS[f] || '', attrs: `data-act="view-card" data-id="${c.id}" data-f="${f}"` })}<small class="chip on">${f === 'normal' ? '' : FINISH_NAME[f] + ' · '}${pc(p)}</small></div>`).join('')}</div>`;
 }
 const viewPacksNoOdds = viewPacks;

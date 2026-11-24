@@ -820,3 +820,9 @@ img { -webkit-user-drag: none; }
 .viewer-card.copies { display: flex; gap: 14px; overflow-x: auto; scroll-snap-type: x mandatory; max-width: 100vw; padding: 10px 20px; }
 .viewer-card.copies .card { flex: none; scroll-snap-align: center; opacity: .6; transition: opacity .2s; } .viewer-card.copies .card.picked { opacity: 1; }
 .odds-btn { display: block; margin: 8px auto 0; font-size: 13px; padding: 6px 14px; }
+/* Viewer copies: one stack per finish, extra copies peek out behind. */
+.viewer-card.copies .stack { position: relative; flex: none; scroll-snap-align: center; margin: calc(var(--n) * 5px) calc(var(--n) * 5px) 0 0; opacity: .6; cursor: pointer; transition: opacity .2s; }
+.viewer-card.copies .stack.picked { opacity: 1; }
+.viewer-card.copies .stack .card { opacity: 1; position: relative; z-index: 6; }
+.viewer-card.copies .stack .card.behind { position: absolute; inset: 0; z-index: calc(6 - var(--k)); transform: translate(calc(var(--k) * 5px), calc(var(--k) * -5px)); filter: brightness(calc(1 - var(--k) * .08)); pointer-events: none; }
+.stack-n { position: absolute; bottom: -10px; left: 50%; transform: translateX(-50%); z-index: 9; }

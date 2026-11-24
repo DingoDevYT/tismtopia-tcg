@@ -22,16 +22,19 @@ const owned = id => coll[id]?.n || 0;
 const ownedCount = () => CARDS.filter(c => owned(c.id)).length;
 
 // Slot odds (10 cards): six commons-ish, two uncommon-ish, two rare-ish. Finishes roll per card.
-const pool = r => CARDS.filter(c => c.type !== 'captain' && (c.rarity || 'C') === r);
+const pool = (r, pk) => CARDS.filter(c => c.type !== 'captain' && (c.rarity || 'C') === r && (!pk || typeof PACK_SET === 'undefined' || !PACK_SET[pk] || PACK_SET[pk].includes(c.id)));
+const BOOST = { heehn: 1, empirical: 1.25, foreseen: 1.6 }; // pricier packs: better odds of special finishes
+const boosted = (table, pk) => { const k = BOOST[pk] || 1, sp = table.filter(([, f]) => f !== 'normal').map(([p, f]) => [p * k, f]), rest = 1 - sp.reduce((a, [p]) => a + p, 0);
+  return rest > 0 ? [...sp, [rest, 'normal']] : sp.map(([p, f]) => [p / (1 - rest), f]); };
 const roll = table => { let x = Math.random(); for (const [p, v] of table) { if ((x -= p) < 0) return v; } return table[table.length - 1][1]; };
 const COMMONISH = [[0.85, 'C'], [0.13, 'U'], [0.02, 'R']];
 const SLOTS = [...Array(6).fill(COMMONISH), [[0.7, 'U'], [0.25, 'R'], [0.05, 'UR']], [[0.7, 'U'], [0.25, 'R'], [0.05, 'UR']], [[0.75, 'R'], [0.25, 'UR']], [[0.75, 'R'], [0.25, 'UR']]];
 const FINISH = { C: [[0.12, 'rev'], [0.88, 'normal']], U: [[0.15, 'rev'], [0.85, 'normal']], R: [[0.4, 'holo'], [0.15, 'rev'], [0.05, 'full'], [0.4, 'normal']], UR: [[0.6, 'holo'], [0.4, 'full']] };
 function openPack(packId) {
   const cards = SLOTS.map(t => {
-    let r = roll(t); while (!pool(r).length) r = { UR: 'R', R: 'U', U: 'C', C: 'C' }[r];
-    const list = pool(r), c = list[Math.floor(Math.random() * list.length)];
-    return { id: c.id, rarity: r, finish: c.type === 'character' ? roll(FINISH[r]) : 'normal', isNew: false }; // only Characters come in special finishes for now
+    let r = roll(t); while (!pool(r, packId).length && r !== 'C') r = { UR: 'R', R: 'U', U: 'C' }[r];
+    const list = pool(r, packId), c = list[Math.floor(Math.random() * list.length)];
+    return { id: c.id, rarity: r, finish: c.type === 'character' ? roll(boosted(FINISH[r], packId)) : 'normal', isNew: false }; // only Characters come in special finishes for now
   });
   cards.forEach(p => { p.isNew = !owned(p.id); const e = (coll[p.id] ||= { n: 0, f: {} }); e.n++; e.f[p.finish] = (e.f[p.finish] || 0) + 1; });
   store.set('collection', coll);
