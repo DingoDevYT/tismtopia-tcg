@@ -1001,3 +1001,4 @@ img { -webkit-user-drag: none; }
 @keyframes flashOut { to { opacity: 0; } }
 .god { background: radial-gradient(ellipse at 50% 40%, rgba(255, 216, 74, .35), transparent 70%); }
 .dev-panel { position: fixed; left: 12px; bottom: 90px; z-index: 400; display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 14px; font-size: 12px; }
+.god-tag { position: fixed; top: calc(64px + env(safe-area-inset-top)); }

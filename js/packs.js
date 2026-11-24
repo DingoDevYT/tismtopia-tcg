@@ -44,6 +44,10 @@ function openPack(packId) {
     const list = pool(r, packId), c = list[Math.floor(Math.random() * list.length)];
     return { id: c.id, rarity: r, finish: c.type === 'character' ? (god ? roll([[0.45, 'holo'], [0.3, 'rev'], [0.2, 'full'], [0.05, 'rainbow']]) : roll(boosted(FINISH[r], packId))) : 'normal', isNew: false }; // only Characters come in special finishes for now
   });
+  if (god) { // a god pack always holds a 4-star full art and a 5-star rainbow (from this pack's Ultra Rares when it has any)
+    const ur = CARDS.filter(c => c.type === 'character' && c.rarity === 'UR'), own = ur.filter(c => pool('UR', packId).includes(c)), list = own.length ? own : ur, pick = () => list[Math.floor(Math.random() * list.length)];
+    cards[3] = { id: pick().id, rarity: 'UR', finish: 'full', isNew: false }; cards[4] = { id: pick().id, rarity: 'UR', finish: 'rainbow', isNew: false };
+  }
   if (force === 'rainbow' || force === 'full') { const ur = CARDS.filter(c => c.type === 'character' && c.rarity === 'UR'), c = ur[Math.floor(Math.random() * ur.length)]; cards[4] = { id: c.id, rarity: 'UR', finish: force, isNew: false }; }
   cards.forEach(p => { p.isNew = !(coll[p.id]?.f?.[p.finish] > 0); const e = (coll[p.id] ||= { n: 0, f: {} }); e.n++; e.f[p.finish] = (e.f[p.finish] || 0) + 1; });
   store.set('collection', coll);
@@ -83,7 +87,7 @@ function viewOpen() {
     const behind = o.cards.slice(o.i + 1).map((n, k) => `<div class="stack-back ${edgeOf(n)}" style="--k:${k + 1}"></div>`).join('');
     const big = cur.finish === 'rainbow' ? ' pull-5' : cur.finish === 'full' ? ' pull-4' : '';
     return `<div class="open-stage reveal${rare ? ' rare r-' + cur.rarity : ''}${big}${o.god ? ' god' : ''}" data-act="next-card">
-      ${rare ? '<div class="burst"></div>' : ''}${big ? `<div class="big-rays"></div><p class="big-tag">${cur.finish === 'rainbow' ? '★★★★★ RAINBOW' : '★★★★ FULL ART'}</p>` : ''}${o.god && o.i === 0 ? '<p class="god-tag">GOD PACK</p>' : ''}
+      ${rare ? '<div class="burst"></div>' : ''}${big ? `<div class="big-rays"></div><p class="big-tag">${cur.finish === 'rainbow' ? '★★★★★ RAINBOW' : '★★★★ FULL ART'}</p>` : ''}${o.god ? '<p class="god-tag">GOD PACK</p>' : ''}
       <div class="stack" data-act="noop">${behind}${renderCard((cur.finish === 'full' || cur.finish === 'rainbow') ? { ...c, crop: null } : c, { cls: `zoom flick enter ${FINISH_CLS[cur.finish]}` })}</div>
       <p class="pull-tag">${cur.isNew ? '<span class="new">NEW</span>' : ''}${starsOf(cur.id, cur.finish)}${cur.finish !== 'normal' ? ` · ${FINISH_NAME[cur.finish]}` : ''}</p>
       <p class="open-hint">Drag to tilt · flick to the side for the next card (${o.i + 1}/${o.cards.length})</p></div>`;

@@ -235,3 +235,7 @@ if (/[?&]dev\b/.test(location.search)) {
 
 // app.js drew the first screen before this file loaded: draw it again so the shop tab and coins show straight away.
 render();
+
+// God packs say so on every step: cutting, the stack, each card and the summary.
+const viewOpenNoGod = viewOpen;
+viewOpen = () => { const html = viewOpenNoGod(); return ui.open?.god && ui.open.stage !== 'reveal' ? '<p class="god-tag">GOD PACK</p>' + html : html; };
