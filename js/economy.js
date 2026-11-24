@@ -166,5 +166,40 @@ setInterval(() => { document.querySelectorAll('.leaves').forEach(el => { const m
 // Shop tile on the home screen, next to Collection.
 const viewHomeNoShop = viewHome;
 viewHome = () => viewHomeNoShop().replace('<small>Your cards</small></button>', '<small>Your cards</small></button><button class="tile neu" data-act="shop">${ICON.cart}<b>Shop</b><small>New stock every 30 min</small></button>'.replace('${ICON.cart}', ICON.cart));
+// Before any battle (bot, host or join): pick a deck and, if you like, a different Captain (defaults to the deck's own).
+let capRestore = null; // [deck, its own captain] while a swapped Captain is in use
+function preHtml() {
+  const p = ui.pre; if (!p) return '';
+  const d = decks.find(x => x.id === p.deckId) || decks[0];
+  return `<div class="viewer"><div class="viewer-bg" data-act="pre-cancel"></div><div class="shop-sheet neu pre-sheet">
+    <h3>Choose your deck</h3><div class="pre-list">${decks.map(x => `<button class="chip${x.id === d.id ? ' on' : ''}" data-act="pre-deck" data-id="${x.id}">${esc(x.name)}</button>`).join('')}</div>
+    <h3>Captain <small class="muted">defaults to the deck's own</small></h3>
+    <div class="pre-caps">${CAPTAINS.map(c => `<button class="pre-cap${c.id === p.cap ? ' on' : ''}" data-act="pre-cap" data-id="${c.id}">${renderAvatar(c)}<small>${esc(c.name)}${c.id === d.captain ? ' ★' : ''}</small></button>`).join('')}</div>
+    ${deckProblems(d).length ? `<p class="muted">This deck isn't legal yet: ${esc(deckProblems(d)[0])}</p>` : ''}
+    <div class="row2"><button class="btn" data-act="pre-cancel">Cancel</button><button class="btn primary" data-act="pre-go"${deckProblems(d).length ? ' disabled' : ''}>Battle</button></div></div></div>`;
+}
+const openPre = act => { const d = deck(); ui.pre = { act, deckId: d.id, cap: d.captain || CAPTAINS[0].id }; };
+const actBot = ACTS.bot, actHost = ACTS.host, actJoin = ACTS.join, actGo = ACTS.go;
+Object.assign(ACTS, {
+  bot() { openPre('bot'); },
+  host() { openPre('host'); },
+  join(d) { openPre('join'); ui.preJoin = d; },
+  go(d) { if (d.host) { ui.view = 'lobby'; openPre('host'); return; } return actGo(d); },
+  'pre-deck'(d) { const x = decks.find(k => k.id === d.id); ui.pre.deckId = x.id; ui.pre.cap = x.captain || CAPTAINS[0].id; },
+  'pre-cap'(d) { ui.pre.cap = d.id; },
+  'pre-cancel'() { ui.pre = null; },
+  'pre-go'() {
+    const p = ui.pre; ui.pre = null; ui.deckId = p.deckId; store.set('deck', p.deckId);
+    const d = deck(); if (p.cap !== d.captain) { capRestore = [d, d.captain]; d.captain = p.cap; } // this battle only
+    return { bot: actBot, host: actHost, join: actJoin }[p.act](ui.preJoin);
+  },
+});
+const renderNoPre = render;
+render = function () {
+  if (capRestore && ui.view !== 'game' && ui.view !== 'lobby') { capRestore[0].captain = capRestore[1]; capRestore = null; }
+  renderNoPre();
+  if (ui.pre) $app.insertAdjacentHTML('beforeend', preHtml());
+};
+
 // app.js drew the first screen before this file loaded: draw it again so the shop tab and coins show straight away.
 render();
