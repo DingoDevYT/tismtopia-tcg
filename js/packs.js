@@ -71,7 +71,7 @@ function viewOpen() {
   const o = ui.open, P = PACKS.find(p => p.id === o.pack);
   if (o.stage === 'tear') return `<div class="open-stage">
     <p class="open-hint">Swipe across the top to cut it open</p>
-    <div class="tear-zone"><div class="rays"></div>${packArt(P, 'big body')}${packArt(P, 'big strip')}<div class="tear-guide"></div><div class="cut"><i></i></div></div>
+    <div class="tear-zone"><div class="rays"></div><div class="pack3d"><div class="pack-back"></div>${packArt(P, 'big body')}${packArt(P, 'big strip')}<div class="pack-shade"></div><div class="tear-guide"></div><div class="cut"><i></i></div></div></div>
     <button class="btn sm" data-act="tear-now">Tap to open</button></div>`;
   if (o.stage === 'deck') return `<div class="open-stage deck-stage">
     <p class="open-hint">Spin the stack to peek at the edges</p>
@@ -126,6 +126,8 @@ document.addEventListener('pointerdown', e => {
   el.setPointerCapture?.(e.pointerId); if (card) card.classList.add('held');
 });
 document.addEventListener('pointermove', e => {
+  const pz = !drag && ui.view === 'open' && e.target.closest?.('.tear-zone');
+  if (pz && !calm) { const r = pz.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - .5, y = (e.clientY - r.top) / r.height - .5; pz.style.setProperty('--ry', `${(x * 30).toFixed(1)}deg`); pz.style.setProperty('--rx', `${(-y * 22).toFixed(1)}deg`); pz.style.setProperty('--lx', `${((x + .5) * 100).toFixed(0)}%`); }
   if (!drag) return;
   const { kind, el, r } = drag, dx = e.clientX - drag.x0, dy = e.clientY - drag.y0;
   if (kind === 'tear') {
