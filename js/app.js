@@ -451,9 +451,11 @@ function postAnimate(ev, prev, s) {
 }
 
 // Inspecting a card tilts it toward the pointer with a moving shine.
+let tiltBusy = false; // one tilt update per frame, not per pointer event
 document.addEventListener('pointermove', e => {
   const c = e.target.closest?.('.card.zoom, .fan .card');
-  if (!c || calm) return;
+  if (!c || calm || tiltBusy) return;
+  tiltBusy = true; requestAnimationFrame(() => { tiltBusy = false; });
   c.classList.add('held');
   const r = c.getBoundingClientRect(), x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
   for (const [k, v] of [['--rx', `${((0.5 - y) * 18).toFixed(1)}deg`], ['--ry', `${((x - 0.5) * 22).toFixed(1)}deg`], ['--mx', `${(x * 100).toFixed(0)}%`], ['--my', `${(y * 100).toFixed(0)}%`], ['--fx', x.toFixed(3)], ['--fy', y.toFixed(3)], ['--fc', Math.min(1, Math.hypot(x - 0.5, y - 0.5) * 2).toFixed(3)], ['--co', 1]]) c.style.setProperty(k, v);

@@ -38,7 +38,8 @@ for (const d of drafts) {
   const a = r?.art || {}, src = a.path ? path.join(ART, a.path) : a.file ? path.join(ART, r?.folder || d.folder, a.file) : null;
   if (src && fs.existsSync(src)) {
     const rel = `art/local/${c.id}${path.extname(src).toLowerCase()}`;
-    fs.copyFileSync(src, path.join(root, rel));
+    const dst = path.join(root, rel); // only re-copy when the source changed, so tools/shrink-art.ps1 results stick
+    if (!fs.existsSync(dst) || fs.statSync(src).mtimeMs > fs.statSync(dst).mtimeMs) fs.copyFileSync(src, dst);
     c.art = rel;
     c.crop = { x: a.x ?? 50, y: a.y ?? 50, zoom: a.zoom ?? 1 };
   } else if (!item) console.warn(`no art for ${c.id}${src ? ` (missing ${src})` : ''}`);
