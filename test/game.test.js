@@ -209,4 +209,6 @@ throws(() => apply(m, 0, { type: 'end' }), 'no actions after game over');
 // Card names stay on one line: 22 characters max (the longest name when the limit was set).
 { const x = {}; require('vm').runInNewContext(fs.readFileSync(__dirname + '/../js/cards-data.js', 'utf8') + fs.readFileSync(__dirname + '/../js/card-overrides.js', 'utf8') + ';this.A=[...CAPTAINS,...CARDS]', x);
   for (const c of x.A) if (c.name.length > 22) throw new Error('FAIL: name too long (max 22): ' + c.name); }
+// The browser loads these as one shared scope: two files declaring the same name breaks everything after it.
+new Function(['cards-data', 'card-overrides', 'cards', 'render', 'game', 'app', 'pack-sets', 'packs', 'economy', 'audio'].map(f => fs.readFileSync(__dirname + '/../js/' + f + '.js', 'utf8')).join('\n;\n'));
 console.log('game.test.js: all checks passed');

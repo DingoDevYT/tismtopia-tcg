@@ -61,7 +61,7 @@ function syncMusic() {
       lastReveal = tag;
       const name = c.finish === 'rainbow' ? 'fanfare-rainbow' : c.finish === 'full' ? (c.rarity === 'UR' ? 'fanfare-crown' : 'fanfare-2star') : c.rarity === 'UR' ? 'fanfare-1star' : c.rarity === 'R' || c.finish !== 'normal' ? 'fanfare-4diamond' : '';
       stopRoll();
-      if (bigPull && !c.cine) roll = sfx('packopen_10_drumroll', true); // build-up during the aura; the fanfare waits for the reveal
+      if (bigPull && !c.cine) drumAudio = sfx('packopen_10_drumroll', true); // build-up during the aura; the fanfare waits for the reveal
       else if (o.god && o.i === 0) fanfare('fanfare-crown'); // god pack: the biggest fanfare as the first card lands
       else if (name) fanfare(name);
     }
@@ -72,8 +72,8 @@ function syncMusic() {
 
 // Sound effects (audio/local/sfx/, same rule as the music): played by comparing state before and after each render.
 const sfx = (name, loop) => { if (!musicOn || !unlocked) return; const a = new Audio(`audio/local/sfx/${name}.wav`); a.volume = Math.min(1, VOL * 1.3); a.loop = !!loop; a.play().catch(() => {}); return a; };
-let roll = null; // the drumroll loops for the whole aura cutscene, then stops on the reveal
-const stopRoll = () => { if (roll) { roll.pause(); roll = null; } };
+let drumAudio = null; // the drumroll loops for the whole aura cutscene, then stops on the reveal
+const stopRoll = () => { if (drumAudio) { drumAudio.pause(); drumAudio = null; } };
 let prev = null, prevOpen = '';
 function syncSfx() {
   if (ui.view === 'game' && game) {

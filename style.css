@@ -1050,3 +1050,15 @@ img { -webkit-user-drag: none; }
 .reveal .stack { --cw: min(260px, 64vw); }
 .reveal .stack .card.zoom { width: var(--cw); --cw: min(260px, 64vw); }
 .reveal .stack .stack-back, .reveal .stack .flip-back { width: var(--cw); }
+
+/* ---------- 5 star, softer (Pocket-style): a glow that drifts through colours, a light pillar, rising sparkles; no hard spinning wheel ---------- */
+.pull-5 .aura { background: radial-gradient(circle, rgba(255, 255, 255, .95), rgba(255, 150, 210, .7) 25%, rgba(150, 200, 255, .45) 45%, transparent 66%) !important; -webkit-mask: none; mask: none;
+  animation: auraPulse 3.2s ease-in forwards, hueDrift 1.6s linear infinite !important; }
+.pull-5 .aura.a2 { background: radial-gradient(ellipse 18% 100% at 50% 50%, rgba(255, 255, 255, .9), transparent 70%) !important; animation: pillar 3.2s ease-in forwards, hueDrift 1.6s linear infinite !important; }
+@keyframes hueDrift { to { filter: hue-rotate(360deg); } }
+@keyframes pillar { 0% { opacity: 0; transform: scaleY(.2); } 60% { opacity: .7; } 100% { opacity: 1; transform: scaleY(1.8); } }
+.pull-5 .sparks i { animation-name: rise; background: #fff; }
+@keyframes rise { 0% { opacity: 0; transform: rotate(var(--a)) translateY(140px) scale(.4); } 30% { opacity: 1; } 100% { opacity: 0; transform: rotate(var(--a)) translateY(-200px) scale(1.2); } }
+/* after the reveal: soft white rays with a gentle colour drift instead of the striped rainbow wheel */
+.pull-5 .big-rays { background: repeating-conic-gradient(from 0deg, rgba(255, 255, 255, .7) 0 4deg, transparent 4deg 18deg) !important; opacity: .9; animation: bigSpin 30s linear infinite, bigIn .6s ease-out, hueDrift 4s linear infinite; }
+.pull-5.reveal:not(.cine)::after { content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none; background: radial-gradient(circle at 50% 45%, rgba(255, 170, 220, .45), rgba(160, 210, 255, .25) 40%, transparent 70%); animation: hueDrift 4s linear infinite; }
