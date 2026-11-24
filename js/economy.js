@@ -1,5 +1,5 @@
 // Coins: packs cost coins, matches pay coins, cards sell for coins, and a daily shop sells a few cards.
-const PACK_PRICE = { heehn: 300, empirical: 400, foreseen: 500 }, price = pk => PACK_PRICE[pk] || 300;
+const PACK_PRICE = { heehn: 300, empirical: 400, foreseen: 500, community: 400 }, price = pk => PACK_PRICE[pk] || 300;
 const PAY = { bot: [1000, 500], player: [2000, 1000] }; // [win, loss] // 10-card packs resell for roughly their price on average
 const RVAL = { C: 15, U: 38, R: 90, UR: 300 }, FVAL = { normal: 1, rev: 1.5, holo: 2, full: 4, rainbow: 12 }; // a weak pack sells for about half its cost
 const fmt = n => Math.round(n).toLocaleString('en-US'); // 10000 -> 10,000
@@ -140,7 +140,7 @@ function oddsHtml() {
   // One entry per card per finish (Characters only get special finishes), rarest first.
   const rows = CARDS.filter(c => c.type !== 'captain').flatMap(c => { const r = c.rarity || 'C', n = pool(r, ui.odds).length; if (!PACK_SET[ui.odds]?.includes(c.id)) return [];
     const p = SLOTS.reduce((s, t) => s + (t.find(([, v]) => v === r)?.[0] || 0) / n, 0) / SLOTS.length;
-    return (c.type === 'character' ? boosted(FINISH[r], ui.odds) : [[1, 'normal']]).map(([fp, f]) => ({ c, f, p: p * fp })); })
+    return Object.values((c.type === 'character' ? boosted(FINISH[r], ui.odds) : [[1, 'normal']]).reduce((o, [fp, f]) => { f = allowFin(c, f); (o[f] ||= { c, f, p: 0 }).p += p * fp; return o; }, {})); }) // a finish the card doesn't allow counts toward the one it drops to
     .sort((a, b) => FORDER.indexOf(b.f) - FORDER.indexOf(a.f) || a.p - b.p || a.c.no.localeCompare(b.c.no));
   const pc = p => (p * 100).toFixed(p < 0.001 ? 3 : p < 0.01 ? 2 : 1) + '%';
   return `<h3>${esc(PACKS.find(p => p.id === ui.odds)?.name || 'This pack')}: ${fmt(price(ui.odds))} coins</h3><small class="muted">Chance that any card you pull is this one, rarest first</small><div class="grid odds">${rows.map(({ c, f, p }) =>
@@ -169,7 +169,7 @@ function shopSlots() {
     const c = list[Math.floor(rnd() * list.length)];
     let f = 'normal'; if (c.type === 'character') { let x = rnd(); for (const [p, v] of SHOP_FIN) if ((x -= p) < 0) { f = v; break; } }
     if (f === 'rainbow' && c.rarity !== 'UR') f = 'full'; // rainbow is Ultra Rare only
-    return { c, f, ends };
+    return { c, f: allowFin(c, f), ends };
   }).sort((a, b) => starN(b.c.id, b.f) - starN(a.c.id, a.f) || cardValue(b.c.id, b.f) - cardValue(a.c.id, a.f));
 }
 const left = ms => { const m = Math.floor(ms / 6e4), sec = Math.floor(ms % 6e4 / 1000); return `${m}m ${String(sec).padStart(2, '0')}s`; };
@@ -231,10 +231,11 @@ function pile(id, n, cls = '', attrs = '') {
 // Test panel: open the game with ?dev on the end of the address. Forces the next pack, or adds coins.
 if (/[?&]dev\b/.test(location.search)) {
   const box = Object.assign(document.createElement('div'), { className: 'dev-panel neu' });
-  box.innerHTML = '<b>Test</b>' + [['god', 'God pack'], ['rainbow', '5★ pull'], ['full', '4★ pull']].map(([k, l]) => `<button class="btn sm" data-force="${k}">${l}</button>`).join('') + '<button class="btn sm" data-coins="1">+10,000</button><small class="dev-note"></small>';
+  box.innerHTML = '<b>Test</b>' + [['god', 'God pack'], ['rainbow', '5★ pull'], ['full', '4★ pull']].map(([k, l]) => `<button class="btn sm" data-force="${k}">${l}</button>`).join('') + '<button class="btn sm" data-coins="1">+10,000</button><button class="btn sm" data-cm="1">Give me community cards</button><small class="dev-note"></small>';
   box.addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.coins) setCoins(coins + 10000);
+    else if (b.dataset.cm) box.querySelector('.dev-note').textContent = cmGive(); // js/community.js
     else { window.FORCE_PULL = b.dataset.force; box.querySelector('.dev-note').textContent = 'Next pack: ' + b.textContent; }
   });
   document.body.append(box);

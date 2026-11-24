@@ -36,11 +36,13 @@ const GOD_ODDS = 1 / 1000, GOD_SLOT = [[0.6, 'R'], [0.4, 'UR']]; // god pack: tw
 // Normal is always the most likely; holo beats reverse holo beats full art at every rarity.
 const FINISH = { C: [[0.06, 'holo'], [0.03, 'rev'], [0.91, 'normal']], U: [[0.08, 'holo'], [0.04, 'rev'], [0.005, 'full'], [0.875, 'normal']],
   R: [[0.15, 'holo'], [0.07, 'rev'], [0.02, 'full'], [0.76, 'normal']], UR: [[0.25, 'holo'], [0.12, 'rev'], [0.06, 'full'], [0.01, 'rainbow'], [0.56, 'normal']] }; // 5★ rainbow: Ultra Rare Characters only
+// A card can limit its finishes (community cards carry `finishes`); a finish it doesn't allow drops to the best allowed lower one. Built-in cards have no list.
+const allowFin = (c, f) => { const ok = c?.finishes, o = ['normal', 'holo', 'rev', 'full', 'rainbow']; if (!Array.isArray(ok)) return f; for (let i = o.indexOf(f); i > 0; i--) if (ok.includes(o[i])) return o[i]; return 'normal'; };
 function openPack(packId) {
   const force = window.FORCE_PULL; window.FORCE_PULL = null; // set by the ?dev test panel
   const god = force === 'god' || Math.random() < GOD_ODDS;
   const cards = (god ? Array(5).fill(GOD_SLOT) : SLOTS).map(t => {
-    let r = roll(t); while (!pool(r, packId).length && r !== 'C') r = { UR: 'R', R: 'U', U: 'C' }[r];
+    let r = roll(t); for (let k = 0; !pool(r, packId).length && k < 4; k++) r = { UR: 'R', R: 'U', U: 'C', C: 'UR' }[r]; // missing rarity: next lower, wrapping round (a pack with no Commons)
     const list = pool(r, packId), c = list[Math.floor(Math.random() * list.length)];
     return { id: c.id, rarity: r, finish: c.type === 'character' ? (god ? roll([[0.45, 'holo'], [0.3, 'rev'], [0.2, 'full'], [0.05, 'rainbow']]) : roll(boosted(FINISH[r], packId))) : 'normal', isNew: false }; // only Characters come in special finishes for now
   });
@@ -49,7 +51,7 @@ function openPack(packId) {
     cards[3] = { id: pick().id, rarity: 'UR', finish: 'full', isNew: false }; cards[4] = { id: pick().id, rarity: 'UR', finish: 'rainbow', isNew: false };
   }
   if (force === 'rainbow' || force === 'full') { const ur = CARDS.filter(c => c.type === 'character' && c.rarity === 'UR'), c = ur[Math.floor(Math.random() * ur.length)]; cards[4] = { id: c.id, rarity: 'UR', finish: force, isNew: false }; }
-  cards.forEach(p => { p.isNew = !(coll[p.id]?.f?.[p.finish] > 0); const e = (coll[p.id] ||= { n: 0, f: {} }); e.n++; e.f[p.finish] = (e.f[p.finish] || 0) + 1; });
+  cards.forEach(p => { p.finish = allowFin(CARD[p.id], p.finish); p.isNew = !(coll[p.id]?.f?.[p.finish] > 0); const e = (coll[p.id] ||= { n: 0, f: {} }); e.n++; e.f[p.finish] = (e.f[p.finish] || 0) + 1; });
   store.set('collection', coll);
   return { pack: packId, cards, stage: 'tear', i: 0, god };
 }

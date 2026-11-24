@@ -1,7 +1,7 @@
 // Self-check for the rules engine. Run: node test/game.test.js
 const fs = require('fs'), vm = require('vm'), path = require('path');
 // syntax-check every browser script too, so a broken app.js can't ship (the rules tests don't load it)
-for (const f of ['js/app.js', 'js/packs.js', 'js/audio.js', 'js/render.js', 'js/rainbow.js', 'js/cards.js', 'js/cards-data.js', 'js/game.js', 'js/cardfile.js', 'js/art-tools.js', 'js/cloud.js', 'js/profile.js', 'js/submit.js']) new vm.Script(fs.readFileSync(path.join(__dirname, '..', f), 'utf8'), { filename: f });
+for (const f of ['js/app.js', 'js/packs.js', 'js/audio.js', 'js/render.js', 'js/rainbow.js', 'js/cards.js', 'js/cards-data.js', 'js/game.js', 'js/cardfile.js', 'js/art-tools.js', 'js/cloud.js', 'js/profile.js', 'js/submit.js', 'js/community.js']) new vm.Script(fs.readFileSync(path.join(__dirname, '..', f), 'utf8'), { filename: f });
 const load = files => files.map(f => fs.readFileSync(path.join(__dirname, '..', f), 'utf8')).join('\n');
 const src = load(['test/fixture-cards.js', 'js/cards.js', 'js/game.js']).replace('const BORE_MAX = 10;', 'const BORE_MAX = 99;').replace('const DECK_SIZE = 40;', 'const DECK_SIZE = 20;').replace('const HP_SCALE = 1.2;', 'const HP_SCALE = 2;');
 
@@ -210,7 +210,7 @@ throws(() => apply(m, 0, { type: 'end' }), 'no actions after game over');
 { const x = {}; require('vm').runInNewContext(fs.readFileSync(__dirname + '/../js/cards-data.js', 'utf8') + fs.readFileSync(__dirname + '/../js/card-overrides.js', 'utf8') + ';this.A=[...CAPTAINS,...CARDS]', x);
   for (const c of x.A) if (c.name.length > 22) throw new Error('FAIL: name too long (max 22): ' + c.name); }
 // The browser loads these as one shared scope: two files declaring the same name breaks everything after it.
-new Function(['cards-data', 'card-overrides', 'cards', 'render', 'rainbow', 'game', 'app', 'pack-sets', 'packs', 'economy', 'audio', 'cardfile', 'art-tools', 'cloud', 'profile', 'submit'].map(f => fs.readFileSync(__dirname + '/../js/' + f + '.js', 'utf8')).join('\n;\n'));
+new Function(['cards-data', 'card-overrides', 'cards', 'render', 'rainbow', 'game', 'app', 'pack-sets', 'packs', 'economy', 'audio', 'cardfile', 'art-tools', 'cloud', 'profile', 'submit', 'community'].map(f => fs.readFileSync(__dirname + '/../js/' + f + '.js', 'utf8')).join('\n;\n'));
 // Submitted cards (js/cardfile.js): untrusted forms are clamped, effects come only from the menu, a card file round-trips, junk is refused.
 { const x = { Image: function () {} }; vm.runInNewContext(['cards-data', 'cards', 'render', 'cardfile'].map(f => fs.readFileSync(__dirname + '/../js/' + f + '.js', 'utf8')).join('\n;\n') + `;
   const ok = (c, m) => { if (!c) throw new Error('FAIL: cardfile: ' + m); };
@@ -249,4 +249,35 @@ new Function(['cards-data', 'card-overrides', 'cards', 'render', 'rainbow', 'gam
 { const x = {}; require('vm').runInNewContext(fs.readFileSync(__dirname + '/../js/cards-data.js', 'utf8') + fs.readFileSync(__dirname + '/../js/card-overrides.js', 'utf8') + ';this.A=[...CAPTAINS,...CARDS]', x);
   for (const c of x.A) for (const mv of c.moves || []) if (/heals/.test(mv.text || '') && !JSON.stringify(mv.onHit || mv.ops || []).includes('-')) throw new Error('FAIL: ' + c.name + ' says it heals but its op deals damage');
   for (const c of x.A) for (const mv of c.moves || []) if (/more damage/.test(mv.text || '') && /"hp","target",-/.test(JSON.stringify(mv.onHit || []))) throw new Error('FAIL: ' + c.name + ' says more damage but its op heals'); }
+// Community cards (js/community.js): approved rows are validated, escaped, numbered after the built-ins and playable.
+{ const x = { Image: function () {}, structuredClone }; vm.runInNewContext(['cards-data', 'cards', 'render', 'game', 'cardfile', 'community'].map(f => fs.readFileSync(__dirname + '/../js/' + f + '.js', 'utf8')).join('\n;\n') + `;
+  const ok = (c, m) => { if (!c) throw new Error('FAIL: community: ' + m); };
+  const base = CARDS.length, card = { id: 'sub_x', type: 'character', name: 'Jonathan', hp: 4, def: 14, cost: 1, text: 'When played: +1 Action this turn.', onPlay: [['actions', 'me', 1]], artist: 'anon',
+    moves: [{ name: 'Sweepkick', cost: 1, power: 2 }, { name: 'Wind-dash', cost: 2, power: 4, text: 'On a hit, your Boredom -1.', onHit: [['bore', 'me', -1]] }], crop: { x: 20, y: 20, zoom: 2 }, cropFull: { x: 16, y: 44, zoom: 1 }, finishes: ['normal', 'holo', 'full'] };
+  const row = (id, c, at = '2026-11-24T10:00:00Z') => ({ id, card: c, image_path: 'a1/b2.webp', approved_at: at });
+  const rows = [row('bbbbbbbb-0000-0000-0000-000000000002', { ...card, name: '<b>Bob</b>' }, '2026-11-25T00:00:00Z'),
+    row('46d80494-61e6-4dc3-955f-ba2d2b5c62d6', card),
+    row('cccccccc-0000-0000-0000-000000000003', { ...card, name: 'Opsy', moves: [card.moves[0], { ...card.moves[1], onHit: [['nuke', 'opp', 9]] }] }),
+    row('dddddddd-0000-0000-0000-000000000004', { ...card, name: 'x'.repeat(23) }),
+    row('46d80494-ffff-0000-0000-000000000005', { ...card, name: 'Same Id' }),
+    row('eeeeeeee-0000-0000-0000-000000000006', { ...card, name: CARDS[0].name })];
+  let added = cmRegister(rows, CARDS, CARD);
+  ok(added.map(c => c.id).join() === 'community_46d80494,community_bbbbbbbb', 'only the good and the HTML-named card register, in approval order: ' + added.map(c => c.id));
+  ok(CARDS.length === base + 2 && CARD.community_46d80494 === added[0] && added[0].no === String(base + 1).padStart(3, '0') && added[1].no === String(base + 2).padStart(3, '0'), 'numbered after the built-ins');
+  ok(!CARD.community_cccccccc && !CARD.community_dddddddd && !CARD.community_eeeeeeee, 'unknown op, over-long name and taken name are skipped');
+  ok(added[1].name.indexOf('<') < 0 && !renderCard(added[1]).includes('<b>Bob'), 'HTML in a name is escaped');
+  const j = added[0]; ok(j.community && j.rarity === 'U' && j.finishes.join() === 'normal,holo,full' && j.artPath === 'a1/b2.webp' && maxHp(j) === 5 && baseArmor(j) === 1, 'flag, rarity (5 HP + 2x1 armour + 4 power = 11 -> U), finishes kept');
+  ok(cmRegister([{ ...rows[1], card: { ...card, hp: 99, moves: [{ ...card.moves[0], power: 99 }] } }], CARDS, CARD)[0].moves[0].power === CF_POW[1] && CARDS.length === base + 1, 'numbers clamped; a refresh replaces the old community cards');
+  added = cmRegister(rows, CARDS, CARD); ok(CARDS.length === base + 2 && added[0].no === String(base + 1).padStart(3, '0'), 'same list, same numbers');
+  // play it: onPlay +1 Action; Wind-dash (power 4) through a blocker runs onHit (your Boredom -1), and straight to Boredom with no blocker
+  const tgt = CARDS.find(c => c.type === 'character' && !c.community && baseArmor(c) === 0 && !c.mod);
+  let g = newGame([STARTER, STARTER], ['A', 'B'], () => 0.1); const a = g.turn, d = 1 - a;
+  g.players[a].hand = [j.id]; g.actions = 4; g.players[a].bore = 3; g.players[d].field = [{ id: tgt.id, hp: 20, t: 0 }];
+  g = apply(g, a, { type: 'play', i: 0 }); ok(g.actions === 4, 'onPlay: +1 Action');
+  g = apply(g, a, { type: 'attack', i: 0, m: 1 }); g = apply(g, d, { type: 'defend', i: 0 });
+  ok(g.roll.hit && g.players[a].bore === 2, 'onHit through a blocker');
+  g.players[d].field = []; g.players[a].field[0].acted = 0; g.actions = 2; const bd = g.players[d].bore;
+  g = apply(g, a, { type: 'attack', i: 0, m: 1 }); ok(g.players[d].bore === bd + 4 && g.players[a].bore === 1, 'direct hit + onHit');
+  g = apply(g, a, { type: 'end' }); g = apply(g, d, { type: 'end' }); ok(g.turn === a && g.players[a].field[0].id === j.id, 'turns go on');
+`, x); }
 console.log('game.test.js: all checks passed');
