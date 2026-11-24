@@ -30,6 +30,8 @@ const btn = (a, label, cls = '') => `<button class="btn ${cls}" data-act="do" da
 const stepper = (label, minus, plus) => `<div class="stepper neu"><button data-act="do" data-a="${json(minus)}" aria-label="Less">−</button><span>${label}</span><button data-act="do" data-a="${json(plus)}" aria-label="More">+</button></div>`;
 const sheet = (html, closable = true) => `<div class="dim"${closable ? ' data-act="close"' : ''}></div><div class="sheet"><div class="grab"></div>${html}</div>`;
 const header = t => `<h1 class="title">${t}</h1><div class="rainbow"></div>`;
+// Phone: the search box / filter chips hide behind this button (state in ui.fopen); CSS always shows them on wider screens.
+const filtersToggle = () => `<button class="btn sm filters-toggle" data-act="filters" aria-expanded="${!!ui.fopen}">Filters${ICON.chevron}</button>`;
 const tappable = (act, extra) => `data-act="${act}" ${extra} tabindex="0" role="button"`;
 
 function toast(msg) {
@@ -81,7 +83,7 @@ function viewHome() {
 
 function viewDeck() {
   const d = deck(), cap = CARD[d.captain], probs = deckProblems(d);
-  return `${header(esc(d.name))}
+  return `${header('Decks')}
   <div class="panel neu" style="padding:10px 12px"><div class="row2">${deckSelect(true)}
     <button class="btn sm" style="flex:none" data-act="rename-deck">Rename</button><button class="btn sm" style="flex:none" data-act="delete-deck">Delete</button></div></div>
   <div class="captain-slot neu">${cap ? renderCard(cap, { attrs: tappable('zoom', `data-id="${cap.id}"`) }) : '<div class="slot"></div>'}
@@ -97,8 +99,8 @@ function viewDeck() {
 function viewBuild() {
   const d = deck(), n = count(d), list = CARDS.filter(c => ui.filter === 'all' || c.type === ui.filter);
   return `${header('Add Cards')}
-  <div class="panel neu"><div class="chips">${['all', 'character', 'bit', 'evil'].map(f =>
-    `<button class="chip${ui.filter === f ? ' on' : ''}" data-act="filter" data-f="${f}">${f === 'all' ? 'All' : LABEL[f]}</button>`).join('')}</div></div>
+  <div class="panel neu filter-panel${ui.fopen ? ' open' : ''}">${filtersToggle()}<div class="fbody"><div class="chips">${['all', 'character', 'bit', 'evil'].map(f =>
+    `<button class="chip${ui.filter === f ? ' on' : ''}" data-act="filter" data-f="${f}">${f === 'all' ? 'All' : LABEL[f]}</button>`).join('')}</div></div></div>
   <div class="grid">${list.map(c => `<div class="cell${own(c.id) ? '' : ' locked'}">${typeof pile === 'function' ? pile(c.id, Math.min(3, own(c.id)), '', tappable('zoom', `data-id="${c.id}"`)) : renderCard(c, { attrs: tappable('zoom', `data-id="${c.id}"`) })}
     <div class="stepper neu"><button data-act="step" data-id="${c.id}" data-d="-1" aria-label="Remove ${esc(c.name)}">−</button><span>${d.cards[c.id] || 0}/${Math.min(c.main ? 1 : MAX_COPIES, own(c.id))}</span><button data-act="step" data-id="${c.id}" data-d="1" aria-label="Add ${esc(c.name)}">+</button></div></div>`).join('')}</div>
   <div class="bar"><b>${n}/${DECK_SIZE}</b><div class="progress"><i style="width:${Math.min(100, (n / DECK_SIZE) * 100)}%"></i></div><button class="btn primary sm" data-act="go" data-to="deck">Done</button></div>
@@ -302,12 +304,14 @@ function defendSheet() {
 
 function render() {
   const scrolls = [...$app.querySelectorAll('.grid, .scroll, .sheet')].map(el => el.scrollTop);
+  const appTop = $app.dataset.view === ui.view ? $app.scrollTop : 0; // collection / deck / add-cards scroll as a whole screen
   const focus = document.activeElement?.id;
   const views = { home: viewHome, deck: viewDeck, build: viewBuild, lobby: viewLobby, rules: viewRules, game: viewGame, packs: () => viewPacks(), open: () => (ui.open ? viewOpen() : viewPacks()), collection: () => viewCollection(), shop: () => viewShop() };
   if (ui.view === 'game' && !game) ui.view = 'home';
   $app.dataset.view = ui.view;
   $app.innerHTML = views[ui.view]() + (ui.toast && ui.view !== 'game' ? `<div class="toast neu">${esc(ui.toast)}</div>` : '');
   $app.querySelectorAll('.grid, .scroll, .sheet').forEach((el, i) => { el.scrollTop = scrolls[i] || 0; });
+  $app.scrollTop = appTop;
   const sel = ui.view === 'game' && ui.tut != null && TUT[ui.tut]?.sel;
   if (sel) $app.querySelector(typeof sel === 'function' ? sel() : sel)?.classList.add('coach-target');
   if (focus) document.getElementById(focus)?.focus();
@@ -580,6 +584,7 @@ const ACTS = {
   go(d) { ui.view = d.to; ui.zoom = ui.sheet = null; if (d.host) host(); },
   'rename-me'() { const n = prompt('Your name', myName)?.trim(); if (n) { myName = n.slice(0, 20); store.set('name', myName); } },
   filter(d) { ui.filter = d.f; },
+  filters() { ui.fopen = !ui.fopen; },
   zoom(d) { ui.zoom = { id: d.id }; },
   card(d) { ui.zoom = { who: d.who, zone: d.zone, i: Number(d.i) }; ui.sheet = null; },
   sheet(d) { ui.sheet = d.s; ui.zoom = null; },

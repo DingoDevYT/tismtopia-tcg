@@ -98,11 +98,11 @@ function viewOpen() {
       ${rare ? '<div class="burst"></div>' : ''}${big ? `<div class="big-rays"></div><p class="big-tag">${cur.finish === 'rainbow' ? '★★★★★ RAINBOW' : '★★★★ FULL ART'}</p>` : ''}${o.god ? '<p class="god-tag">GOD PACK</p>' : ''}
       <div class="stack-wrap"><div class="stack" data-act="noop">${behind}${renderCard((cur.finish === 'full' || cur.finish === 'rainbow') ? { ...c, crop: null } : c, { cls: `zoom flick enter ${FINISH_CLS[cur.finish]}` })}${fresh ? '<div class="flip-back"></div>' : ''}</div></div>
       <p class="pull-tag">${cur.isNew ? '<span class="new">NEW</span>' : ''}${starsOf(cur.id, cur.finish)}${cur.finish !== 'normal' ? ` · ${FINISH_NAME[cur.finish]}` : ''}</p>
-      <p class="open-hint">Drag to tilt · flick to the side for the next card (${o.i + 1}/${o.cards.length})</p></div>`;
+      <p class="open-hint">Flick for the next card (${o.i + 1}/${o.cards.length})</p></div>`;
   }
   return `${header('Your pulls')}
     <div class="pull-grid">${o.cards.map(p => `<div class="pull">${renderCard((p.finish === 'full' || p.finish === 'rainbow') ? { ...CARD[p.id], crop: null } : CARD[p.id], { cls: FINISH_CLS[p.finish], attrs: tappable('view-card', `data-id="${p.id}" data-f="${p.finish}"`) })}${p.isNew ? '<span class="new">NEW</span>' : ''}<small>${starsOf(p.id, p.finish)}${p.finish !== 'normal' ? ` · ${FINISH_NAME[p.finish]}` : ''}</small></div>`).join('')}</div>
-    <div class="row2" style="margin:16px"><button class="btn primary" data-act="pick-pack" data-p="${o.pack}">Open another</button><button class="btn" data-act="go" data-to="packs">Done</button></div>
+    <div class="row2" style="width:auto;margin:16px"><button class="btn primary" data-act="pick-pack" data-p="${o.pack}">Open another</button><button class="btn" data-act="go" data-to="packs">Done</button></div>
     ${overlay()}${viewer()}`;
 }
 
@@ -209,18 +209,21 @@ function viewCollection() {
   list = [...list].sort(by[s.sort]);
   const chip = (key, val, label) => `<button class="chip${s[key] === val ? ' on' : ''}" data-act="coll-set" data-k="${key}" data-v="${val}">${label}</button>`;
   return `${header('Collection')}
-  <div class="panel neu coll-tools">
+  <div class="panel neu coll-tools filter-panel${ui.fopen ? ' open' : ''}">
     <div class="coll-progress"><b>${ownedCount()} / ${CARDS.length}</b> cards owned<div class="progress"><i style="width:${(100 * ownedCount() / CARDS.length).toFixed(1)}%"></i></div></div>
+    ${filtersToggle()}
+    <div class="fbody">
     <input id="coll-search" class="coll-search" type="search" placeholder="Search names, moves, text…" value="${esc(s.q)}" autocomplete="off">
     <div class="chips">${chip('own', 'all', 'All')}${chip('own', 'owned', 'Owned')}${chip('own', 'missing', 'Missing')}${chip('own', 'favs', '★ Favourites')}</div>
     <div class="chips">${chip('type', 'all', 'Any type')}${chip('type', 'character', 'Characters')}${chip('type', 'bit', 'Items')}${chip('type', 'evil', 'Evils')}</div>
     <div class="chips">${chip('rar', 'all', 'Any')}${[0, 1, 2, 3, 4, 5].map(n => chip('rar', String(n), n ? n + '★' : '☆')).join('')}</div>
     <div class="chips">${chip('sort', 'no', 'Number')}${chip('sort', 'rarity', 'Rarity')}${chip('sort', 'name', 'Name')}${chip('sort', 'copies', 'Copies')}</div>
+    </div>
   </div>
   <div class="grid coll-grid">${list.map(c => { const n = owned(c.id), f = bestFinish(c.id);
     return `<div class="cell coll-cell${n ? '' : ' locked'}">${renderCard(n && (f === 'full' || f === 'rainbow') ? { ...c, crop: null } : c, { cls: n ? FINISH_CLS[f] : '', attrs: tappable('view-card', `data-id="${c.id}"`) })}
       <div class="coll-meta"><span class="rar r-${c.rarity || 'C'}">${c.rarity || 'C'}</span><span>${n ? '×' + n : 'Not owned'}</span>
-      <button class="fav${favs.has(c.id) ? ' on' : ''}" data-act="fav" data-id="${c.id}" aria-label="${favs.has(c.id) ? 'Unfavourite' : 'Favourite'} ${esc(c.name)}">★</button></div></div>`; }).join('') || '<p class="muted center">No cards match.</p>'}</div>
+      <button class="fav${favs.has(c.id) ? ' on' : ''}" data-act="fav" data-id="${c.id}" aria-label="${favs.has(c.id) ? 'Unfavourite' : 'Favourite'} ${esc(c.name)}">★</button></div></div>`; }).join('') || '<p class="muted center empty">No cards match.</p>'}</div>
   ${tabbar('collection')}${overlay()}${viewer()}`;
 }
 Object.assign(ACTS, {
