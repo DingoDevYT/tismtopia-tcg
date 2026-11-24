@@ -13,14 +13,17 @@ const starsOf = (id, f) => { const n = starN(id, f); return n ? '★'.repeat(n) 
 const FINISH_NAME = { normal: '', rev: 'Reverse Holo', holo: 'Holo', full: 'Full Art', rainbow: 'Rainbow' };
 const FINISH_CLS = { normal: '', rev: 'v-rev', holo: 'v-holo', full: 'v-full v-holo', rainbow: 'v-full v-holo v-rainbow' };
 
-// Everyone owns the free starter decks (topped up on every load, so new starters reach old saves).
+// Saves from before the starter packs (onb.legacy, see app.js) own every free starter deck, topped up on every load so new starters
+// reach them. Everyone else owns only what they opened (js/onboard.js deals their first deck as 8 free packs).
 let coll = store.get('collection', null);
 if (!coll || typeof coll !== 'object') coll = {};
-for (const s of STARTERS) for (const [id, n] of Object.entries(s.cards)) {
-  const have = coll[id]?.n || 0;
-  if (have < n) coll[id] = { n, f: { ...(coll[id]?.f || {}), normal: (coll[id]?.f?.normal || 0) + n - have } };
+if (onb.legacy) {
+  for (const s of STARTERS) for (const [id, n] of Object.entries(s.cards)) {
+    const have = coll[id]?.n || 0;
+    if (have < n) coll[id] = { n, f: { ...(coll[id]?.f || {}), normal: (coll[id]?.f?.normal || 0) + n - have } };
+  }
+  store.set('collection', coll);
 }
-store.set('collection', coll);
 const owned = id => coll[id]?.n || 0;
 const ownedCount = () => CARDS.filter(c => owned(c.id)).length;
 

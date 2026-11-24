@@ -6,11 +6,16 @@ const store = {
   set(k, v) { try { localStorage.setItem('tismtopia.' + k, JSON.stringify(v)); } catch { /* private mode: decks last this visit only */ } },
 };
 const uid = () => Math.random().toString(36).slice(2, 10);
+// New players own nothing and earn their first deck from 8 free starter packs (js/onboard.js). A save from before that
+// (a collection but no onboarding record) is marked legacy once, here: it keeps every free starter deck, topped up on each load.
+let onb = store.get('onboard', null);
+if (!onb || typeof onb !== 'object') store.set('onboard', onb = store.get('collection', null) ? { done: true, legacy: true } : { opened: 0 });
 let decks = store.get('decks', null);
 // Old saves can hold placeholder cards that no longer exist: drop those, then add back any missing free starter.
 decks = (Array.isArray(decks) ? decks : []).map(d => ({ ...d, captain: CARD[d.captain]?.type === 'captain' ? d.captain : CAPTAINS[0].id,
   cards: Object.fromEntries(Object.entries(d.cards || {}).filter(([id]) => CARD[id] && CARD[id].type !== 'captain')) })).filter(d => Object.keys(d.cards).length && !/^All-Stars [AB]$/.test(d.name)); // retired 20-card starters
-decks.unshift(...STARTERS.filter(s => !decks.some(d => d.name === s.name)).map(s => ({ id: uid(), ...structuredClone(s) })));
+if (onb.legacy) decks.unshift(...STARTERS.filter(s => !decks.some(d => d.name === s.name)).map(s => ({ id: uid(), ...structuredClone(s) })));
+if (!decks.length) decks.push({ id: uid(), name: 'My Deck', captain: null, cards: {} }); // a new player's stand-in until the starter packs make the real one
 let myName = store.get('name', 'Player');
 const ui = { view: 'home', deckId: store.get('deck', decks[0].id), filter: 'all', zoom: null, sheet: null, defPick: null, toast: '', code: '', status: '', joinCode: '', tut: null };
 // `state` is the authoritative game (rules run on it); `game` is what's on screen, which trails it while animations play.
@@ -125,7 +130,7 @@ function viewLobby() {
 }
 
 const viewRules = () => `${header('How to Play')}
-  <div class="scroll rules">${RULES.map(([h, t, ic, ex]) => {
+  <div class="scroll rules"><button class="btn wide tour-again" data-act="tour-replay">Replay the tour</button>${RULES.map(([h, t, ic, ex]) => {
     if (h === 'Coins' && typeof PAY !== 'undefined') t = `Finished battles pay coins. Beating the bot: ${PAY.bot[0]}, losing to it: ${PAY.bot[1]}. Playing a friend: ${PAY.player[0]} for a win, ${PAY.player[1]} for a loss.`;
     return `<section class="rule neu"><span class="rule-ic">${ICON[ic] || ''}</span><div><h3>${h}</h3><p>${t}</p>${ex ? `<p class="ex"><b>Example:</b> ${ex}</p>` : ''}</div></section>`;
   }).join('')}</div>
@@ -313,7 +318,7 @@ function render() {
   const scrolls = [...$app.querySelectorAll('.grid, .scroll, .sheet')].map(el => el.scrollTop);
   const appTop = $app.dataset.view === ui.view ? $app.scrollTop : 0; // collection / deck / add-cards scroll as a whole screen
   const focus = document.activeElement?.id;
-  const views = { home: viewHome, deck: viewDeck, build: viewBuild, lobby: viewLobby, rules: viewRules, game: viewGame, packs: () => viewPacks(), open: () => (ui.open ? viewOpen() : viewPacks()), collection: () => viewCollection(), shop: () => viewShop(), profile: () => viewProfile(), submit: () => viewSubmit(), review: () => viewReview() };
+  const views = { home: viewHome, deck: viewDeck, build: viewBuild, lobby: viewLobby, rules: viewRules, game: viewGame, packs: () => viewPacks(), open: () => (ui.open ? viewOpen() : viewPacks()), collection: () => viewCollection(), shop: () => viewShop(), profile: () => viewProfile(), submit: () => viewSubmit(), review: () => viewReview(), welcome: () => viewWelcome() };
   if (ui.view === 'game' && !game) ui.view = 'home';
   $app.dataset.view = ui.view;
   $app.innerHTML = views[ui.view]() + (ui.toast && ui.view !== 'game' ? `<div class="toast neu">${esc(ui.toast)}</div>` : '');

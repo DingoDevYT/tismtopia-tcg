@@ -4,7 +4,8 @@ const PAY = { bot: [1000, 500], player: [2000, 1000] }; // [win, loss] // 10-car
 const RVAL = { C: 15, U: 38, R: 90, UR: 300 }, FVAL = { normal: 1, rev: 1.5, holo: 2, full: 4, rainbow: 12 }; // a weak pack sells for about half its cost
 const fmt = n => Math.round(n).toLocaleString('en-US'); // 10000 -> 10,000
 const COIN = '<img class="coin" src="art/coin.svg" alt="coins">';
-let coins = store.get('coins', 900);
+const START_COINS = 900; // a new (or reset) account's coins
+let coins = store.get('coins', START_COINS);
 let shown = coins, tick = null;
 // The balance counts up (or down) to the new total instead of jumping.
 const setCoins = n => { coins = n; store.set('coins', coins); clearInterval(tick);
@@ -18,7 +19,8 @@ const hasFin = (id, f) => (coll[id]?.f?.[f] || 0) > 0; // you own this exact ver
 const ownedTag = (id, f) => hasFin(id, f) ? `<span class="owned-tag">OWNED ×${coll[id].f[f]}</span>` : '';
 const FORDER = ['normal', 'holo', 'rev', 'full', 'rainbow']; // common to rare
 let sellAt = 0; const cooled = () => { const t = Date.now(); if (t - sellAt < 100) return false; sellAt = t; return true; }; // stops double-taps and spam
-const keep = id => Math.max(0, ...STARTERS.map(s => s.cards[id] || 0));
+// Unsellable copies: the starter you picked (so you can't sell yourself out of a playable deck); legacy saves keep every starter's.
+const keep = id => (onb.legacy ? Math.max(0, ...STARTERS.map(s => s.cards[id] || 0)) : STARTERS.find(s => s.name === onb.starter)?.cards[id] || 0);
 // Account corner on every screen but battles: your name/captain (opens your Profile, js/profile.js), then your coins.
 const coinBar = () => `<div class="acct"><button class="profile neu" data-act="profile" aria-label="Your profile">${renderAvatar(CARD[deck().captain] || CAPTAINS[0])}<b>${esc(myName)}</b></button><div class="coin-bar neu">${COIN}<b>${fmt(shown)}</b></div></div>`;
 
@@ -77,7 +79,7 @@ Object.assign(ACTS, {
   odds(d) { ui.odds = ui.odds ? null : d.p; },
   'sell-pull'(d) {
     const p = ui.open.cards[d.i], e = coll[p.id];
-    if (p.sold || !e?.f?.[p.finish] || e.n - keep(p.id) <= 0) return;
+    if (ui.open.free || ui.open.demo || p.sold || !e?.f?.[p.finish] || e.n - keep(p.id) <= 0) return; // free starter packs and the tour's demo pack sell nothing
     if (!d.all && !cooled()) return;
     if (!d.all && e.n - 1 < 3 && !confirm(lowWarn(p.id, e.n))) return;
     e.f[p.finish]--; e.n--; if (!e.n) delete coll[p.id]; p.sold = true;
@@ -129,7 +131,7 @@ viewHome = () => viewHomeNoCoins().replace(/<div class="topbar">[\s\S]*?<\/div>/
 // "Your pulls": sell any pull on the spot.
 const viewOpenNoSell = viewOpen;
 viewOpen = () => {
-  const o = ui.open, html = viewOpenNoSell(); if (o?.stage !== 'summary') return html;
+  const o = ui.open, html = viewOpenNoSell(); if (o?.stage !== 'summary' || o.free) return html;
   let i = 0;
   return html.replace(/<\/small><\/div>/g, () => { const p = o.cards[i], k = i++;
     return '</small>' + (p.sold ? `<button class="btn sell-pull" data-act="unsell-pull" data-i="${k}">Undo sell</button>` : `<button class="btn sell-pull" data-act="sell-pull" data-i="${k}">Sell ${COIN}${fmt(cardValue(p.id, p.finish))}</button>`) + '</div>'; })
@@ -152,9 +154,9 @@ viewPacks = () => viewPacksNoOdds() + (ui.odds ? `<div class="viewer"><div class
 
 // Before tearing a pack you can back out: the cards go back and the coins are refunded.
 const viewOpenNoBack = viewOpen;
-viewOpen = () => { const html = viewOpenNoBack(); return ui.open?.stage === 'tear' ? html.replace('data-act="tear-now">Tap to open</button>', 'data-act="tear-now">Tap to open</button><button class="btn sm" data-act="cancel-pack">Back (refund)</button>') : html; };
+viewOpen = () => { const html = viewOpenNoBack(); return ui.open?.stage === 'tear' && !ui.open.free && !ui.open.demo ? html.replace('data-act="tear-now">Tap to open</button>', 'data-act="tear-now">Tap to open</button><button class="btn sm" data-act="cancel-pack">Back (refund)</button>') : html; };
 ACTS['cancel-pack'] = () => {
-  const o = ui.open; if (o?.stage !== 'tear') return;
+  const o = ui.open; if (o?.stage !== 'tear' || o.free || o.demo) return; // nothing was paid for those
   for (const p of o.cards) { const e = coll[p.id]; if (!e) continue; e.n--; if (!--e.f[p.finish]) delete e.f[p.finish]; if (e.n <= 0) delete coll[p.id]; }
   store.set('collection', coll); setCoins(coins + price(o.pack)); ui.open = null; ui.view = 'packs';
 };
@@ -232,10 +234,11 @@ function pile(id, n, cls = '', attrs = '') {
 // Test panel: open the game with ?dev on the end of the address. Forces the next pack, or adds coins.
 if (/[?&]dev\b/.test(location.search)) {
   const box = Object.assign(document.createElement('div'), { className: 'dev-panel neu' });
-  box.innerHTML = '<b>Test</b>' + [['god', 'God pack'], ['rainbow', '5★ pull'], ['full', '4★ pull']].map(([k, l]) => `<button class="btn sm" data-force="${k}">${l}</button>`).join('') + '<button class="btn sm" data-coins="1">+10,000</button><button class="btn sm" data-cm="1">Give me community cards</button><small class="dev-note"></small>';
+  box.innerHTML = '<b>Test</b>' + [['god', 'God pack'], ['rainbow', '5★ pull'], ['full', '4★ pull']].map(([k, l]) => `<button class="btn sm" data-force="${k}">${l}</button>`).join('') + '<button class="btn sm" data-coins="1">+10,000</button><button class="btn sm" data-cm="1">Give me community cards</button><button class="btn sm" data-reset="1">Reset (no typing)</button><small class="dev-note"></small>';
   box.addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.coins) setCoins(coins + 10000);
+    else if (b.dataset.reset) resetAccount(); // js/onboard.js
     else if (b.dataset.cm) box.querySelector('.dev-note').textContent = cmGive(); // js/community.js
     else { window.FORCE_PULL = b.dataset.force; box.querySelector('.dev-note').textContent = 'Next pack: ' + b.textContent; }
   });

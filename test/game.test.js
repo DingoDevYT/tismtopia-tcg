@@ -1,7 +1,7 @@
 // Self-check for the rules engine. Run: node test/game.test.js
 const fs = require('fs'), vm = require('vm'), path = require('path');
 // syntax-check every browser script too, so a broken app.js can't ship (the rules tests don't load it)
-for (const f of ['js/app.js', 'js/packs.js', 'js/audio.js', 'js/render.js', 'js/rainbow.js', 'js/cards.js', 'js/cards-data.js', 'js/game.js', 'js/cardfile.js', 'js/art-tools.js', 'js/cloud.js', 'js/profile.js', 'js/submit.js', 'js/community.js', 'js/review.js']) new vm.Script(fs.readFileSync(path.join(__dirname, '..', f), 'utf8'), { filename: f });
+for (const f of ['js/app.js', 'js/packs.js', 'js/audio.js', 'js/render.js', 'js/rainbow.js', 'js/cards.js', 'js/cards-data.js', 'js/game.js', 'js/cardfile.js', 'js/art-tools.js', 'js/cloud.js', 'js/profile.js', 'js/submit.js', 'js/community.js', 'js/review.js', 'js/onboard.js']) new vm.Script(fs.readFileSync(path.join(__dirname, '..', f), 'utf8'), { filename: f });
 const load = files => files.map(f => fs.readFileSync(path.join(__dirname, '..', f), 'utf8')).join('\n');
 const src = load(['test/fixture-cards.js', 'js/cards.js', 'js/game.js']).replace('const BORE_MAX = 10;', 'const BORE_MAX = 99;').replace('const DECK_SIZE = 40;', 'const DECK_SIZE = 20;').replace('const HP_SCALE = 1.2;', 'const HP_SCALE = 2;');
 
@@ -210,7 +210,30 @@ throws(() => apply(m, 0, { type: 'end' }), 'no actions after game over');
 { const x = {}; require('vm').runInNewContext(fs.readFileSync(__dirname + '/../js/cards-data.js', 'utf8') + fs.readFileSync(__dirname + '/../js/card-overrides.js', 'utf8') + ';this.A=[...CAPTAINS,...CARDS]', x);
   for (const c of x.A) if (c.name.length > 22) throw new Error('FAIL: name too long (max 22): ' + c.name); }
 // The browser loads these as one shared scope: two files declaring the same name breaks everything after it.
-new Function(['cards-data', 'card-overrides', 'cards', 'render', 'rainbow', 'game', 'app', 'pack-sets', 'packs', 'economy', 'audio', 'cardfile', 'art-tools', 'cloud', 'profile', 'submit', 'community', 'review'].map(f => fs.readFileSync(__dirname + '/../js/' + f + '.js', 'utf8')).join('\n;\n'));
+new Function(['cards-data', 'card-overrides', 'cards', 'render', 'rainbow', 'game', 'app', 'pack-sets', 'packs', 'economy', 'audio', 'cardfile', 'art-tools', 'cloud', 'profile', 'submit', 'community', 'review', 'onboard'].map(f => fs.readFileSync(__dirname + '/../js/' + f + '.js', 'utf8')).join('\n;\n'));
+// New players (js/onboard.js): each starter dealt as 8 packs of 5 holding exactly its 40 cards, no pack with two of a card, strongest
+// card last in each pack, the deck those packs make is legal; and only the public site (github.io) or ?gate=1 forces the sign-in gate.
+{ const x = { structuredClone }, ob = fs.readFileSync(__dirname + '/../js/onboard.js', 'utf8').split('// ---------------- browser only')[0];
+  vm.runInNewContext(['cards-data', 'card-overrides', 'cards', 'game'].map(f => fs.readFileSync(__dirname + '/../js/' + f + '.js', 'utf8')).join('\n;\n') + '\n;\n' + ob + `;
+  const ok = (c, m) => { if (!c) throw new Error('FAIL: onboard: ' + m); };
+  const R = { C: 0, U: 1, R: 2, UR: 3 }, pow = id => R[CARD[id].rarity || 'C'] * 10 + (CARD[id].cost ?? 1), bag = cards => JSON.stringify(Object.entries(cards).sort());
+  ok(STARTERS.length === 3, 'three starters');
+  for (const s of STARTERS) {
+    const p = starterPacks(s), d = packsDeck(s, p);
+    ok(p.length === ONB_PACKS && ONB_PACKS === 8 && p.every(k => k.length === 5), s.name + ': 8 packs of 5');
+    ok(bag(d.cards) === bag(s.cards) && d.captain === s.captain && d.name === s.name, s.name + ': the packs hold exactly the starter (multiset)');
+    ok(deckProblems(d).length === 0, s.name + ': granted deck is legal: ' + deckProblems(d));
+    ok(p.every(k => new Set(k).size === k.length), s.name + ': copies spread, no pack holds two of a card');
+    ok(p.every(k => k.every(id => pow(id) <= pow(k[k.length - 1]))), s.name + ': strongest card last in every pack');
+    const top = Math.max(...Object.keys(s.cards).map(pow)); ok(p[6].concat(p[7]).some(id => pow(id) === top), s.name + ': best card in packs 7-8');
+    ok(JSON.stringify(starterPacks(s)) === JSON.stringify(p), s.name + ': same deal every time');
+    ok(/^\\d+ Characters · \\d+ Items · (no|\\d+) Evils? · average cost \\d\\.\\d$/.test(starterLine(s)), 'starter line: ' + starterLine(s));
+  }
+  ok(gateOn('dingodevyt.github.io', '') && gateOn('dingodevyt.github.io', '?gate=0'), 'public site always gated, ?gate=0 cannot switch it off');
+  ok(!gateOn('localhost', '') && !gateOn('localhost', '?gate=0') && gateOn('localhost', '?gate=1') && gateOn('localhost', '?dev&gate=1'), 'localhost: off unless ?gate=1');
+  ok(!gateOn('127.0.0.1', '') && !gateOn('192.168.0.190', '') && !gateOn('10.0.0.5', '') && !gateOn('tism.local', '') && !gateOn('', ''), 'LAN, .local and file: no gate');
+  ok(!gateOn('github.io.evil.com', '') && !gateOn('localhost', '?gate=10'), 'lookalikes do not match');
+  `, x); }
 // Submitted cards (js/cardfile.js): untrusted forms are clamped, effects come only from the menu, a card file round-trips, junk is refused.
 { const x = { Image: function () {} }; vm.runInNewContext(['cards-data', 'cards', 'render', 'cardfile'].map(f => fs.readFileSync(__dirname + '/../js/' + f + '.js', 'utf8')).join('\n;\n') + `;
   const ok = (c, m) => { if (!c) throw new Error('FAIL: cardfile: ' + m); };
