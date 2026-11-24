@@ -911,3 +911,6 @@ img { -webkit-user-drag: none; }
 .tear-zone.torn .pack.body { animation: packDrop .6s .45s ease-in forwards; }
 .tear-zone.torn .cut i { animation: cutFlash .4s ease-out forwards; }
 @keyframes cutFlash { 50% { box-shadow: 0 0 20px #fff, 0 0 60px #fff, 0 0 90px #bfe3ff; } 100% { opacity: 0; } }
+/* Full art (4 and 5 star): text and moves sit at the bottom so the art shows. */
+.v-full .foot { margin-top: 0 !important; }
+.v-full .frame > .text.passive, .v-full .frame > .moves:not(.text.passive ~ .moves) { margin-top: auto !important; }
