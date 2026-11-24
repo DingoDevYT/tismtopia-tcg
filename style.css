@@ -822,12 +822,13 @@ img { -webkit-user-drag: none; }
 .dust { z-index: 1000; pointer-events: none; }
 
 /* 5★ Rainbow (finish "rainbow"): a full art washed in pastel rainbow foil with glitter, like a rainbow rare. */
-.card.v-rainbow .frame { background: linear-gradient(125deg, #ffb3d1, #ffe7a3, #b8ffcf, #a8e6ff, #d4b8ff, #ffb3d1) !important; background-size: 300% 300% !important; animation: rainbow-shift 8s linear infinite; }
+.card.v-rainbow .frame { background: linear-gradient(125deg, #ffb3d1, #ffe7a3, #b8ffcf, #a8e6ff, #d4b8ff, #ffb3d1) !important; background-size: 300% 300% !important; animation: rainbow-shift 6s ease-in-out infinite alternate; }
 .card.v-rainbow .art img { filter: grayscale(1) invert(.15) brightness(1.9) contrast(1.5); }
 .card.v-rainbow .art::before, .card.v-rainbow .frame::after { content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; }
-.card.v-rainbow .art::before { z-index: 1; background: repeating-linear-gradient(125deg, #ff6fa8 0%, #ffd36b 8%, #6bffa0 16%, #6bd5ff 24%, #b06bff 32%, #ff6fa8 40%); background-size: 200% 200%; mix-blend-mode: multiply; opacity: .8; animation: rainbow-shift 8s linear infinite; }
+.card.v-rainbow .art::before { z-index: 1; background: linear-gradient(125deg, #ff6fa8, #ffd36b, #6bffa0, #6bd5ff, #b06bff, #ff6fa8, #ffd36b, #6bffa0, #6bd5ff, #b06bff, #ff6fa8); background-size: 200% 200%; mix-blend-mode: multiply; opacity: .8; animation: rainbow-shift 6s ease-in-out infinite alternate; }
 .card.v-rainbow .frame::after { z-index: 2; background: url("vendor/holo/img/glitter.png") center / 40% auto, linear-gradient(115deg, transparent 30%, rgba(255,255,255,.55) 48%, transparent 66%); background-size: 40% auto, 250% 250%; mix-blend-mode: screen; opacity: .55; animation: rainbow-glint 4s ease-in-out infinite; }
-@keyframes rainbow-shift { to { background-position: 300% 300%; } }
+/* sways back and forth instead of looping, so there is never a seam */
+@keyframes rainbow-shift { from { background-position: 0% 0%; } to { background-position: 100% 100%; } }
 @keyframes rainbow-glint { 50% { background-position: center, 100% 100%; } }
 .card.v-rainbow .holo__shine { display: none; }
 .tabbar .coin { width: 22px; height: 22px; margin: 0; vertical-align: middle; }
