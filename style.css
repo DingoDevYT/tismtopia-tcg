@@ -4,7 +4,7 @@
   --bg: #e8ecf2;
   --surface: #eef1f6;
   --ink: #343c55;
-  --muted: #8790a6;
+  --muted: #5a647d;   /* 4.98:1 on --bg (was 2.7:1) */
   --sd: #c4cbd9;
   --sl: #ffffff;
   --raise: 6px 6px 14px var(--sd), -6px -6px 14px var(--sl);
@@ -95,7 +95,7 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
 .grid .card { --cw: 100%; }
 .cell { position: relative; display: grid; gap: 8px; justify-items: center; }
 .stepper { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 3px; border-radius: 999px; font-size: 13px; }
-.stepper button { width: 26px; height: 26px; border-radius: 50%; background: var(--surface); box-shadow: var(--raise-sm); font-weight: 800; }
+.stepper button { width: 40px; height: 40px; border-radius: 50%; background: var(--surface); box-shadow: var(--raise-sm); font-weight: 800; }
 .stepper span { min-width: 30px; text-align: center; }
 .count { position: absolute; top: -6px; right: -4px; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 800; color: #fff; background: var(--ink); }
 .progress { flex: 1; height: 8px; border-radius: 4px; box-shadow: var(--inset); overflow: hidden; }
@@ -193,7 +193,9 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
 .grid.fxs { grid-template-columns: 1fr 1fr; padding: 4px 8px 16px; flex: none; overflow: visible; }
 .card .tag { align-self: flex-start; display: flex; align-items: center; gap: 1.4cqw; padding: 1.3cqw 3.6cqw 1.3cqw 2.8cqw; border-radius: 99px; font-size: 5.8cqw; font-weight: 800; color: var(--tint); background: rgba(255, 255, 255, .94); }
 .card .tag .i { width: 5.6cqw; height: 5.6cqw; }
-.card .foot { display: flex; justify-content: space-between; padding: 0 1cqw; font-size: 3.8cqw; font-weight: 800; letter-spacing: .3cqw; text-transform: uppercase; color: var(--name); opacity: .7; }
+.card .foot { display: flex; justify-content: space-between; gap: 2cqw; padding: 0 1cqw; font-size: 3.8cqw; font-weight: 800; letter-spacing: .3cqw; text-transform: uppercase; color: var(--name); opacity: .7; }
+.card .foot > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } /* "OC: name" gives way to the code */
+.card .foot > span:last-child { flex: none; white-space: nowrap; }
 .card.back .frame { background: #070708 url(art/card-back.jpg) center bottom / contain no-repeat; box-shadow: inset 0 0 0 2.4cqw #f4f6fa, inset 0 0 0 2.9cqw rgba(40, 50, 80, .25), 0 2.5cqw 6cqw rgba(40, 48, 72, .28); }
 /* mini = on the board / in hand: smaller art and bigger type so the text reads at a glance (clamped; zoom shows all) */
 .card.mini .foot, .card.mini .type { display: none; }
@@ -287,7 +289,7 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
 .mid { margin: auto 10px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px 8px 14px; border-radius: 999px; }
 .pile { position: relative; }
 .pile .card { --cw: 34px; }
-.pile span { position: absolute; bottom: -4px; right: -10px; font-size: 11px; padding: 0 6px; border-radius: 999px; background: var(--ink); color: #fff; }
+.pile > span { position: absolute; bottom: -4px; right: -10px; font-size: 11px; padding: 0 6px; border-radius: 999px; background: var(--ink); color: #fff; }
 .turn { text-align: center; }
 .turn b { display: block; font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--accent); }
 .pips { display: flex; gap: 6px; justify-content: center; margin-top: 4px; }
@@ -314,7 +316,9 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
 .move-btn .mb-name { flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; }
 .move-btn .mb-name small { display: block; font-size: 11px; font-weight: 700; color: inherit; opacity: .8; }
 .move-btn .mb-pow { font-size: 18px; }
-.move-btn:disabled { opacity: .5; }
+.btn.move-btn:disabled { opacity: 1; color: var(--muted); } /* readable: muted text, full-strength reason note below */
+.btn.move-btn:disabled .mb-name small { opacity: 1; color: var(--ink); }
+.btn.move-btn:disabled .cost { background: rgba(0, 0, 0, .08); }
 .duel { display: flex; align-items: center; gap: 14px; }
 .duel .card { --cw: 96px; }
 .vs { font-size: 22px; font-weight: 800; color: #fff; }
@@ -661,8 +665,8 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
 /* ---------- pack wheel (TCG Pocket style): centre pack big, neighbours smaller and turned away ---------- */
 .wheel-stage { grid-column: 1 / -1; width: 100%; min-height: calc(100% - 20px); display: grid; align-content: center; justify-items: center; gap: 18px; padding: 10px 0 24px; overflow: hidden; position: relative;
   background: radial-gradient(70% 55% at 50% 45%, color-mix(in srgb, var(--pc) 45%, #fff), transparent 75%); transition: background .4s; }
-.wheel { position: relative; width: 100%; height: min(470px, 62vh); perspective: 1100px; touch-action: pan-y; }
-.wheel .slot { --p: calc(var(--o) + var(--drag, 0)); position: absolute; left: 50%; top: 50%; width: min(250px, 58vw); aspect-ratio: 560 / 960; transform: translate(-50%, -50%) translateX(calc(var(--p) * 78%)) translateZ(calc(var(--a) * -260px)) rotateY(calc(var(--p) * -32deg)) scale(calc(1 - var(--a) * .18));
+.wheel { --wh: clamp(300px, calc(100dvh - 470px), 470px); position: relative; width: 100%; height: var(--wh); perspective: 1100px; touch-action: pan-y; } /* shrinks on short screens so the buttons under it stay above the tab bar */
+.wheel .slot { --p: calc(var(--o) + var(--drag, 0)); position: absolute; left: 50%; top: 50%; width: min(250px, 58vw, calc(var(--wh) * .56)); aspect-ratio: 560 / 960; transform: translate(-50%, -50%) translateX(calc(var(--p) * 78%)) translateZ(calc(var(--a) * -260px)) rotateY(calc(var(--p) * -32deg)) scale(calc(1 - var(--a) * .18));
   transition: transform .45s cubic-bezier(.2, .9, .3, 1), filter .45s, opacity .45s; z-index: calc(10 - var(--a)); filter: brightness(calc(1 - var(--a) * .25)); opacity: calc(1 - var(--a) * .35); border: 0; padding: 0; background: none; cursor: pointer; }
 .wheel .slot .pack { width: 100%; }
 .wheel .slot.center .pack { animation: packFloat 2.6s ease-in-out infinite alternate; box-shadow: 0 24px 40px rgba(0, 0, 0, .35), 0 0 0 3px rgba(255, 255, 255, .7); }
@@ -745,7 +749,7 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
 .wheel-name { transition: opacity .2s; }
 
 /* ---------- card viewer ---------- */
-.viewer { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; align-content: center; gap: 14px; padding: 16px; }
+.viewer { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; align-content: safe center; gap: 14px; padding: calc(64px + env(safe-area-inset-top)) 16px 16px; overflow-y: auto; } /* top padding clears the corner widgets */
 .viewer-bg { position: absolute; inset: 0; background: rgba(10, 12, 25, .72); backdrop-filter: blur(6px); }
 .viewer-card { position: relative; perspective: 1000px; }
 .viewer .card.view { --cw: min(330px, 78vw); touch-action: none; cursor: grab; transition: transform .35s cubic-bezier(.2, .9, .3, 1.2); }
@@ -767,9 +771,9 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
 /* Title screen (js/audio.js): logo and "tap anywhere", fades out on the first tap. */
 .title-screen { position: fixed; inset: 0; z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px; background: var(--bg, #e8ecf2); cursor: pointer; transition: opacity .4s; }
 .title-screen img { width: min(80vw, 420px); }
-.title-screen p { font-weight: 700; opacity: .7; animation: title-pulse 1.6s ease-in-out infinite; }
+.title-screen p { font-weight: 700; color: var(--ink); opacity: .75; animation: title-pulse 1.6s ease-in-out infinite; }
 .title-screen.gone { opacity: 0; pointer-events: none; }
-@keyframes title-pulse { 50% { opacity: .25; } }
+@keyframes title-pulse { 50% { opacity: .5; } }
 
 
 .vol-slider { width: 110px; padding: 8px 10px; border-radius: 999px; accent-color: var(--accent, #5b7cfa); }
@@ -791,13 +795,14 @@ img { -webkit-user-drag: none; }
 .shop-item { display: flex; flex-direction: column; gap: 6px; } .shop-item .btn { padding: 6px; } .center-text { text-align: center; }
 
 /* Collection filters: one segmented slider per row, every option visible. */
-[data-view="collection"] .chips { display: flex; flex-wrap: nowrap; gap: 0; padding: 3px; border-radius: 999px; background: rgba(52, 60, 85, .08); box-shadow: inset 0 1px 3px rgba(0, 0, 0, .12); overflow: hidden; }
-[data-view="collection"] .chips .chip { flex: 1 1 0; min-width: 0; margin: 0; padding: 7px 4px; border: 0; border-radius: 999px; background: none; box-shadow: none; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: background .2s, color .2s; }
-[data-view="collection"] .chips .chip.on { background: var(--accent, #5b7cfa); color: #fff; box-shadow: 0 2px 6px rgba(0, 0, 0, .2); }
+/* (scoped to the filter panel only, so the card viewer's finish chips keep their own look) */
+[data-view="collection"] .coll-tools .chips { display: flex; flex-wrap: nowrap; gap: 0; padding: 3px; border-radius: 999px; background: rgba(52, 60, 85, .08); box-shadow: inset 0 1px 3px rgba(0, 0, 0, .12); overflow: hidden; }
+[data-view="collection"] .coll-tools .chips .chip { flex: 1 1 auto; min-width: 0; min-height: 36px; margin: 0; padding: 0 8px; border: 0; border-radius: 999px; background: none; box-shadow: none; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: background .2s, color .2s; }
+[data-view="collection"] .coll-tools .chips .chip.on { background: var(--accent, #5b7cfa); color: #fff; box-shadow: 0 2px 6px rgba(0, 0, 0, .2); }
 
-[data-view="collection"] .chips .chip { display: flex; align-items: center; justify-content: center; text-align: center; position: relative; }
-[data-view="collection"] .chips .chip + .chip::before { content: ""; position: absolute; left: 0; top: 25%; bottom: 25%; width: 1px; background: rgba(52, 60, 85, .25); }
-[data-view="collection"] .chips .chip.on::before, [data-view="collection"] .chips .chip.on + .chip::before { display: none; }
+[data-view="collection"] .coll-tools .chips .chip { display: flex; align-items: center; justify-content: center; text-align: center; position: relative; }
+[data-view="collection"] .coll-tools .chips .chip + .chip::before { content: ""; position: absolute; left: 0; top: 25%; bottom: 25%; width: 1px; background: rgba(52, 60, 85, .25); }
+[data-view="collection"] .coll-tools .chips .chip.on::before, [data-view="collection"] .coll-tools .chips .chip.on + .chip::before { display: none; }
 
 /* Account corner: profile then coins, top right; volume moves top left. */
 .acct { position: fixed; top: calc(10px + env(safe-area-inset-top)); right: 12px; z-index: 70; display: flex; gap: 8px; align-items: center; }
@@ -805,8 +810,8 @@ img { -webkit-user-drag: none; }
 .vol-slider { right: auto !important; left: 12px; }
 .acct { right: auto; left: 12px; z-index: 200; }
 .vol-slider { left: auto !important; right: 12px !important; }
-.shop-sheet { position: relative; z-index: 1; margin: auto; width: min(96vw, 900px); max-height: 90vh; overflow: auto; padding: 16px; border-radius: 20px; display: flex; flex-direction: column; gap: 12px; } .shop-sheet .shop { padding: 0; }
-.sell-pull { padding: 4px 8px; font-size: 12px; }
+.shop-sheet { position: relative; z-index: 1; margin: auto; width: 100%; max-width: 900px; min-width: 0; max-height: 90vh; overflow: auto; padding: 16px; border-radius: 20px; display: flex; flex-direction: column; gap: 12px; } .shop-sheet .shop { padding: 0; }
+.sell-pull { padding: 4px 12px; font-size: 12px; min-height: 40px; }
 
 .odds .chip { display: block; margin: 6px auto 0; width: max-content; font-weight: 700; pointer-events: none; }
 /* Viewer: every copy owned as a row of big cards, chosen finish first. */
@@ -821,32 +826,21 @@ img { -webkit-user-drag: none; }
 .stack-n { position: absolute; bottom: -10px; left: 50%; transform: translateX(-50%); z-index: 9; }
 .dust { z-index: 1000; pointer-events: none; }
 
-/* 5★ Rainbow (finish "rainbow"): a full art washed in pastel rainbow foil with glitter, like a rainbow rare. */
-.card.v-rainbow .frame { background: linear-gradient(125deg, #ffb3d1, #ffe7a3, #b8ffcf, #a8e6ff, #d4b8ff, #ffb3d1) !important; background-size: 300% 300% !important; animation: rainbow-shift 6s ease-in-out infinite alternate; }
-.card.v-rainbow .art img { filter: grayscale(1) invert(.15) brightness(1.9) contrast(1.5); }
-.card.v-rainbow .art::before, .card.v-rainbow .frame::after { content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; }
-.card.v-rainbow .art::before { z-index: 1; background: linear-gradient(125deg, #ff6fa8, #ffd36b, #6bffa0, #6bd5ff, #b06bff, #ff6fa8, #ffd36b, #6bffa0, #6bd5ff, #b06bff, #ff6fa8); background-size: 200% 200%; mix-blend-mode: multiply; opacity: .8; animation: rainbow-shift 6s ease-in-out infinite alternate; }
-.card.v-rainbow .frame::after { z-index: 2; background: url("vendor/holo/img/glitter.png") center / 40% auto, linear-gradient(115deg, transparent 30%, rgba(255,255,255,.55) 48%, transparent 66%); background-size: 40% auto, 250% 250%; mix-blend-mode: screen; opacity: .55; animation: rainbow-glint 4s ease-in-out infinite; }
-/* sways back and forth instead of looping, so there is never a seam */
-@keyframes rainbow-shift { from { background-position: 0% 0%; } to { background-position: 100% 100%; } }
-@keyframes rainbow-glint { 50% { background-position: center, 100% 100%; } }
-.card.v-rainbow .holo__shine { display: none; }
 .tabbar .coin { width: 22px; height: 22px; margin: 0; vertical-align: middle; }
 /* Viewer panel: buttons stay inside, title row lines up. */
 .viewer-info { box-sizing: border-box; overflow: hidden; }
 .viewer-info .btn { box-sizing: border-box; width: 100%; max-width: 100%; margin-left: 0; margin-right: 0; white-space: normal; line-height: 1.2; }
 .viewer-top { display: flex; align-items: center; gap: 8px; } .viewer-top b { flex: 1; min-width: 0; }
 .viewer-top .fav { position: static; margin: 0; }
-.find-btn { flex-direction: column; gap: 2px; padding-top: 8px; padding-bottom: 8px; } .find-btn small { font-weight: 500; opacity: .85; font-size: 12px; }
-.shop-page { padding: 64px 16px 100px; overflow: auto; height: 100%; box-sizing: border-box; } .shop-page h2 { margin: 0 0 4px; }
+.find-btn { flex-direction: column; gap: 2px; padding-top: 8px; padding-bottom: 8px; } .find-btn small { font-weight: 500; color: inherit; opacity: .9; font-size: 12px; }
+.shop-page { padding: 0 16px 24px; overflow: auto; height: 100%; box-sizing: border-box; }
 .shop-cell { display: flex; flex-direction: column; gap: 6px; align-items: stretch; } .shop-cell .leaves { text-align: center; }
 .shop-stars { align-self: center; pointer-events: none; }
-.shop-page h2 { text-align: center; }
 .shop-timer { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 4px 0; font-weight: 600; } .shop-timer svg { width: 18px; height: 18px; }
 .shop-cell { position: relative; } .shop-new { position: absolute; top: 6px; left: 6px; z-index: 5; pointer-events: none; }
-.pre-sheet h3 { margin: 4px 0; } .pre-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.pre-sheet h3 { margin: 4px 0; } .pre-list { display: flex; flex-wrap: nowrap; gap: 8px; overflow-x: auto; padding: 4px 2px 8px; margin: 0 -2px; } .pre-list .chip { flex: none; min-height: 36px; white-space: nowrap; }
 .pre-caps { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 8px; }
-.pre-cap { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px; border: 2px solid transparent; border-radius: 14px; background: none; cursor: pointer; font: inherit; color: inherit; } .pre-cap.on { border-color: var(--accent, #e5505a); background: rgba(229, 80, 90, .08); } .pre-cap small { font-size: 11px; text-align: center; }
+.pre-cap { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px; border: 2px solid transparent; border-radius: 14px; background: none; cursor: pointer; font: inherit; color: inherit; } .pre-cap.on { border-color: var(--accent, #e5505a); background: rgba(229, 80, 90, .08); } .pre-cap small { font-size: 12px; text-align: center; }
 /* Collection cards tilt toward the pointer with the holo shine. */
 .coll-cell .card { transform: perspective(700px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transition: transform .15s ease-out; }
 .coll-cell .card:not(.held) { --rx: 0deg; --ry: 0deg; }
@@ -1163,3 +1157,111 @@ img { -webkit-user-drag: none; }
 .vol-slider::-moz-range-track { height: 30px; background: none; }
 .vol-slider::-moz-range-thumb { width: 30px; height: 30px; border: 0; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, .35); }
 body:has(#app[data-view="game"]) .vol-slider { display: none; }
+
+/* 5★ Rainbow (finish "rainbow"): js/rainbow.js repaints the art like a rainbow rare; the card is pastel silver with glitter and a sheen, text in dark ink. */
+.card.v-rainbow .art img[data-art]:not([data-rb]) { opacity: 0; }
+.card.v-rainbow .art img[data-art] { transition: opacity .3s; }
+/* no art (public site) or still processing: a silver panel with pastel rainbow and glitter */
+.card.v-rainbow .art { background: url("vendor/holo/img/glitter.png") 0 0 / 40cqw auto, linear-gradient(160deg, rgba(255, 150, 190, .6), rgba(255, 215, 120, .6) 25%, rgba(140, 230, 170, .6) 50%, rgba(130, 190, 255, .6) 75%, rgba(190, 150, 255, .6)), linear-gradient(135deg, #f4f6fa, #c9cfdb 50%, #f4f6fa); background-blend-mode: screen, normal, normal; }
+.card.v-rainbow .ph { background: none; color: #7d86a0; }
+.card.v-rainbow .frame { background: linear-gradient(125deg, #f9dce9, #fcefd6 25%, #ddf5e6 50%, #dcebfc 75%, #ebdffb); }
+.card.v-rainbow :is(.name, .move b, .mv-pow, .mv-text, .text, .foot, .mv-tag) { color: #1b2030 !important; text-shadow: 0 0 1px #fff, 0 0 3px #fff, 0 0 6px rgba(255, 255, 255, .9); }
+.card.v-rainbow .moves, .card.v-rainbow .text.passive { background: rgba(255, 255, 255, .55) !important; }
+/* glitter over the whole card (static), then one diagonal sheen that drifts back and forth, or follows the pointer while held */
+.card.v-rainbow .frame::after, .card.v-rainbow .frame::before { content: ''; position: absolute; pointer-events: none; mix-blend-mode: screen; }
+.card.v-rainbow .frame::after { inset: 0; z-index: 0; border-radius: inherit; background: url("vendor/holo/img/glitter.png") 0 0 / 40cqw auto; opacity: .55; }
+.card.v-rainbow .frame::before { inset: -50%; z-index: 1; border-radius: 0; opacity: 1; background: linear-gradient(115deg, transparent 38%, rgba(255, 190, 225, .3) 45%, rgba(255, 245, 200, .35) 50%, rgba(190, 230, 255, .3) 55%, transparent 62%);
+  animation: rb-drift 7s ease-in-out infinite alternate; }
+.card.v-rainbow.held .frame::before { animation: none; transform: translate(calc((var(--mx) - 50%) * .5), calc((var(--my) - 50%) * .5)); }
+@keyframes rb-drift { from { transform: translate(-22%, -10%); } to { transform: translate(22%, 10%); } }
+@media (prefers-reduced-motion: reduce) { .card.v-rainbow .frame::before { animation: none; } }
+/* the full-art holo shine and glare stay on, but colour-dodge burns pale rainbow art to white; overlay keeps the colours */
+.card.v-rainbow .holo__shine { mix-blend-mode: overlay; opacity: calc(var(--card-opacity) * .8); }
+
+/* ===== visual audit fixes (header band, whole-screen scrolling, filters toggle, phone volume, sheets) ===== */
+/* thin, themed scrollbars for every scroll area */
+* { scrollbar-width: thin; scrollbar-color: #aeb6c8 transparent; }
+@supports not (scrollbar-color: auto) { ::-webkit-scrollbar { width: 8px; height: 8px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: #aeb6c8; border-radius: 99px; } }
+.viewer-card.copies { scrollbar-width: none; } .viewer-card.copies::-webkit-scrollbar { display: none; }
+
+/* narrow screens: a clear header band under the fixed corner widgets (account + volume) on every screen but the battle */
+@media (max-width: 899.98px) {
+  .app:not([data-view="game"]) { padding-top: calc(64px + env(safe-area-inset-top)); }
+  .title { padding-top: 6px; }
+  .app[data-view="home"] .tiles { margin-bottom: 16px; }                 /* clear the sticky tab bar */
+  .app[data-view="lobby"] > .panel:nth-last-of-type(1) { margin-bottom: 16px; }
+  .app[data-view="build"] .grid, .shop-page .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .shop-page .grid { padding-inline: 0; flex: none; overflow: visible; }
+}
+
+/* Collection, Deck and Add Cards scroll as one screen (header, filters and grid together) */
+.app:is([data-view="collection"], [data-view="deck"], [data-view="build"]) { overflow-y: auto; }
+.app:is([data-view="collection"], [data-view="deck"], [data-view="build"]) .grid { flex: none; overflow: visible; }
+.app:is([data-view="collection"], [data-view="deck"], [data-view="build"]) :is(.dim, .sheet) { position: fixed; } /* stay on the glass while the screen is scrolled */
+.app:is([data-view="deck"], [data-view="build"]) .bar { position: sticky; bottom: 70px; z-index: 4; } /* 70px = the tab bar */
+.app[data-view="build"] .bar { bottom: 0; }
+.app[data-view="deck"] .tabbar { margin-top: 0; }
+@media (max-width: 899.98px) { .app:is([data-view="collection"], [data-view="deck"], [data-view="build"]) .sheet { left: 0; right: 0; margin-inline: auto; width: min(100%, 480px); } }
+.cell { isolation: isolate; } /* the x3 badges (z-index 10) must not climb over the sticky bars */
+.grid > .empty { grid-column: 1 / -1; text-align: center; padding: 24px 0; }
+.fbody { display: grid; gap: 10px; }
+.filter-panel { display: grid; gap: 10px; }
+.filter-panel .chips .chip { min-height: 36px; }
+.filters-toggle { display: none; }
+@media (max-width: 519.98px) {
+  .filters-toggle { display: inline-flex; width: 100%; justify-content: space-between; min-height: 40px; }
+  .filters-toggle .i { transition: transform .15s; }
+  .filter-panel.open .filters-toggle .i { transform: rotate(180deg); }
+  .filter-panel:not(.open) .fbody { display: none; }
+}
+@container app (min-width: 900px) {
+  .app:is([data-view="deck"], [data-view="build"]) .bar { bottom: 0; }
+  .coll-tools { width: min(720px, calc(100% - 48px)); margin-inline: auto; }
+  .captain-slot { width: min(560px, calc(100% - 48px)); margin-inline: auto; }
+  .dim > .btn.sm { width: 300px; }
+}
+
+/* viewer finish chips: wrap, full labels, comfortable tap size */
+.viewer-info .chips .chip { min-height: 36px; padding: 6px 14px; white-space: nowrap; }
+
+/* pack odds and pre-battle sheets: centred inside the viewer padding, odds grid never scrolls sideways */
+.viewer:has(> .shop-sheet) { grid-template-columns: minmax(0, 1fr); }
+.shop-sheet .grid.odds { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); flex: none; overflow: visible; padding: 4px 0 8px; }
+
+/* shop cells: chips on one line, price buttons line up along the bottom of each row */
+.shop-stars { white-space: nowrap; font-size: 12px; padding: 6px 10px; }
+.shop-cell .btn { margin-top: auto; }
+
+/* volume: pill on desktop; on phones a round speaker button with the slider as a popover under it */
+.vol-slider { top: calc(20px + env(safe-area-inset-top)); } /* centre lines up with .acct (50px tall, top 10px) */
+.vol-btn { display: none; position: fixed; top: calc(15px + env(safe-area-inset-top)); right: 12px; z-index: 201; width: 40px; height: 40px; place-items: center; border-radius: 50%; color: var(--ink); }
+.vol-btn.off .wave { display: none; }
+@media (max-width: 519.98px) {
+  .vol-btn { display: grid; }
+  .vol-slider { display: none !important; z-index: 201; }
+  body.vol-open .vol-slider { display: block !important; top: calc(62px + env(safe-area-inset-top)); box-shadow: var(--raise-sm), inset 0 1px 3px rgba(0, 0, 0, .18) !important; }
+}
+body:has(#app[data-view="game"]) :is(.vol-btn, .vol-slider) { display: none !important; }
+
+/* results, pulls and battle popups */
+.victory .reward { width: 100%; margin: 14px 0 0; }
+.reveal .open-hint { white-space: nowrap; }
+.dim > .btn.sm { width: 250px; padding: 12px 20px; font-size: 15px; } /* Close matches the full-width buttons next to it */
+
+/* full art (not rainbow): the name row gets a soft dark pill so white text reads on pale art */
+.v-full:not(.v-rainbow) .head { background: rgba(10, 12, 25, .5) !important; border-radius: 99px; padding: .8cqw 2cqw .8cqw 2.4cqw !important; }
+@container app (min-width: 900px) { .wheel { --wh: clamp(300px, calc(100dvh - 370px), 470px); } } /* no header band on desktop, so the wheel can be taller */
+.reveal .pull-tag { margin-top: 10px; } /* clear of the tilting card above it */
+.rainbow + .btn.wide { width: auto; margin: 12px 16px 0; } /* "Sell all" no longer runs edge to edge */
+
+/* battle (phone): the deck counter is a labelled chip inside the turn band; the hand fan clears the player bar; the HUD Captain is a portrait */
+.deckn { display: inline-flex; align-items: center; gap: 5px; padding: 6px 11px 6px 9px; border-radius: 999px; font-size: 14px; color: var(--ink); box-shadow: var(--inset); }
+.deckn .i { width: 16px; height: 16px; color: var(--muted); }
+.deckn b { font-weight: 800; }
+@container app (max-width: 899.98px) {
+  .hand { height: 148px; padding-bottom: 28px; }
+  .hud .cap .frame { display: block; padding: 0; }
+  .hud .cap .art { position: absolute; inset: 2.2cqw; height: auto; border-radius: 3cqw; box-shadow: none; }
+  .hud .cap .head { position: absolute; z-index: 2; left: 2.2cqw; right: 2.2cqw; bottom: 2.2cqw; min-height: 0; padding: 7cqw 3cqw 2.4cqw; border-radius: 0 0 3cqw 3cqw; background: linear-gradient(transparent, rgba(10, 12, 25, .78)); }
+  .hud .cap .name { color: #fff; text-shadow: 0 1px 2px #000; font-size: 9.5cqw; }
+}

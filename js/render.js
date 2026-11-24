@@ -76,7 +76,9 @@ function renderCard(c, o = {}) {
   if (!c) return `<div class="card back${cls}"${style}><div class="frame"></div></div>`;
   const kind = kindOf(c), isCh = c.type === 'character', hp = o.hp ?? (isCh ? maxHp(c) : c.hp), turns = o.turns ?? c.dur, def = o.def ?? (isCh ? baseArmor(c) : c.def);
   // Art lives only on computers that ran tools/apply-cards.js; elsewhere the image fails and the placeholder underneath shows.
-  const art = `<span class="ph">${ICON[c.type]}</span>${c.art ? `<img src="${c.art}" alt="" onerror="this.remove()"${c.type === 'character' && !c.main ? ' onload="tone(this)"' : ''}${cropStyle(c.crop)}>` : ''}`;
+  // Rainbow cards swap in the repainted art from js/rainbow.js: the cached result straight away, else processed on load (pages without it show the plain art).
+  const rbw = /\bv-rainbow\b/.test(cls) || c.rainbow && /v-full/.test(cls), rbOn = rbw && typeof RB !== 'undefined', rbUrl = rbOn && RB[c.art];
+  const art = `<span class="ph">${ICON[c.type]}</span>${c.art ? `<img src="${rbUrl || c.art}" alt="" onerror="this.remove()"${rbOn ? ` data-art="${c.art}"${rbUrl ? ' data-rb="1"' : ' onload="rainbowize(this)"'}` : c.type === 'character' && !c.main ? ' onload="tone(this)"' : ''}${cropStyle(c.crop)}>` : ''}`;
   // Characters read like Pokemon cards: HP top right, DEF as a shield on the art, moves on one panel.
   const isChar = c.type === 'character';
   const hpTag = isChar ? `<span class="hp${hp < maxHp(c) ? ' hurt' : ''}"><i>HP</i>${hp}</span>` : '';
@@ -139,7 +141,7 @@ function renderBoard(s, me, o = {}) {
     <div class="opp-hand">${renderCard(null).repeat(opp.hand.length)}</div>
     <div class="side">${renderHud(opp, 'opp')}${renderFx(opp, 'opp')}${renderField(opp, [], 'opp', stat(1 - me))}</div>
     <div class="mid neu">
-      <div class="pile">${renderCard(null)}<span>${you.deck.length}</span></div>
+      <div class="deckn" role="img" aria-label="${you.deck.length} cards left in your deck">${ICON.cards}<b>${you.deck.length}</b></div>
       <div class="turn"><b>${s.turn === me ? 'Your turn' : `${esc(opp.name)}'s turn`}</b>
         <div class="pips">${Array.from({ length: Math.max(2, s.actions) }, (_, i) => `<i class="${i < s.actions ? 'on' : ''}">${ICON.action}</i>`).join('')}</div></div>
       <button class="btn end" data-act="end"${live ? '' : ' disabled'}>End Turn</button>
