@@ -53,10 +53,13 @@ const deckSelect = withNew => `<label class="deckname neu-in"><select data-chang
   `<option value="${d.id}"${d.id === deck().id ? ' selected' : ''}>${esc(d.name)}</option>`).join('')}${withNew ? '<option value="new">+ New deck</option>' : ''}</select>${ICON.chevron}</label>`;
 
 // Home showcase: three Characters with art in rare finishes (holo, full-art holo, reverse holo).
+let heroPick = null;
 const heroCards = () => {
   const withArt = CARDS.filter(c => c.type === 'character' && c.art);
   const pick = withArt.length >= 3 ? withArt : CARDS.filter(c => c.type === 'character');
-  return [[pick[1], 'v-holo'], [pick[0], 'v-full v-holo'], [pick[2], 'v-rev']].filter(([c]) => c);
+  // three random Characters, picked once per visit, all shown as 5-star rainbows
+  heroPick ||= [...pick].sort(() => Math.random() - 0.5).slice(0, 3);
+  return heroPick.map(c => [c, 'v-full v-holo v-rainbow']);
 };
 function viewHome() {
   return `<div class="topbar"><button class="profile neu" data-act="rename-me" aria-label="Change your name">${renderAvatar(CARD[deck().captain] || CAPTAINS[0])}<b>${esc(myName)}</b></button></div>
