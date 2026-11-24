@@ -291,6 +291,60 @@ const OVERRIDES = {
  },
  "scrunge_nexus": {
   "cost": 2
+ },
+ "scrunge_caerus": {
+  "moves": [
+   {
+    "name": "Card Toss",
+    "cost": 1,
+    "power": 3,
+    "text": "On a hit, draw a card.",
+    "onHit": [
+     [
+      "draw",
+      "me",
+      1
+     ]
+    ]
+   },
+   {
+    "name": "Ace Up Sleeve",
+    "cost": 1,
+    "ability": true,
+    "once": true,
+    "text": "+2 Actions. Once per turn.",
+    "ops": [
+     [
+      "actions",
+      "me",
+      2
+     ]
+    ]
+   }
+  ]
+ },
+ "jegg_sapphire": {
+  "moves": [
+   {
+    "name": "Ice Shard",
+    "cost": 1,
+    "power": 2
+   },
+   {
+    "name": "Frost Breath",
+    "cost": 2,
+    "power": 5,
+    "text": "On a hit, opponent +1 Boredom.",
+    "onHit": [
+     [
+      "bore",
+      "opp",
+      1
+     ]
+    ]
+   }
+  ],
+  "hp": 4
  }
 };
 for (const c of [...CAPTAINS, ...CARDS]) Object.assign(c, OVERRIDES[c.id] || {});
