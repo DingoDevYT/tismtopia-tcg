@@ -89,7 +89,7 @@ function renderCard(c, o = {}) {
   const fin = /\bv-full\b/.test(cls) ? ' data-rarity="rare ultra" data-supertype="pokémon"' : /\bv-rev\b/.test(cls) ? ' data-rarity="reverse holo"' : /\bv-holo\b/.test(cls) ? ' data-rarity="rare holo"' : '';
   const layers = fin ? '<div class="holo__shine"></div><div class="holo__glare"></div>' : '';
   return `<div class="card k-${kind}${cls}${c.rainbow && /v-full/.test(cls) ? " v-rainbow" : ""}${fin ? (/rare ultra/.test(fin) ? ' holo masked' : ' holo') : ''}"${style}${fin} data-id="${c.id}"><div class="frame"${tv ? ` style="${tv}"` : ''}>
-    <div class="head">${c.type !== 'captain' ? `<span class="pc" title="Actions to play">${(c.cost ?? 1) ? ICON.action.repeat(c.cost ?? 1) : 'FREE'}</span>` : ''}<span class="name" style="--len:${c.name.length}">${c.name}</span>${hpTag}<span class="type">${ICON[kind]}</span></div>
+    <div class="head">${c.type !== 'captain' ? `<span class="pc" title="Actions to play">${(c.cost ?? 1) ? `${ICON.action}<b>${c.cost ?? 1}</b>` : '<b class="free">FREE</b>'}</span>` : ''}<span class="name">${c.name}</span>${hpTag}<span class="type">${ICON[kind]}</span></div>
     <div class="art">${art}${/rare holo"/.test(fin) ? layers : ''}${defTag}</div>
     ${body}
     <div class="foot"><span>${c.artist ? `OC: ${c.artist}` : c.role || LABEL[kind]}</span><span>TISM ${c.no}</span></div>${/rare holo"/.test(fin) ? '' : layers}

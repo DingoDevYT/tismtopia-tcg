@@ -873,3 +873,8 @@ img { -webkit-user-drag: none; }
 .card .name { font-size: min(6.6cqw, calc(92cqw / var(--len, 10))); } /* long names shrink to fit one line */
 .card.mini .name, .card.mini.k-character .name, .card.mini.k-main .name { font-size: min(7.4cqw, calc(100cqw / var(--len, 10))); }
 .card .name { font-size: min(6.2cqw, calc(78cqw / var(--len, 10))); }
+/* Cost pill: same size and spot on every card (one energy icon + the number, or FREE). Names one fixed size. */
+.card .pc { width: 11cqw; height: 6.6cqw; box-sizing: border-box; justify-content: center; padding: 0; gap: .3cqw; }
+.card .pc b { font-size: 4.4cqw; line-height: 1; } .card .pc .free { font-size: 2.7cqw; letter-spacing: .1cqw; }
+.card .name, .card.mini .name, .card.mini.k-character .name, .card.mini.k-main .name { font-size: 5.4cqw; }
+.card .name, .card.mini .name, .card.mini.k-character .name, .card.mini.k-main .name { font-size: 4.1cqw; letter-spacing: -.05cqw; }
