@@ -780,3 +780,8 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
 @keyframes rainbow-shift { to { background-position: 300% 300%; } }
 
 .vol-slider { width: 110px; padding: 8px 10px; border-radius: 999px; accent-color: var(--accent, #5b7cfa); }
+
+/* Dragging cards should not select text (or pop up the translate bubble); inputs stay selectable. */
+body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+input, textarea { -webkit-user-select: text; user-select: text; }
+img { -webkit-user-drag: none; }
