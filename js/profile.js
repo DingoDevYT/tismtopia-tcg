@@ -35,7 +35,7 @@ function viewProfile() {
   <section class="panel neu"><small class="lbl">Save on this device</small><p class="muted">Download your progress as a file, or load one (from a backup or another device). Loading replaces what's here.</p>
     <div class="row2"><button class="btn" data-act="pf-export">Export save</button><label class="btn" tabindex="0" role="button">Import save<input type="file" id="pf-import" accept=".json,application/json" hidden></label></div></section>
   <section class="panel neu"><small class="lbl">Your OC as a card</small><p class="muted">Design a card with your own character and send it in. Anonagon reviews every one.</p>
-    <button class="btn primary wide" data-act="go" data-to="submit">Submit a card</button></section>
+    <button class="btn primary wide" data-act="go" data-to="submit">Submit a card</button>${u ? '<button class="btn wide" data-act="mine-list">My submissions</button>' : ''}</section>
   </div>${tabbar('profile')}`;
 }
 

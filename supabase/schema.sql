@@ -99,3 +99,33 @@ create policy "submission art: upload own" on storage.objects for insert to auth
   with check (bucket_id = 'submissions' and (storage.foldername(name))[1] = (select auth.uid())::text);
 create policy "submission art: read own" on storage.objects for select to authenticated
   using (bucket_id = 'submissions' and (storage.foldername(name))[1] = (select auth.uid())::text);
+
+-- ---------- players view, edit and withdraw their own PENDING submissions (live migration: players_edit_own_pending_submissions) ----------
+-- Reviewed rows (approved / rejected) stay read-only for players. Only card, image_path and note can change; status never can.
+alter table public.submissions add column if not exists updated_at timestamptz not null default now();
+grant update (card, image_path, note, updated_at), delete on public.submissions to authenticated;
+
+drop policy if exists "submissions: update own pending" on public.submissions;
+drop policy if exists "submissions: delete own pending" on public.submissions;
+create policy "submissions: update own pending" on public.submissions for update to authenticated
+  using ((select auth.uid()) = user_id and status = 'pending')
+  with check ((select auth.uid()) = user_id and status = 'pending'
+    and (image_path is null or image_path like (select auth.uid())::text || '/%'));
+create policy "submissions: delete own pending" on public.submissions for delete to authenticated
+  using ((select auth.uid()) = user_id and status = 'pending');
+
+create or replace function public.submissions_touch() returns trigger language plpgsql set search_path = '' as $$
+begin
+  new.updated_at := now();
+  return new;
+end $$;
+drop trigger if exists submissions_touch on public.submissions;
+create trigger submissions_touch before update on public.submissions for each row execute function public.submissions_touch();
+
+drop policy if exists "submission art: update own" on storage.objects;
+drop policy if exists "submission art: delete own" on storage.objects;
+create policy "submission art: update own" on storage.objects for update to authenticated
+  using (bucket_id = 'submissions' and (storage.foldername(name))[1] = (select auth.uid())::text)
+  with check (bucket_id = 'submissions' and (storage.foldername(name))[1] = (select auth.uid())::text);
+create policy "submission art: delete own" on storage.objects for delete to authenticated
+  using (bucket_id = 'submissions' and (storage.foldername(name))[1] = (select auth.uid())::text);

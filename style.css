@@ -1357,7 +1357,13 @@ body:has(#app[data-view="game"]) :is(.vol-btn, .vol-slider) { display: none !imp
 .sub-meter { display: flex; align-items: center; gap: 10px; } .sub-meter b { min-width: 84px; text-align: right; }
 .sub-meter.b0 i { background: #8a96b0; } .sub-meter.b1 i { background: var(--good); } .sub-meter.b2 i { background: var(--gold); } .sub-meter.b3 i { background: var(--accent); }
 .sub-reset { justify-self: center; }
-.sub-list { list-style: none; display: grid; gap: 8px; } .sub-list li { display: flex; align-items: center; gap: 10px; padding: 10px 14px; } .sub-list li b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.sub-mine { display: grid; gap: 8px; }
+.sub-mine-item { display: flex; align-items: center; gap: 12px; padding: 10px; cursor: pointer; } .sub-mine-item .card { --cw: 84px; }
+.sub-mine-item > div { display: grid; justify-items: start; gap: 4px; min-width: 0; } .sub-mine-item b { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sub-mine-view h3 { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.sub-mine-fins { display: flex; gap: 14px; overflow-x: auto; padding: 4px 2px 8px; } .sub-mine-fins figure { flex: none; display: grid; justify-items: center; gap: 6px; } .sub-mine-fins .card { --cw: 200px; }
+.sub-editing { display: grid; gap: 6px; border: 2px solid var(--accent); } .sub-editing .btn { justify-self: start; }
+@container app (min-width: 900px) { .sub-editing { width: min(1040px, calc(100% - 48px)); margin-inline: auto; } }
 .sub-status { padding: 3px 10px; border-radius: 99px; font-size: 12px; text-transform: capitalize; color: #fff; background: #8a96b0; } .sub-status.s-approved { background: var(--good); } .sub-status.s-rejected { background: var(--accent); }
 @container app (min-width: 900px) {
   .pf-wrap { width: min(720px, calc(100% - 48px)); margin-inline: auto; } .app[data-view="submit"] .pf-back { width: min(1040px, calc(100% - 48px)); margin-inline: auto; } .pf-wrap .panel { margin-inline: 0; } .pf-wrap .pf-back { margin-inline: 0; }

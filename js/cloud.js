@@ -109,13 +109,58 @@ async function cloudSubmitCard(payload, imageBlob, cutoutBlob) {
     if (!ext(imageBlob)) throw new Error('add a picture first');
     const base = `${cloud.user.id}/${crypto.randomUUID()}`, put = async (b, path) => { need(await sb.storage.from('submissions').upload(path, b, { contentType: b.type, upsert: false })); return path; };
     const image = await put(imageBlob, `${base}.${ext(imageBlob)}`), cutout = ext(cutoutBlob) ? await put(cutoutBlob, `${base}-cutout.${ext(cutoutBlob)}`) : '';
-    return { row: need(await sb.from('submissions').insert({ user_id: cloud.user.id, card: { ...payload, image, cutout }, image_path: image, note: payload.form.notes || null }).select('id, created_at, status, card').single()) };
+    return { row: need(await sb.from('submissions').insert({ user_id: cloud.user.id, card: { ...payload, image, cutout }, image_path: image, note: payload.form.notes || null }).select('id, created_at, updated_at, status, card, image_path').single()) };
   });
 }
 async function cloudMySubmissions() {
   if (!CLOUD.url) return CLOUD_OFF;
   if (!cloud.user) return NO_USER;
-  return sbRun('Loading your submissions', async sb => ({ rows: need(await sb.from('submissions').select('id, created_at, status, card').order('created_at', { ascending: false }).limit(50)) }));
+  return sbRun('Loading your submissions', async sb => ({ rows: need(await sb.from('submissions').select('id, created_at, updated_at, status, card, image_path').order('created_at', { ascending: false }).limit(50)) }));
+}
+// Only paths inside the player's own folder are ever touched (storage rules enforce the same).
+const ownPath = p => (typeof p === 'string' && cloud.user && p.startsWith(cloud.user.id + '/') && p.length <= 200 ? p : '');
+// The bucket is private: pictures are shown through short-lived signed links, or downloaded with the player's session.
+async function cloudSignedUrls(paths) {
+  if (!CLOUD.url) return CLOUD_OFF;
+  if (!cloud.user) return NO_USER;
+  return sbRun('Loading pictures', async sb => ({ urls: need(await sb.storage.from('submissions').createSignedUrls(paths.filter(ownPath), 3600)) }));
+}
+async function cloudDownload(path) {
+  if (!CLOUD.url) return CLOUD_OFF;
+  if (!cloud.user) return NO_USER;
+  return sbRun('Loading the picture', async sb => { if (!ownPath(path)) throw new Error('no picture'); return { blob: need(await sb.storage.from('submissions').download(path)) }; });
+}
+// Edit a pending submission: same row; new pictures (if any) go to new paths and the old ones are deleted after the row points at them.
+// { gone: true } = the row was reviewed or withdrawn meanwhile (the update matched nothing).
+async function cloudUpdateSubmission(edit, payload, imageBlob, cutoutBlob) {
+  if (!CLOUD.url) return CLOUD_OFF;
+  if (!cloud.user) return NO_USER;
+  return sbRun('Saving changes', async sb => {
+    const ext = b => ({ 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' })[b?.type], put = async (b, path) => { need(await sb.storage.from('submissions').upload(path, b, { contentType: b.type, upsert: false })); return path; };
+    let image = ownPath(edit.image), cutout = ownPath(edit.cutout); const fresh = [], old = [];
+    if (ext(imageBlob)) {
+      const base = `${cloud.user.id}/${crypto.randomUUID()}`;
+      fresh.push(image = await put(imageBlob, `${base}.${ext(imageBlob)}`));
+      cutout = ext(cutoutBlob) ? await put(cutoutBlob, `${base}-cutout.${ext(cutoutBlob)}`) : ''; if (cutout) fresh.push(cutout);
+      old.push(...[edit.image, edit.cutout].filter(ownPath));
+    }
+    const rows = need(await sb.from('submissions').update({ card: { ...payload, image, cutout }, image_path: image || null, note: payload.form.notes || null })
+      .eq('id', edit.id).eq('status', 'pending').select('id, created_at, updated_at, status, card, image_path'));
+    const drop = rows.length ? old : fresh; // tidy up whichever pictures nothing points at now
+    if (drop.length && (await sb.storage.from('submissions').remove(drop)).error) console.warn('cloud: leftover pictures', drop);
+    return rows.length ? { row: rows[0] } : { gone: true };
+  });
+}
+// Withdraw: delete the pending row, then its pictures. { gone: false } = nothing matched (already reviewed or withdrawn).
+async function cloudDeleteSubmission(row) {
+  if (!CLOUD.url) return CLOUD_OFF;
+  if (!cloud.user) return NO_USER;
+  return sbRun('Withdrawing', async sb => {
+    const rows = need(await sb.from('submissions').delete().eq('id', row.id).eq('status', 'pending').select('id'));
+    const files = [row.image_path, row.card?.cutout].filter(ownPath);
+    if (rows.length && files.length && (await sb.storage.from('submissions').remove(files)).error) toast("Card withdrawn, but its picture couldn't be deleted.");
+    return { gone: rows.length > 0 };
+  });
 }
 
 // Untrusted save data (an imported file or the cloud copy) -> an object of known, well-formed keys, or an Error. Nothing unknown is ever written.

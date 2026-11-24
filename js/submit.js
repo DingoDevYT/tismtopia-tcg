@@ -52,29 +52,35 @@
 // ============================================================================
 
 // Submit a Card: a card builder with a live preview (the real renderCard), saved as a draft on this device as you go.
-// sub = the draft being edited: { form (raw inputs; cfClean() tidies them), art: { src (data URL of the shrunk upload), transparent, removed, tol, bg } | null }.
+// sub = the draft being edited: { form (raw inputs; cfClean() tidies them), art: { src (data URL of the shrunk upload), transparent, removed, tol, bg } | null,
+//   edit: { id, name, image, cutout, artChanged } when it's one of the player's pending submissions loaded back in (the draft from before is stashed) }.
 // subArt = what's worked out from art in memory: canvases, blobs and object URLs (only the upload itself is stored, everything else is redone on load).
 let sub = null;
 const subArt = { src: null, cut: null, out: null, blob: null, cutBlob: null, url: '', cutUrl: '', tint: '', thumbs: {}, job: 0, busy: false, warned: false };
-const subTouched = new Set();
+const subTouched = new Set(), subUrls = {}; // subUrls: storage path -> signed link for the player's submitted pictures
 let subSaveT = 0, subT = 0;
-const SUB_DRAFT = 'tismtopia.submitDraft', IMG_URL = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+=*$/;
+const SUB_DRAFT = 'tismtopia.submitDraft', SUB_STASH = 'tismtopia.submitStash', IMG_URL = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+=*$/;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 function subLoad() {
   let d = null; try { d = JSON.parse(localStorage.getItem(SUB_DRAFT)); } catch { /* no draft */ }
-  const a = d?.art;
+  const a = d?.art, e = d?.edit;
   sub = { form: cfClean(d?.form || { moves: [{ cost: 1, power: 2 }, { cost: 2, power: 4 }] }),
-    art: a && typeof a.src === 'string' && IMG_URL.test(a.src) ? { src: a.src, transparent: a.transparent === true, removed: a.removed === true, tol: cfInt(a.tol, 10, 150, 60), bg: cfBg(a.bg) } : null };
+    art: a && typeof a.src === 'string' && IMG_URL.test(a.src) ? { src: a.src, transparent: a.transparent === true, removed: a.removed === true, tol: cfInt(a.tol, 10, 150, 60), bg: cfBg(a.bg) } : null,
+    edit: e && UUID.test(e.id) ? { id: e.id, name: cfStr(e.name, 22), image: cfStr(e.image, 200), cutout: cfStr(e.cutout, 200), artChanged: e.artChanged === true } : null };
   if (sub.art) atLoad(sub.art.src).then(cv => { subArt.src = cv; subRebuild(true); }, () => { sub.art = null; render(); });
 }
-// Autosave (debounced). A full device gets the draft without its picture rather than nothing.
-function subSave() {
+// Autosave (debounced; now = straight away). A full device gets the draft without its picture rather than nothing.
+function subSave(now) {
   clearTimeout(subSaveT);
-  subSaveT = setTimeout(() => {
+  const go = () => {
+    if (!sub) return;
     const put = v => { try { localStorage.setItem(SUB_DRAFT, JSON.stringify(v)); return true; } catch { return false; } };
     if (!put(sub) && sub.art && put({ ...sub, art: null }) && !subArt.warned) { subArt.warned = true; toast('Draft saved without the picture: this device is out of storage.'); }
-  }, 400);
+  };
+  if (now) go(); else subSaveT = setTimeout(go, 400);
 }
+const subArtTouched = () => { if (sub?.edit) sub.edit.artChanged = true; }; // an edited submission re-uploads its picture only after this
 
 // Cut-out and composite from the art settings. Heavy canvas work, so it runs after the tap has been drawn; quiet = don't redraw the form (a slider is being dragged).
 function subRebuild(full, quiet) {
@@ -103,7 +109,91 @@ async function subPick(file) {
   const transparent = atAlpha(cv) >= 0.03;
   Object.assign(subArt, { src: cv, tint: '' });
   sub.art = { src: await atDataUrl(await atBlob(cv, transparent)), transparent, removed: false, tol: 60, bg: null };
-  subSave(); subRebuild(true);
+  subArtTouched(); subSave(); subRebuild(true);
+}
+
+// ---------- My submissions: list, read-only viewer, edit and withdraw (pending only) ----------
+const SUB_STATUS = { pending: 'Pending', approved: 'Approved', rejected: 'Rejected' };
+const subStatus = r => (SUB_STATUS[r.status] ? r.status : 'pending');
+const subRow = id => ui.subList?.find(r => r.id === id);
+const subWhen = t => { const d = new Date(t); return isNaN(d) ? '' : d.toLocaleDateString(); };
+// A stored submission is the player's own data but still untrusted: the card is rebuilt from its clamped form, the picture link checked.
+function subRowCard(r, fin = 'normal', cls = '') {
+  const f = cfClean(r.card?.form), full = fin === 'full' || fin === 'rainbow', url = subUrls[r.image_path] || '';
+  return renderCard({ ...cfSafe(cfBuild(f)), no: 'NEW', art: url.startsWith(CLOUD.url + '/storage/') && !/["<>]/.test(url) ? url : '', crop: full ? f.cropFull : f.crop }, { cls: `${cls} ${FINISH_CLS[fin]}` });
+}
+async function subLoadList() {
+  ui.subListBusy = true;
+  const r = await cloudMySubmissions();
+  ui.subListBusy = false; ui.subList = r.ok ? r.rows : [];
+  // never stay in edit mode for a row that was reviewed or withdrawn meanwhile
+  if (r.ok && sub?.edit && !ui.subList.some(x => x.id === sub.edit.id && x.status === 'pending')) { subEditEnd(); toast('That submission was reviewed or withdrawn, so editing stopped. Your earlier draft is back.'); }
+  const want = ui.subList.map(x => x.image_path).filter(p => ownPath(p) && !subUrls[p]);
+  if (want.length) { const u = await cloudSignedUrls(want); if (u.ok) u.urls.forEach(x => { if (x.signedUrl && !x.error) subUrls[x.path] = x.signedUrl; }); }
+  if (ui.view === 'submit') render();
+}
+const subList = () => `<span class="sub-lbl" id="sub-mine">My submissions</span>${!ui.subList ? '<p class="muted">Loading… <span class="spin"></span></p>' : ui.subList.length
+  ? `<div class="sub-mine">${ui.subList.map(r => { const s = subStatus(r), edited = r.updated_at && new Date(r.updated_at) - new Date(r.created_at) > 60e3;
+    return `<div class="sub-mine-item neu-in" ${tappable('mine-open', `data-id="${esc(r.id)}" aria-label="View ${esc(cfClean(r.card?.form).name || 'card')}"`)}>${subRowCard(r, 'normal')}
+      <div><b>${esc(cfClean(r.card?.form).name || 'Card')}</b><span class="sub-status s-${s}">${SUB_STATUS[s]}</span><small>Sent ${subWhen(r.created_at)}${edited ? ` · edited ${subWhen(r.updated_at)}` : ''}</small></div></div>`; }).join('')}</div>`
+  : '<p class="muted">Nothing sent yet.</p>'}`;
+// Tapping a submission: every finish it allows, full size; Edit / Withdraw while it's pending.
+function subMineView() {
+  const r = ui.mine && subRow(ui.mine); if (!r) return '';
+  const f = cfClean(r.card?.form), s = subStatus(r);
+  return `<div class="viewer"><div class="viewer-bg" data-act="mine-close"></div><div class="shop-sheet neu sub-mine-view">
+    <h3>${esc(f.name || 'Card')} <span class="sub-status s-${s}">${SUB_STATUS[s]}</span></h3>
+    <div class="sub-mine-fins">${subFins(f).map(k => `<figure>${subRowCard(r, k)}<figcaption class="muted">${k === 'normal' ? 'Normal' : FINISH_NAME[k]}</figcaption></figure>`).join('')}</div>
+    ${s === 'pending' ? `<div class="row2"><button class="btn primary" data-act="mine-edit" data-id="${esc(r.id)}">Edit</button><button class="btn" data-act="mine-withdraw" data-id="${esc(r.id)}">Withdraw</button></div>`
+    : `<p class="muted">${s === 'approved' ? "This card was approved, so it's locked: any changes now go through Anonagon." : "This card was reviewed and not accepted, so it can't be changed. You can send a new version as a new card."}</p>`}
+    <button class="btn wide" data-act="mine-close">Close</button></div></div>`;
+}
+const subAskHtml = () => (ui.mineAsk && subRow(ui.mineAsk) ? `<div class="cloud-ask">${sheet(`<h2>Withdraw this card?</h2><p class="muted center">"${esc(cfClean(subRow(ui.mineAsk).card?.form).name || 'Card')}" and its picture are deleted. This can't be undone.</p>
+  <button class="btn primary wide" data-act="mine-withdraw-yes">Withdraw it</button><button class="btn wide" data-act="mine-ask-no">Keep it</button>`, false)}</div>` : '');
+
+// Edit: the earlier draft is stashed (once) and the submission is loaded into the builder with its form, crops, finishes, background and picture.
+async function subEditStart(id) {
+  const r = subRow(id); if (!r || r.status !== 'pending') return toast("Only cards waiting for review can be edited.");
+  const cut = ownPath(r.card?.cutout), img = ownPath(r.image_path);
+  const dl = img || cut ? await cloudDownload(cut || img) : { ok: true, blob: null }; if (!dl.ok) return;
+  let cv = null; if (dl.blob) try { cv = await atLoad(dl.blob); } catch { return toast("Couldn't read that card's picture."); }
+  if (!sub) subLoad();
+  if (!sub.edit) { subSave(true); try { localStorage.setItem(SUB_STASH, localStorage.getItem(SUB_DRAFT) ?? 'null'); } catch { return toast("Couldn't keep your current draft safe, so editing didn't start."); } }
+  const f = cfClean(r.card?.form);
+  sub = { form: f, art: cv ? { src: await atDataUrl(await atBlob(cv, !!cut)), transparent: !!cut, removed: false, tol: 60, bg: cut ? cfBg(r.card?.bg) : null } : null,
+    edit: { id: r.id, name: f.name, image: img, cutout: cut, artChanged: false } };
+  subArt.job++; Object.assign(subArt, { src: cv, cut: null, out: null, blob: null, cutBlob: null, url: '', cutUrl: '', tint: '', busy: false });
+  ui.mine = null; ui.subTried = false; subTouched.clear(); ui.view = 'submit';
+  subSave(true); $app.scrollTop = 0;
+  if (cv) subRebuild(true); else render();
+}
+// Back to the draft from before editing (or a fresh one), whatever happened to the edit.
+function subEditEnd() {
+  clearTimeout(subSaveT);
+  let s = null; try { s = localStorage.getItem(SUB_STASH); localStorage.removeItem(SUB_STASH); } catch { /* nothing stashed */ }
+  try { if (s && s !== 'null') localStorage.setItem(SUB_DRAFT, s); else localStorage.removeItem(SUB_DRAFT); } catch { /* storage off */ }
+  sub = null; subArt.job++; ui.subTried = false; subTouched.clear();
+  Object.assign(subArt, { src: null, cut: null, out: null, blob: null, cutBlob: null, url: '', cutUrl: '', tint: '', busy: false });
+}
+async function subSaveEdit() {
+  if (ui.subSending || !subCheck()) return;
+  ui.subSending = true; render();
+  const e = sub.edit, changed = e.artChanged && subArt.blob;
+  const r = await cloudUpdateSubmission(e, cfPayload(sub.form, { bg: subArt.cut ? sub.art.bg : null }), changed ? subArt.blob : null, changed && subArt.cut ? subArt.cutBlob : null);
+  ui.subSending = false;
+  if (!r.ok) return render();
+  if (r.gone) { ui.subList = null; subEditEnd(); return toast("That card can't be changed any more: it was reviewed or withdrawn. Your earlier draft is back."); }
+  ui.subList = (ui.subList || []).map(x => (x.id === r.row.id ? r.row : x)); if (changed) delete subUrls[e.image];
+  subEditEnd(); ui.subList = null; toast('Changes saved.'); // the list reloads with fresh picture links
+}
+async function subWithdraw(id) {
+  const r = subRow(id); ui.mineAsk = null; if (!r) return render();
+  const res = await cloudDeleteSubmission(r);
+  if (!res.ok) return render();
+  if (sub?.edit?.id === id) subEditEnd();
+  ui.subList = ui.subList.filter(x => x.id !== id); ui.mine = null;
+  toast(res.gone ? 'Card withdrawn.' : 'That card was already reviewed or withdrawn.');
+  if (!res.gone) ui.subList = null;
 }
 
 // ---------- the screen ----------
@@ -160,19 +250,16 @@ function subArtTools() {
     ${subArt.busy ? '<p class="muted">Working on the picture… <span class="spin"></span></p>' : ''}`;
 }
 const subCrops = (key, title) => `<fieldset class="sub-crop"><legend>${title}</legend>${['x', 'y', 'zoom'].map(k => `<label class="sub-slider"><span>${{ x: 'Left / right', y: 'Up / down', zoom: 'Zoom' }[k]}</span><input type="range" data-f="${key}.${k}" data-num min="${k === 'zoom' ? 1 : 0}" max="${k === 'zoom' ? 4 : 100}" step="${k === 'zoom' ? 0.05 : 0.5}" value="${sub.form[key]?.[k] ?? (k === 'zoom' ? 1 : 50)}"></label>`).join('')}</fieldset>`;
-const SUB_STATUS = ['pending', 'approved', 'rejected'];
-const subList = () => `<span class="sub-lbl">My submissions</span>${!ui.subList ? '<p class="muted">Loading… <span class="spin"></span></p>' : ui.subList.length
-  ? `<ul class="sub-list">${ui.subList.map(r => { const s = SUB_STATUS.includes(r.status) ? r.status : 'pending';
-    return `<li class="neu-in"><b>${esc(String(r.card?.form?.name || 'Card').slice(0, 22))}</b><small>${esc(new Date(r.created_at).toLocaleDateString())}</small><span class="sub-status s-${s}">${s}</span></li>`; }).join('')}</ul>`
-  : '<p class="muted">Nothing sent yet.</p>'}`;
 
 function viewSubmit() {
   if (!sub) subLoad();
-  if (cloud.user && !ui.subList && !ui.subListBusy) { ui.subListBusy = true; cloudMySubmissions().then(r => { ui.subList = r.ok ? r.rows : []; ui.subListBusy = false; if (ui.view === 'submit') render(); }); }
-  const f = cfClean(sub.form), isCh = f.type === 'character', online = CLOUD.url && cloud.user;
+  if (cloud.user && !ui.subList && !ui.subListBusy) subLoadList();
+  const f = cfClean(sub.form), isCh = f.type === 'character', online = CLOUD.url && cloud.user, e = sub.edit;
   const wide = matchMedia('(min-width: 900px)').matches;
-  return `${header('Submit a Card')}
+  return `${header(e ? 'Edit Submission' : 'Submit a Card')}
   <div class="pf-back"><button class="btn sm" data-act="profile">‹ Profile</button></div>
+  ${e ? `<div class="panel neu sub-editing" role="status"><b>Editing your submission: ${esc(e.name || f.name || 'Card')}</b><small class="muted">Changes go to the same submission when you save. Your other draft is kept safe.</small>
+    <button class="btn sm" data-act="sub-edit-cancel">Cancel editing</button></div>` : ''}
   <div class="sub-wrap">
   <details class="sub-prev neu"${ui.subPrevShut && !wide ? '' : ' open'}><summary>Preview</summary>
     <div class="sub-stage"></div><div class="chips sub-finchips"></div>
@@ -204,13 +291,13 @@ function viewSubmit() {
   <section class="panel neu"><h3 class="sub-h">Power</h3><div class="sub-meter-box"></div></section>
   <section class="panel neu"><h3 class="sub-h">Notes for the reviewer</h3>
     ${subField('Anything Anonagon should know (optional)', `<textarea data-f="notes" maxlength="300" rows="3">${esc(f.notes)}</textarea><small class="sub-count" data-count="notes"></small>`)}</section>
-  <section class="panel neu sub-send"><h3 class="sub-h">Send it</h3>
-    ${online ? `<button class="btn primary wide" data-act="sub-send"${ui.subSending ? ' disabled' : ''}>${ui.subSending ? 'Sending…' : 'Submit card'}</button><button class="btn wide" data-act="sub-download">Download card file</button>`
+  <section class="panel neu sub-send"><h3 class="sub-h">${e ? 'Save it' : 'Send it'}</h3>
+    ${online ? `<button class="btn primary wide" data-act="${e ? 'sub-edit-save' : 'sub-send'}"${ui.subSending ? ' disabled' : ''}>${ui.subSending ? (e ? 'Saving…' : 'Sending…') : e ? 'Save changes' : 'Submit card'}</button><button class="btn wide" data-act="sub-download">Download card file</button>`
     : CLOUD.url && !cloud.checked ? '<p class="muted center">Checking your account… <span class="spin"></span></p>'
-    : `<button class="btn primary wide" data-act="sub-download">Download card file</button><p class="muted center">Send this file to Anonagon on Discord.</p>${CLOUD.url ? '<button class="btn wide" data-act="cloud-in">Sign in to submit online</button>' : ''}`}
-    <button class="btn sm sub-reset" data-act="sub-reset">Start over</button>
+    : `${e ? '<p class="muted center">Sign in again to save changes to this submission.</p>' : `<button class="btn primary wide" data-act="sub-download">Download card file</button><p class="muted center">Send this file to Anonagon on Discord.</p>`}${CLOUD.url ? `<button class="btn wide${e ? ' primary' : ''}" data-act="cloud-in">${e ? 'Sign in' : 'Sign in to submit online'}</button>` : ''}`}
+    ${e ? '<button class="btn sm sub-reset" data-act="sub-edit-cancel">Cancel editing</button>' : '<button class="btn sm sub-reset" data-act="sub-reset">Start over</button>'}
     ${cloud.user ? subList() : ''}</section>
-  </div></div>${tabbar('submit')}`;
+  </div></div>${tabbar('submit')}${subMineView()}${subAskHtml()}`;
 }
 
 // Live parts (preview, power, messages, counters) update without redrawing the form, so typing and sliders are never interrupted.
@@ -223,7 +310,10 @@ function subPaint() {
   $app.querySelectorAll('[data-count]').forEach(el => { el.textContent = `${String(sub.form[el.dataset.count] || '').length}/${el.dataset.count === 'notes' ? 300 : 22}`; });
 }
 const renderNoSubmit = render;
-render = function () { renderNoSubmit(); subPaint(); };
+render = function () {
+  renderNoSubmit(); subPaint();
+  if (ui.subScrollMine && ui.view === 'submit' && ui.subList) { ui.subScrollMine = false; document.getElementById('sub-mine')?.scrollIntoView({ block: 'start' }); } // from Profile's "My submissions"
+};
 
 const subSet = (path, v) => { const ks = path.split('.'), last = ks.pop(); let o = sub.form; for (const k of ks) o = o[k] ??= {}; o[last] = v; };
 // Moving a crop slider shows the finish it belongs to.
@@ -265,10 +355,19 @@ Object.assign(ACTS, {
   },
   'sub-move-add'() { sub.form.moves.push({ name: '', cost: 2, power: 4 }); subSave(); },
   'sub-move-del'(d) { sub.form.moves.splice(Number(d.i), 1); subSave(); },
-  'sub-bg'(d) { sub.art.bg = d.t ? { tpl: d.t, tint: sub.art.bg?.tint || subArt.tint || '#e5535d' } : null; subSave(); subRebuild(true); return false; },
-  'sub-unremove'() { sub.art.removed = false; subSave(); subRebuild(true); return false; },
+  'sub-bg'(d) { sub.art.bg = d.t ? { tpl: d.t, tint: sub.art.bg?.tint || subArt.tint || '#e5535d' } : null; subArtTouched(); subSave(); subRebuild(true); return false; },
+  'sub-unremove'() { sub.art.removed = false; subArtTouched(); subSave(); subRebuild(true); return false; },
   'sub-download'() { subDownload(); return false; },
   'sub-send'() { subSend(); return false; },
+  'sub-edit-save'() { subSaveEdit(); return false; },
+  'sub-edit-cancel'() { subEditEnd(); toast('Stopped editing. Your earlier draft is back.'); return false; },
+  'mine-list'() { if (!['profile', 'submit', 'game'].includes(ui.view)) ui.back = ui.view; ui.view = 'submit'; ui.subList = null; ui.subScrollMine = true; },
+  'mine-open'(d) { ui.mine = d.id; },
+  'mine-close'() { ui.mine = null; },
+  'mine-edit'(d) { subEditStart(d.id); return false; },
+  'mine-withdraw'(d) { ui.mineAsk = d.id; ui.mine = null; },
+  'mine-ask-no'() { ui.mineAsk = null; },
+  'mine-withdraw-yes'() { subWithdraw(ui.mineAsk); return false; },
   'sub-reset'() {
     if (!confirm('Start over? This clears the card you are making.')) return false;
     try { localStorage.removeItem(SUB_DRAFT); } catch { /* nothing saved */ }
@@ -279,10 +378,10 @@ Object.assign(ACTS, {
 
 document.addEventListener('input', e => {
   const el = e.target; if (ui.view !== 'submit' || !sub) return;
-  if (el.id === 'sub-remove') { sub.art.removed = el.checked; subSave(); return subRebuild(true); }
+  if (el.id === 'sub-remove') { sub.art.removed = el.checked; subArtTouched(); subSave(); return subRebuild(true); }
   if (el.id === 'sub-tol' || el.id === 'sub-tint') {
     if (el.id === 'sub-tol') sub.art.tol = Number(el.value); else sub.art.bg.tint = el.value;
-    subSave(); clearTimeout(subT); subT = setTimeout(() => subRebuild(false, true), 90); return;
+    subArtTouched(); subSave(); clearTimeout(subT); subT = setTimeout(() => subRebuild(false, true), 90); return;
   }
   const path = el.dataset?.f; if (!path) return;
   subSet(path, el.type === 'checkbox' ? el.checked : 'num' in el.dataset ? Number(el.value) : el.value);
