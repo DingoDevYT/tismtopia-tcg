@@ -840,3 +840,4 @@ img { -webkit-user-drag: none; }
 .find-btn { flex-direction: column; gap: 2px; padding-top: 8px; padding-bottom: 8px; } .find-btn small { font-weight: 500; opacity: .85; font-size: 12px; }
 .shop-page { padding: 64px 16px 100px; overflow: auto; height: 100%; box-sizing: border-box; } .shop-page h2 { margin: 0 0 4px; }
 .shop-cell { display: flex; flex-direction: column; gap: 6px; align-items: stretch; } .shop-cell .leaves { text-align: center; }
+.shop-stars { align-self: center; pointer-events: none; }

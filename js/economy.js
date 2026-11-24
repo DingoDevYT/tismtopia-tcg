@@ -78,8 +78,8 @@ Object.assign(ACTS, {
   },
   'sell-all-pulls'() { if (!confirm('Sell all of these pulls? Some may leave you with fewer than 3 copies of a card.')) return; ui.open.cards.forEach((_, i) => ACTS['sell-pull']({ i, all: true })); },
   buy(d) {
-    const price = cardValue(d.id) * 2; if (coins < price) { ui.toast = 'Not enough coins'; return; }
-    const e = (coll[d.id] ||= { n: 0, f: {} }); e.n++; e.f.normal = (e.f.normal || 0) + 1;
+    const f = d.f || 'normal', price = cardValue(d.id, f) * SHOP_MARKUP; if (coins < price) { ui.toast = 'Not enough coins'; return; }
+    const e = (coll[d.id] ||= { n: 0, f: {} }); e.n++; e.f[f] = (e.f[f] || 0) + 1;
     setCoins(coins - price); store.set('collection', coll); ui.toast = `Bought ${CARD[d.id].name}`;
   },
 });
@@ -135,21 +135,26 @@ ACTS['cancel-pack'] = () => {
   store.set('collection', coll); setCoins(coins + price(o.pack)); ui.open = null; ui.view = 'packs';
 };
 
-// Shop screen: 6 slots, each card stays 24 hours and the slots change at staggered times (one leaves every 4 hours).
-const DAY = 864e5, SLOT_GAP = DAY / 6;
+// Shop screen: 20 cards, the whole stock changes every 30 minutes on the UTC clock (:00 and :30), same for everyone.
+// Any finish can show up, even 4★ and 5★, at 3x the sell value: pulling is cheaper, buying is for a specific card.
+const ROTATE = 30 * 6e4, SHOP_MARKUP = 3;
+const SHOP_FIN = [[0.55, 'normal'], [0.2, 'holo'], [0.13, 'rev'], [0.09, 'full'], [0.03, 'rainbow']];
 function shopSlots() {
-  const now = Date.now(), list = CARDS.filter(c => c.type !== 'captain');
-  return Array.from({ length: 6 }, (_, i) => {
-    const turn = Math.floor((now + i * SLOT_GAP) / DAY), ends = (turn + 1) * DAY - i * SLOT_GAP;
-    let s = turn * 31 + i * 7919; const rnd = () => ((s = (s * 9301 + 49297) % 233280) / 233280);
-    return { c: list[Math.floor(rnd() * list.length)], ends };
-  });
+  const turn = Math.floor(Date.now() / ROTATE), ends = (turn + 1) * ROTATE, list = CARDS.filter(c => c.type !== 'captain');
+  let s = turn % 233280; const rnd = () => ((s = (s * 9301 + 49297) % 233280) / 233280);
+  return Array.from({ length: 20 }, () => {
+    const c = list[Math.floor(rnd() * list.length)];
+    let f = 'normal'; if (c.type === 'character') { let x = rnd(); for (const [p, v] of SHOP_FIN) if ((x -= p) < 0) { f = v; break; } }
+    if (f === 'rainbow' && c.rarity !== 'UR') f = 'full'; // rainbow is Ultra Rare only
+    return { c, f, ends };
+  }).sort((a, b) => starN(b.c.id, b.f) - starN(a.c.id, a.f) || cardValue(b.c.id, b.f) - cardValue(a.c.id, a.f));
 }
-const left = ms => { const h = Math.floor(ms / 36e5), m = Math.floor(ms % 36e5 / 6e4); return h ? `${h}h ${m}m` : `${m}m`; };
+const left = ms => { const m = Math.floor(ms / 6e4), sec = Math.floor(ms % 6e4 / 1000); return `${m}m ${String(sec).padStart(2, '0')}s`; };
 function viewShop() {
-  return `<div class="shop-page"><h2>Shop</h2><p class="muted">Each card stays for 24 hours. One leaves every 4 hours.</p>
-  <div class="grid">${shopSlots().map(({ c, ends }) => `<div class="cell coll-cell shop-cell">${renderCard(c, { attrs: `data-act="view-card" data-id="${c.id}"` })}
-    <button class="btn primary wide" data-act="buy" data-id="${c.id}">${COIN}${fmt(cardValue(c.id) * 2)}</button>
-    <small class="muted leaves" data-ends="${ends}">Leaves in ${left(ends - Date.now())}</small></div>`).join('')}</div></div>${tabbar('shop')}${viewer()}`;
+  const slots = shopSlots();
+  return `<div class="shop-page"><h2>Shop</h2><p class="muted">New stock in <b class="leaves" data-ends="${slots[0].ends}">${left(slots[0].ends - Date.now())}</b> · prices are 3x a card's sell value</p>
+  <div class="grid">${slots.map(({ c, f }) => `<div class="cell coll-cell shop-cell">${renderCard((f === 'full' || f === 'rainbow') ? { ...c, crop: null } : c, { cls: FINISH_CLS[f] || '', attrs: `data-act="view-card" data-id="${c.id}" data-f="${f}"` })}
+    <small class="chip on shop-stars">${starsOf(c.id, f)}${f !== 'normal' ? ' · ' + FINISH_NAME[f] : ''}</small>
+    <button class="btn primary wide" data-act="buy" data-id="${c.id}" data-f="${f}">${COIN}${fmt(cardValue(c.id, f) * SHOP_MARKUP)}</button></div>`).join('')}</div></div>${tabbar('shop')}${viewer()}`;
 }
-setInterval(() => { document.querySelectorAll('.leaves').forEach(el => { const ms = +el.dataset.ends - Date.now(); if (ms <= 0) return render(); el.textContent = 'Leaves in ' + left(ms); }); }, 30000);
+setInterval(() => { document.querySelectorAll('.leaves').forEach(el => { const ms = +el.dataset.ends - Date.now(); if (ms <= 0) return render(); el.textContent = left(ms); }); }, 1000);
