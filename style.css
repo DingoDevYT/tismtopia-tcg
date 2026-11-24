@@ -770,3 +770,10 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
 .title-screen p { font-weight: 700; opacity: .7; animation: title-pulse 1.6s ease-in-out infinite; }
 .title-screen.gone { opacity: 0; pointer-events: none; }
 @keyframes title-pulse { 50% { opacity: .25; } }
+
+/* Rainbow full art (card.rainbow + full finish): the art becomes white linework over a rainbow foil with glitter. */
+.v-rainbow .art { background: linear-gradient(125deg, #ff6b9d, #ffd36b, #7bff9e, #6bd5ff, #b36bff, #ff6b9d); background-size: 300% 300%; animation: rainbow-shift 6s linear infinite; }
+.v-rainbow .art img { filter: grayscale(1) invert(1) contrast(3); mix-blend-mode: screen; }
+.v-rainbow .art::after { content: ''; position: absolute; inset: 0; pointer-events: none; mix-blend-mode: overlay;
+  background: radial-gradient(circle, #fff 1px, transparent 1.5px) 0 0 / 9px 9px, radial-gradient(circle, #fff 1px, transparent 1.5px) 4px 5px / 13px 13px; }
+@keyframes rainbow-shift { to { background-position: 300% 300%; } }
