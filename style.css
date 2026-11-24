@@ -801,3 +801,7 @@ img { -webkit-user-drag: none; }
 [data-view="collection"] .chips { display: flex; flex-wrap: nowrap; gap: 0; padding: 3px; border-radius: 999px; background: rgba(52, 60, 85, .08); box-shadow: inset 0 1px 3px rgba(0, 0, 0, .12); overflow: hidden; }
 [data-view="collection"] .chips .chip { flex: 1 1 0; min-width: 0; margin: 0; padding: 7px 4px; border: 0; border-radius: 999px; background: none; box-shadow: none; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: background .2s, color .2s; }
 [data-view="collection"] .chips .chip.on { background: var(--accent, #5b7cfa); color: #fff; box-shadow: 0 2px 6px rgba(0, 0, 0, .2); }
+
+[data-view="collection"] .chips .chip { display: flex; align-items: center; justify-content: center; text-align: center; position: relative; }
+[data-view="collection"] .chips .chip + .chip::before { content: ""; position: absolute; left: 0; top: 25%; bottom: 25%; width: 1px; background: rgba(52, 60, 85, .25); }
+[data-view="collection"] .chips .chip.on::before, [data-view="collection"] .chips .chip.on + .chip::before { display: none; }
