@@ -126,3 +126,12 @@ function oddsHtml() {
 }
 const viewPacksNoOdds = viewPacks;
 viewPacks = () => viewPacksNoOdds() + (ui.odds ? `<div class="viewer"><div class="viewer-bg" data-act="odds"></div><div class="shop-sheet neu">${oddsHtml()}<button class="btn wide" data-act="odds">Close</button></div></div>` : '');
+
+// Before tearing a pack you can back out: the cards go back and the coins are refunded.
+const viewOpenNoBack = viewOpen;
+viewOpen = () => { const html = viewOpenNoBack(); return ui.open?.stage === 'tear' ? html.replace('data-act="tear-now">Tap to open</button>', 'data-act="tear-now">Tap to open</button><button class="btn sm" data-act="cancel-pack">Back (refund)</button>') : html; };
+ACTS['cancel-pack'] = () => {
+  const o = ui.open; if (o?.stage !== 'tear') return;
+  for (const p of o.cards) { const e = coll[p.id]; if (!e) continue; e.n--; if (!--e.f[p.finish]) delete e.f[p.finish]; if (e.n <= 0) delete coll[p.id]; }
+  store.set('collection', coll); setCoins(coins + price(o.pack)); ui.open = null; ui.view = 'packs';
+};
