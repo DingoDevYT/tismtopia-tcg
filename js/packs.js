@@ -21,26 +21,29 @@ store.set('collection', coll);
 const owned = id => coll[id]?.n || 0;
 const ownedCount = () => CARDS.filter(c => owned(c.id)).length;
 
-// Slot odds (10 cards): six commons-ish, two uncommon-ish, two rare-ish. Finishes roll per card.
+// Slot odds (5 cards, like TCG Pocket): three commons-ish, a 30% shot at a rare in slot 4, slot 5 always rare or better. Finishes roll per card.
 const pool = (r, pk) => CARDS.filter(c => c.type !== 'captain' && (c.rarity || 'C') === r && (!pk || typeof PACK_SET === 'undefined' || !PACK_SET[pk] || PACK_SET[pk].includes(c.id)));
 const BOOST = { heehn: 1, empirical: 1.25, foreseen: 1.6 }; // pricier packs: better odds of special finishes
 const boosted = (table, pk) => { const k = BOOST[pk] || 1, sp = table.filter(([, f]) => f !== 'normal').map(([p, f]) => [p * k, f]), rest = 1 - sp.reduce((a, [p]) => a + p, 0);
   return rest > 0 ? [...sp, [rest, 'normal']] : sp.map(([p, f]) => [p / (1 - rest), f]); };
 const roll = table => { let x = Math.random(); for (const [p, v] of table) { if ((x -= p) < 0) return v; } return table[table.length - 1][1]; };
 const COMMONISH = [[0.85, 'C'], [0.13, 'U'], [0.02, 'R']];
-const SLOTS = [...Array(6).fill(COMMONISH), [[0.7, 'U'], [0.25, 'R'], [0.05, 'UR']], [[0.7, 'U'], [0.25, 'R'], [0.05, 'UR']], [[0.75, 'R'], [0.25, 'UR']], [[0.75, 'R'], [0.25, 'UR']]];
+const SLOTS = [COMMONISH, COMMONISH, COMMONISH, [[0.7, 'U'], [0.25, 'R'], [0.05, 'UR']], [[0.75, 'R'], [0.25, 'UR']]];
+const GOD_ODDS = 1 / 1000, GOD_SLOT = [[0.6, 'R'], [0.4, 'UR']]; // god pack: twice TCG Pocket's 1 in 2,000, every card rare+ and foil
 // Normal is always the most likely; holo beats reverse holo beats full art at every rarity.
 const FINISH = { C: [[0.06, 'holo'], [0.03, 'rev'], [0.91, 'normal']], U: [[0.08, 'holo'], [0.04, 'rev'], [0.005, 'full'], [0.875, 'normal']],
   R: [[0.15, 'holo'], [0.07, 'rev'], [0.02, 'full'], [0.76, 'normal']], UR: [[0.25, 'holo'], [0.12, 'rev'], [0.06, 'full'], [0.57, 'normal']] };
 function openPack(packId) {
-  const cards = SLOTS.map(t => {
+  const god = Math.random() < GOD_ODDS;
+  const cards = (god ? Array(5).fill(GOD_SLOT) : SLOTS).map(t => {
     let r = roll(t); while (!pool(r, packId).length && r !== 'C') r = { UR: 'R', R: 'U', U: 'C' }[r];
     const list = pool(r, packId), c = list[Math.floor(Math.random() * list.length)];
-    return { id: c.id, rarity: r, finish: c.type === 'character' ? roll(boosted(FINISH[r], packId)) : 'normal', isNew: false }; // only Characters come in special finishes for now
+    return { id: c.id, rarity: r, finish: c.type === 'character' ? (god ? roll([[0.5, 'holo'], [0.3, 'rev'], [0.2, 'full']]) : roll(boosted(FINISH[r], packId))) : 'normal', isNew: false }; // only Characters come in special finishes for now
   });
   cards.forEach(p => { p.isNew = !owned(p.id); const e = (coll[p.id] ||= { n: 0, f: {} }); e.n++; e.f[p.finish] = (e.f[p.finish] || 0) + 1; });
   store.set('collection', coll);
-  return { pack: packId, cards, stage: 'tear', i: 0 };
+  if (god) ui.toast = 'GOD PACK!';
+  return { pack: packId, cards, stage: 'tear', i: 0, god };
 }
 
 const packArt = (p, cls = '') => `<div class="pack ${cls}" style="--pc:${p.colour}"><img src="art/local/pack-${p.id}.png" alt="" onerror="this.remove()"><div class="pack-fallback"><img src="art/logo.png" alt=""><b>${p.name}</b><small>5 cards</small></div></div>`;
