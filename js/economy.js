@@ -3,12 +3,16 @@ const PACK_COST = 300, WIN_PAY = 100, LOSS_PAY = 40; // packs resell for ~295 on
 const RVAL = { C: 10, U: 25, R: 60, UR: 200 }, FVAL = { normal: 1, rev: 1.5, holo: 2, full: 4 }; // a weak pack sells for about half its cost
 const COIN = '<img class="coin" src="art/coin.svg" alt="coins">';
 let coins = store.get('coins', 900);
-const setCoins = n => { coins = n; store.set('coins', coins); };
+let shown = coins, tick = null;
+// The balance counts up (or down) to the new total instead of jumping.
+const setCoins = n => { coins = n; store.set('coins', coins); clearInterval(tick);
+  tick = setInterval(() => { shown += Math.sign(coins - shown) * Math.max(1, Math.round(Math.abs(coins - shown) / 8));
+    document.querySelectorAll('.coin-bar b').forEach(b => { b.textContent = shown; }); if (shown === coins) clearInterval(tick); }, 30); };
 const cardValue = (id, f = 'normal') => (RVAL[CARD[id].rarity || 'C'] || 10) * (FVAL[f] || 1);
 // Starter copies come back on every load, so they can't be sold (no free-money loop).
 const keep = id => Math.max(0, ...STARTERS.map(s => s.cards[id] || 0));
 // Account corner on every screen but battles: your name/captain, then your coins.
-const coinBar = () => `<div class="acct"><button class="profile neu" data-act="rename-me" aria-label="Change your name">${renderAvatar(CARD[deck().captain] || CAPTAINS[0])}<b>${esc(myName)}</b></button><div class="coin-bar neu">${COIN}<b>${coins}</b></div></div>`;
+const coinBar = () => `<div class="acct"><button class="profile neu" data-act="rename-me" aria-label="Change your name">${renderAvatar(CARD[deck().captain] || CAPTAINS[0])}<b>${esc(myName)}</b></button><div class="coin-bar neu">${COIN}<b>${shown}</b></div></div>`;
 
 // Daily shop: same 4 cards for everyone each day, at twice their sell value.
 function shopToday() {
@@ -27,7 +31,9 @@ viewer = () => {
   const v = ui.viewer, html = viewerNoSell(); if (!v) return html;
   const have = coll[v.id]?.f?.[v.finish] || 0, spare = (coll[v.id]?.n || 0) - keep(v.id);
   const sell = have && spare > 0 ? `<button class="btn wide" data-act="sell">Sell one for ${COIN}${cardValue(v.id, v.finish)}</button>` : '';
-  return html.replace('<button class="btn wide" data-act="close-viewer">', sell + '<button class="btn wide" data-act="close-viewer">');
+  const fs = Object.entries(coll[v.id]?.f || {}).filter(([, n]) => n > 0).sort(([a], [b]) => (b === v.finish) - (a === v.finish));
+  const line = fs.flatMap(([f, n]) => Array.from({ length: n }, () => renderCard(f === 'full' ? { ...CARD[v.id], crop: null } : CARD[v.id], { cls: `mini ${FINISH_CLS[f] || ''}${f === v.finish ? ' picked' : ''}`, attrs: `data-act="viewer-finish" data-f="${f}"` }))).join('');
+  return html.replace('<button class="btn wide" data-act="close-viewer">', (line ? `<div class="lineup">${line}</div>` : '') + sell + '<button class="btn wide" data-act="close-viewer">');
 };
 
 const pickPack = ACTS['pick-pack'];
@@ -39,6 +45,7 @@ Object.assign(ACTS, {
   sell() {
     const v = ui.viewer, e = coll[v.id];
     if (!e?.f?.[v.finish] || e.n - keep(v.id) <= 0) return;
+    if (!v.dusting) { v.dusting = true; document.querySelector('.viewer-card')?.classList.add('dust'); setTimeout(() => { ACTS.sell(); v.dusting = false; render(); }, 700); return false; }
     e.f[v.finish]--; e.n--; if (!e.n) delete coll[v.id];
     setCoins(coins + cardValue(v.id, v.finish)); store.set('collection', coll);
     if (!coll[v.id]?.f?.[v.finish]) ui.viewer.finish = 'normal';
