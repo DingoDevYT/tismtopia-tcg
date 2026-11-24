@@ -785,3 +785,8 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
 body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 input, textarea { -webkit-user-select: text; user-select: text; }
 img { -webkit-user-drag: none; }
+
+/* Tighter move text and footer so long moves fit. */
+.card .mv-text { font-size: 3.9cqw; line-height: 1.12; }
+.card .move { padding: 1cqw 0; }
+.k-character .foot, .k-main .foot { padding-top: .3cqw; margin-bottom: -.8cqw; }
