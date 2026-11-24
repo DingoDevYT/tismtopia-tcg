@@ -93,10 +93,16 @@ let paidPhase = null;
 const renderNoPay = render;
 render = function () {
   if (ui.view === 'game' && game) {
-    if (game.phase === 'over' && paidPhase && paidPhase !== 'over') { const won = game.winner === me, pay = PAY[bot ? 'bot' : 'player'][won ? 0 : 1]; setCoins(coins + pay); ui.toast = `+${fmt(pay)} coins`; }
+    if (game.phase === 'over' && paidPhase && paidPhase !== 'over') { const won = game.winner === me, pay = PAY[bot ? 'bot' : 'player'][won ? 0 : 1]; setCoins(coins + pay); ui.reward = { pay, shown: false }; }
     paidPhase = game.phase;
   } else paidPhase = null;
   renderNoPay();
+  // Victory/defeat screen: the coin reward under the stats, counting up with a sound.
+  const st = ui.view === 'game' && game?.phase === 'over' && ui.reward && $app.querySelector('.victory .stats-list');
+  if (st) { const rw = ui.reward; st.insertAdjacentHTML('afterend', `<div class="reward neu">${COIN}<b>+${fmt(rw.shown ? rw.pay : 0)}</b><small>coins</small></div>`);
+    if (!rw.shown) { rw.shown = true; const b = $app.querySelector('.reward b'), t0 = Date.now(); if (typeof sfx === 'function') { sfx('versus_rewards_2_barfillsparkle'); setTimeout(() => sfx('ui_reward_coinreward'), 1300); }
+      const t = setInterval(() => { const k = Math.min(1, (Date.now() - t0) / 1300), el = document.querySelector('.reward b') || b; el.textContent = '+' + fmt(rw.pay * (1 - (1 - k) ** 3)); if (k >= 1) { clearInterval(t); el.parentElement.classList.add('done'); } }, 30); } }
+  else if (ui.view !== 'game') ui.reward = null;
   if (ui.view !== 'game') {
     $app.insertAdjacentHTML('afterbegin', coinBar());
     $app.querySelector('.tabbar')?.insertAdjacentHTML('beforeend', `<button class="${ui.view === 'shop' ? 'on' : ''}" data-act="shop" aria-label="shop">${ICON.cart}</button>`);

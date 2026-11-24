@@ -857,3 +857,9 @@ img { -webkit-user-drag: none; }
 .pile { width: calc(100% - var(--n) * 4px); box-sizing: border-box; } .pile .card { width: 100%; }
 .cell .count { z-index: 10; }
 .pile > .card:not(.behind) { transform: perspective(700px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transition: transform .15s ease-out; }
+/* Match reward on the victory screen. */
+.reward { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 14px auto 0; padding: 14px 26px; border-radius: 20px; font-size: 34px; font-weight: 900; color: #e07a10; animation: reward-in .5s cubic-bezier(.2, 1.4, .4, 1); }
+.reward .coin { width: 42px; height: 42px; } .reward small { font-size: 16px; color: var(--ink); opacity: .7; }
+.reward.done { animation: reward-pop .35s ease-out; }
+@keyframes reward-in { from { transform: scale(.4); opacity: 0; } }
+@keyframes reward-pop { 50% { transform: scale(1.15); } }
