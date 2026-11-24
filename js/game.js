@@ -196,9 +196,8 @@ function apply(s0, p, a, rng = Math.random) {
       }
       ev({ k: 'attack', p: ai, i: s.pending.i, target: { p, i: a.i }, move: mv.name, roll: { atk: power, def: armor, dmg, hit, spill: spill.length, bore } });
       s.roll = { seq: s.seq + 1, atk: power, def: armor, dmg, hit, a: af.id, d: df.id, by: ai, bore };
-      say(`${mv.name} hits ${dc.name} for ${power}${armor ? ` (armour ${armor})` : ''}: ` + (hit ? `${dmg} damage${spill.length ? `, spilling over: ${spill.join(', ')}` : ''}${bore ? `, ${me.name} +${bore} Boredom` : ''}. ${me.name} -1 Creativity, ${opp.name} +1 Creativity.` : 'all blocked!'));
+      say(`${mv.name} hits ${dc.name} for ${power}${armor ? ` (armour ${armor})` : ''}: ` + (hit ? `${dmg} damage${spill.length ? `, spilling over: ${spill.join(', ')}` : ''}${bore ? `, ${me.name} +${bore} Boredom` : ''}.` : 'all blocked!'));
       if (hit) {
-        gain(p, 'goof', -1); gain(ai, 'goof', 1);
         runOps(ai, mv.onHit, ac, { self: { p: ai, i: s.pending.i }, target: { p, i: a.i } });
         runOps(ai, ac.onBreak, ac, { self: { p: ai, i: s.pending.i } });
       }
@@ -246,6 +245,7 @@ function apply(s0, p, a, rng = Math.random) {
       else { opp.fatigue = (opp.fatigue || 0) + 1; gain(1 - p, 'bore', opp.fatigue); say(`${opp.name} has no cards left to draw: +${opp.fatigue} Boredom.`); } // deck-out: escalating Boredom
       say(`${opp.name}'s turn${saved ? ` (${saved} Action${saved > 1 ? 's' : ''} saved, starts with ${s.actions})` : ''}.`);
       ev({ k: 'turn', p: 1 - p });
+      gain(1 - p, 'goof', 1); // everyone gets +1 Creativity each turn, so attacking is never forced
       for (const c of sources(s, 1 - p)) runOps(1 - p, c.onTurnStart, c);
       for (const c of sources(s, p)) runOps(p, c.onOppTurnStart, c);
       break;

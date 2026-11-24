@@ -70,6 +70,7 @@ assert(moveCost(s, 1, CARD.c_reply_guy.moves[1]) === 3 && moveCost(s, 1, CARD.c_
 s.actions = 5;
 s = apply(s, 1, { type: 'play', i: 0 }); // Brainrot
 assert(statsOf(s, 1, s.players[1].field[0]).bonus === 1, 'Brainrot: +1 power');
+s.players[1].goof = 0; // turns now give +1 Creativity; Lurker needs 0
 s = apply(s, 1, { type: 'play', i: 0 }); // Laggy Larry: DEF 14 -> armour 1, Tough +1, Lurker +2 while B has 0 Creativity
 assert(statsOf(s, 1, s.players[1].field[1]).def === 4 && s.players[1].field[1].hp === 4, 'armour from DEF, Tough and Lurker; HP doubled');
 const handB2 = s.players[1].hand.length, goofA = s.players[0].goof, hpG = s.players[0].field[0].hp;
@@ -78,7 +79,7 @@ s = apply(s, 1, { type: 'attack', i: 0, m: 1 }); // Ratio: power 2 + 1 Brainrot
 assert(s.phase === 'defend' && s.actions === 0, 'attack waits for a blocker, cost 3 paid');
 throws(() => apply(s, 1, { type: 'end' }), 'cannot act while waiting for a blocker');
 s = apply(s, 0, { type: 'defend', i: 0 }); // VC Goblin, armour 1: 3 - 1 = 2 damage
-assert(s.roll.dmg === 2 && s.players[0].field[0].hp === hpG - 2 && s.players[0].goof === Math.max(0, goofA - 1) && s.players[1].goof === 1, 'damage = power - armour; 1 Creativity moves to the attacker');
+assert(s.roll.dmg === 2 && s.players[0].field[0].hp === hpG - 2 && s.players[0].goof === goofA && s.players[1].goof === 0, 'damage = power - armour; hits no longer move Creativity');
 assert(s.players[1].hand.length === handB2 + 1, 'Ratio onHit: draw a card');
 assert(s.events.some(e => e.k === 'attack' && e.move === 'Ratio' && e.target), 'attack event names the move and target');
 
@@ -87,13 +88,14 @@ s = apply(s, 1, { type: 'end' });
 assert(s.players[0].bore === 2, 'Left on Read: A +1 Boredom at the start of their turn');
 
 // ---- turn 3 (A): Tough armour, self damage, defeat Boredom, coin flips ----
-s.actions = 9;
+s.actions = 9; s.players[1].goof = 1; // B has Creativity, so Larry's Lurker is off
 s = apply(s, 0, { type: 'attack', i: 1, m: 1 }); // Night Owl All-Nighter (power 4)
 s = apply(s, 1, { type: 'defend', i: 1 }); // Larry: armour 2 now (B has Creativity, so no Lurker bonus): 2 damage
 assert(s.roll.dmg === 2 && s.players[1].field[1].hp === 2 && s.players[0].field[1].hp === 3, 'Tough armour; All-Nighter costs Night Owl 1 HP');
 s.players[0].field[1].hp = 1;
 const boreA = s.players[0].bore;
 s.players[0].field[1].acted = 0; // test shortcut: let Night Owl move again this turn
+s.players[1].goof = 0; // B back to 0 Creativity for Lurker
 s = apply(s, 0, { type: 'attack', i: 1, m: 1 });
 s = apply(s, 1, { type: 'defend', i: 0 }); // Reply Guy: B is back to 0 Creativity, so Lurker gives armour 2: 2 damage; Night Owl's self damage defeats it
 assert(s.roll.dmg === 2 && !s.players[0].field.some(f => f.id === 'c_night_owl') && s.players[0].bore === boreA, 'self damage can defeat the attacker; defeats alone give no Boredom');
