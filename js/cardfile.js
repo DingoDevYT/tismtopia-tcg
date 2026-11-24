@@ -8,8 +8,8 @@ const CF_EFF = {
   calm: ['Your Boredom −', n => ['bore', 'me', -n]],
   draw: ['Draw cards', n => ['draw', 'me', n]],
   act: ['+Actions', n => ['actions', 'me', n]],
-  // shortcut: game.js 'hp' steps only deal damage today, so a heal is recorded for the owner but does nothing in battle until the engine gets one
-  heal: ['Heal self', n => ['hp', 'self', -n]],
+  heal: ['Heal self', n => ['hp', 'self', -n]], // game.js 'hp': positive n = damage, negative = heal
+
   dmg: ['Extra damage to the blocker', n => ['hp', 'target', n]],
   atk: ['Your attacks +power', n => ({ atk: n })],
   def: ['Your Characters +DEF', n => ({ def: n })],

@@ -19,13 +19,11 @@ function rbNext() {
 const rbHash = (x, y) => { let h = Math.imul(x, 374761393) + Math.imul(y, 668265263) | 0; h = Math.imul(h ^ h >>> 13, 1274126177); return (h ^ h >>> 16) >>> 0; };
 // pure hues (HSL s=1 l=.5) every half degree, so hsl -> rgb per pixel is three multiply-adds
 const RB_HUE = new Float32Array(2160).map((_, j) => { const k = ([0, 8, 4][j % 3] + (j / 3 | 0) / 60) % 12; return .5 - .5 * Math.max(-1, Math.min(k - 3, 9 - k, 1)); });
-function rbPaint(img) {
-  const W = Math.min(560, img.naturalWidth), H = Math.round(img.naturalHeight * W / img.naturalWidth), n = W * H, cv = document.createElement('canvas');
-  cv.width = W; cv.height = H; const cx = cv.getContext('2d', { willReadFrequently: true }); cx.drawImage(img, 0, 0, W, H);
-  const id = cx.getImageData(0, 0, W, H), d = id.data, L = new Float32Array(n), bg = new Uint8Array(n), clamp = v => v < 0 ? 0 : v > 1 ? 1 : v;
-  // luminance as if on white, so see-through pixels read as paper; alpha < 128 counts as background when there is enough of it
-  let t = 0; for (let i = 0; i < n; i++) { const a = d[4 * i + 3]; L[i] = 255 + (.299 * d[4 * i] + .587 * d[4 * i + 1] + .114 * d[4 * i + 2] - 255) * a / 255; if (a < 128) bg[i] = 1, t++; }
-  if (t < .03 * n) {
+// Opaque art: marks its plain background in bg (1 = background) from the RGBA pixels d (W x H). tol = the colour jump that counts as an outline.
+// Shared with the submit screen's "remove background" (js/art-tools.js).
+function rbBackground(d, W, H, bg, tol = 60) {
+  const n = W * H;
+  {
     // opaque art: background colours = colours found on all three of the top edge and the upper 60% of each side (the bottom often cuts through
     // the character), or very common overall; one edge alone isn't enough, so a hat or hair touching the top isn't taken for background
     bg.fill(0); const P = [0, 1, 2].map(() => new Uint32Array(4096)), pal = new Uint8Array(4096), bin = i => (d[4 * i] >> 4) << 8 | (d[4 * i + 1] >> 4) << 4 | d[4 * i + 2] >> 4;
@@ -36,12 +34,20 @@ function rbPaint(img) {
     let edgeL = 0; for (let b = 0; b < 4096; b++) edgeL += share(b) * (.299 * (b >> 8) + .587 * (b >> 4 & 15) + .114 * (b & 15)) * 16 + 8 * share(b); // mean edge brightness
     // flood fill from the border through palette colours, stopping at any sharp colour step (an outline)
     const q = new Int32Array(n); let qn = 0;
-    const go = (i, j) => { if (!bg[j] && pal[bin(j)] && (i < 0 || Math.abs(d[4 * i] - d[4 * j]) + Math.abs(d[4 * i + 1] - d[4 * j + 1]) + Math.abs(d[4 * i + 2] - d[4 * j + 2]) < 60)) bg[j] = 1, q[qn++] = j; };
+    const go = (i, j) => { if (!bg[j] && pal[bin(j)] && (i < 0 || Math.abs(d[4 * i] - d[4 * j]) + Math.abs(d[4 * i + 1] - d[4 * j + 1]) + Math.abs(d[4 * i + 2] - d[4 * j + 2]) < tol)) bg[j] = 1, q[qn++] = j; };
     for (let x = 0; x < W; x++) go(-1, x), go(-1, n - W + x); for (let y = 0; y < H; y++) go(-1, y * W), go(-1, y * W + W - 1);
     for (let h = 0; h < qn; h++) { const i = q[h], x = i % W; if (x) go(i, i - 1); if (x < W - 1) go(i, i + 1); if (i >= W) go(i, i - W); if (i < n - W) go(i, i + W); }
     // the "background" swallowed the picture (or, on a dark background, ran into dark hair and clothes of the same shade): treat it all as subject
     if (qn > (edgeL < 60 ? .75 : .97) * n) bg.fill(0);
   }
+}
+function rbPaint(img) {
+  const W = Math.min(560, img.naturalWidth), H = Math.round(img.naturalHeight * W / img.naturalWidth), n = W * H, cv = document.createElement('canvas');
+  cv.width = W; cv.height = H; const cx = cv.getContext('2d', { willReadFrequently: true }); cx.drawImage(img, 0, 0, W, H);
+  const id = cx.getImageData(0, 0, W, H), d = id.data, L = new Float32Array(n), bg = new Uint8Array(n), clamp = v => v < 0 ? 0 : v > 1 ? 1 : v;
+  // luminance as if on white, so see-through pixels read as paper; alpha < 128 counts as background when there is enough of it
+  let t = 0; for (let i = 0; i < n; i++) { const a = d[4 * i + 3]; L[i] = 255 + (.299 * d[4 * i] + .587 * d[4 * i + 1] + .114 * d[4 * i + 2] - 255) * a / 255; if (a < 128) bg[i] = 1, t++; }
+  if (t < .03 * n) rbBackground(d, W, H, bg);
   // stretch the character's own light range (2nd..98th percentile, at most 2.5x) so dark or murky art still gets readable shading and lines
   const hist = new Uint32Array(256); let ns = 0; for (let i = 0; i < n; i++) if (!bg[i]) hist[L[i] | 0]++, ns++;
   let lo = 0, hi = 255; for (let a = 0, v = 0; v < 256; v++) { a += hist[v]; if (a < .02 * ns) lo = v + 1; if (a < .98 * ns) hi = v + 1; }

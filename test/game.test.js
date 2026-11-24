@@ -1,7 +1,7 @@
 // Self-check for the rules engine. Run: node test/game.test.js
 const fs = require('fs'), vm = require('vm'), path = require('path');
 // syntax-check every browser script too, so a broken app.js can't ship (the rules tests don't load it)
-for (const f of ['js/app.js', 'js/packs.js', 'js/audio.js', 'js/render.js', 'js/rainbow.js', 'js/cards.js', 'js/cards-data.js', 'js/game.js']) new vm.Script(fs.readFileSync(path.join(__dirname, '..', f), 'utf8'), { filename: f });
+for (const f of ['js/app.js', 'js/packs.js', 'js/audio.js', 'js/render.js', 'js/rainbow.js', 'js/cards.js', 'js/cards-data.js', 'js/game.js', 'js/cardfile.js', 'js/art-tools.js', 'js/cloud.js', 'js/profile.js', 'js/submit.js']) new vm.Script(fs.readFileSync(path.join(__dirname, '..', f), 'utf8'), { filename: f });
 const load = files => files.map(f => fs.readFileSync(path.join(__dirname, '..', f), 'utf8')).join('\n');
 const src = load(['test/fixture-cards.js', 'js/cards.js', 'js/game.js']).replace('const BORE_MAX = 10;', 'const BORE_MAX = 99;').replace('const DECK_SIZE = 40;', 'const DECK_SIZE = 20;').replace('const HP_SCALE = 1.2;', 'const HP_SCALE = 2;');
 
@@ -210,7 +210,23 @@ throws(() => apply(m, 0, { type: 'end' }), 'no actions after game over');
 { const x = {}; require('vm').runInNewContext(fs.readFileSync(__dirname + '/../js/cards-data.js', 'utf8') + fs.readFileSync(__dirname + '/../js/card-overrides.js', 'utf8') + ';this.A=[...CAPTAINS,...CARDS]', x);
   for (const c of x.A) if (c.name.length > 22) throw new Error('FAIL: name too long (max 22): ' + c.name); }
 // The browser loads these as one shared scope: two files declaring the same name breaks everything after it.
-new Function(['cards-data', 'card-overrides', 'cards', 'render', 'rainbow', 'game', 'app', 'pack-sets', 'packs', 'economy', 'audio'].map(f => fs.readFileSync(__dirname + '/../js/' + f + '.js', 'utf8')).join('\n;\n'));
+new Function(['cards-data', 'card-overrides', 'cards', 'render', 'rainbow', 'game', 'app', 'pack-sets', 'packs', 'economy', 'audio', 'cardfile', 'art-tools', 'cloud', 'profile', 'submit'].map(f => fs.readFileSync(__dirname + '/../js/' + f + '.js', 'utf8')).join('\n;\n'));
+// Submitted cards (js/cardfile.js): untrusted forms are clamped, effects come only from the menu, a card file round-trips, junk is refused.
+{ const x = { Image: function () {} }; vm.runInNewContext(['cards-data', 'cards', 'render', 'cardfile'].map(f => fs.readFileSync(__dirname + '/../js/' + f + '.js', 'utf8')).join('\n;\n') + `;
+  const ok = (c, m) => { if (!c) throw new Error('FAIL: cardfile: ' + m); };
+  const f = cfClean({ type: 'character', name: 'x'.repeat(40), hp: 99, def: -5, cost: 9, fx: { trig: 'passive', eff: 'goof' }, moves: [{ name: 'Hit', power: 50, eff: 'heal', n: 2 }, { ability: true, eff: 'dmg' }, {}], fins: { rainbow: true, evil: true }, hack: 1 });
+  ok(f.name.length === 22 && f.hp === 8 && f.def === 8 && f.cost === 3 && f.moves.length === 2 && f.moves[0].power === 6 && !('hack' in f), 'clamps values');
+  ok(f.fx.eff === 'atk' && f.moves[1].eff === '' && f.fins.rainbow && !('evil' in f.fins), 'only menu effects for each slot');
+  const c = cfBuild(f); ok(JSON.stringify(c.moves[0].onHit) === '[["hp","self",-2]]' && c.moves[0].text === 'On a hit, ' + f.name + ' heals 2 HP.', 'heal is a negative hp op with the card wording');
+  const d = cfBuild(cfClean({ moves: [{ name: 'a', eff: 'dmg', n: 3 }] })); ok(d.moves[0].text === 'On a hit, 3 more damage to the blocker.' && d.moves[0].onHit[0][2] === 3, 'extra damage is a positive hp op');
+  ok(cfBuild(cfClean({ type: 'bit', fx: { eff: 'draw', n: 2 } })).text === 'Draw 2 cards.' && cfBuild(cfClean({ type: 'evil', fx: { trig: 'turn', eff: 'bore' } })).text === 'Start of your turn: opponent +1 Boredom.', 'Item and Evil wording');
+  const p = JSON.parse(JSON.stringify(cfPayload(f, { image: 'data:image/png;base64,iVBORw0K', bg: { tpl: 'rays', tint: '#ABCDEF' } }))), r = cfRead(p);
+  ok(JSON.stringify(r.card) === JSON.stringify(p.card) && r.image === p.image && r.bg.tint === '#abcdef', 'card file round-trips');
+  ok(cfRead({ ...p, image: 'javascript:alert(1)', bg: { tpl: 'x', tint: 'red' } }).image === '' && cfRead({ ...p, bg: { tpl: 'x' } }).bg === null, 'bad image / background dropped');
+  let refused = 0; for (const bad of [null, {}, { ...p, v: 2 }, { ...p, kind: 'save' }, { ...p, form: 'x' }]) try { cfRead(bad); } catch { refused++; } ok(refused === 5, 'junk files refused');
+  ok(cfSafe(cfBuild(cfClean({ name: '<img src=x onerror=alert(1)>' }))).name.indexOf('<') < 0, 'names are escaped for renderCard');
+  ok(cfBand(cfBuild(cfClean({ hp: 8, def: 16, cost: 0, fx: { trig: 'passive', eff: 'atk', n: 3 }, moves: [{ name: 'a', power: 6, cost: 1 }, { name: 'b', power: 6, cost: 1 }] }))).band === 3, 'an overloaded card is Too strong');
+`, x); }
 // Full art (v-full) takes its crop from cropFull, other finishes from crop; no cropFull = plain cover, as before.
 { const x = { Image: function () {} }; vm.runInNewContext(['cards-data', 'cards', 'render'].map(f => fs.readFileSync(__dirname + '/../js/' + f + '.js', 'utf8')).join('\n;\n') + `;
   const c = { ...CARDS.find(c => c.type === 'character'), art: 'a.png', crop: { x: 10, y: 20, zoom: 2 }, cropFull: { x: 70, y: 30, zoom: 1.5 } };

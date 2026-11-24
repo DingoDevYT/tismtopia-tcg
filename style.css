@@ -1354,7 +1354,7 @@ body:has(#app[data-view="game"]) :is(.vol-btn, .vol-slider) { display: none !imp
 .sub-list { list-style: none; display: grid; gap: 8px; } .sub-list li { display: flex; align-items: center; gap: 10px; padding: 10px 14px; } .sub-list li b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .sub-status { padding: 3px 10px; border-radius: 99px; font-size: 12px; text-transform: capitalize; color: #fff; background: #8a96b0; } .sub-status.s-approved { background: var(--good); } .sub-status.s-rejected { background: var(--accent); }
 @container app (min-width: 900px) {
-  .pf-wrap, .app[data-view="submit"] .pf-back { width: min(720px, calc(100% - 48px)); margin-inline: auto; } .pf-wrap .panel { margin-inline: 0; } .pf-wrap .pf-back { margin-inline: 0; }
+  .pf-wrap { width: min(720px, calc(100% - 48px)); margin-inline: auto; } .app[data-view="submit"] .pf-back { width: min(1040px, calc(100% - 48px)); margin-inline: auto; } .pf-wrap .panel { margin-inline: 0; } .pf-wrap .pf-back { margin-inline: 0; }
   .sub-wrap { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 24px; align-items: start; width: min(1040px, calc(100% - 48px)); margin: 0 auto; }
   .sub-wrap .panel, .sub-prev { margin-inline: 0; }
   .sub-prev { position: sticky; top: 72px; } .sub-prev summary { pointer-events: none; list-style: none; } .sub-prev summary::-webkit-details-marker { display: none; }
