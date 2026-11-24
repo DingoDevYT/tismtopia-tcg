@@ -1103,3 +1103,14 @@ img { -webkit-user-drag: none; }
 .from-pack .stack { transform-style: preserve-3d; animation: cardsOut 1s .2s cubic-bezier(.2, .8, .3, 1) both; }
 @keyframes cardsOut { from { transform: translate(var(--dx, 0px), calc(var(--dy, 0px) + 60px)) rotateX(3deg) rotateY(calc(var(--t, 0) * 16deg)) scale(.94); } }
 .from-pack .stack .stack-back { transform: translate(calc(var(--k) * 5px), calc(var(--k) * 5px)) translateZ(calc(var(--k) * -6px)) rotate(calc(var(--k) * 1.5deg)); }
+/* the seal shading goes with the ripped-off top */
+.tear-zone.torn .pack-shade { clip-path: polygon(0 11%, 100% 11%, 100% 100%, 0 100%); }
+/* the cards are shorter than the pouch, so they rise right out of the top before settling in front of you */
+.from-pack .stack { animation: cardsOut 1.3s .15s cubic-bezier(.3, .7, .3, 1) both; }
+@keyframes cardsOut {
+  0% { transform: translate(var(--dx, 0px), calc(var(--dy, 0px) + 40px)) rotateX(3deg) rotateY(calc(var(--t, 0) * 16deg)) scale(.94); }
+  45% { transform: translate(var(--dx, 0px), calc(var(--dy, 0px) - 190px)) rotateX(8deg) rotateY(calc(var(--t, 0) * 10deg)) scale(.96); }
+  100% { transform: none; } }
+.pack-leave .pack.body, .pack-leave .pack-shade { animation-delay: .55s !important; }
+.from-pack .flip-back { animation-delay: 1.45s; }
+.from-pack .stack .card.flick.enter { animation: flipFace .3s 1.73s ease-out both, sway 6s ease-in-out 2.05s infinite alternate; }
