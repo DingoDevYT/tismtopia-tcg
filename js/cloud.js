@@ -2,7 +2,7 @@
 // These two values are PUBLIC by design (the project URL and its publishable key; Row Level Security decides what anyone can read or write),
 // so they are safe to commit. Never put a secret / service_role key here. An empty url switches accounts off: every call returns CLOUD_OFF.
 const CLOUD = { url: 'https://ikmohktrubvpykvwyxuf.supabase.co', key: 'sb_publishable_GSno-kcVbX_vi5eQYQ8Vaw_jaSwsWST' };
-const SAVE_KEYS = ['name', 'collection', 'coins', 'decks', 'deck', 'favs', 'volume', 'stats'];
+const SAVE_KEYS = ['name', 'collection', 'coins', 'decks', 'deck', 'favs', 'volume', 'stats', 'onboard', 'resetAt'];
 const STAT_KEYS = ['botPlayed', 'botWon', 'pvpPlayed', 'pvpWon'];
 const CLOUD_OFF = { ok: false, why: 'Accounts are not connected yet.' }, NO_USER = { ok: false, why: 'Not signed in.' };
 // checked: we know whether someone is signed in. synced: the sign-in comparison is settled, so auto-save may run.
@@ -51,11 +51,18 @@ async function cloudSignOut() {
 
 // Decks come from memory: the free starters are rebuilt on every load and only reach storage once a deck is edited.
 const saveBlob = () => ({ ...Object.fromEntries(SAVE_KEYS.map(k => [k, store.get(k, null)]).filter(([, v]) => v !== null)), decks, deck: deck().id });
-async function cloudSaveGame() {
+// force: write even if another device saved since this one last synced (a reset, so it wins everywhere, or the player picking this device's save).
+async function cloudSaveGame(force) {
   if (!CLOUD.url) return CLOUD_OFF;
   if (!cloud.user) return NO_USER;
   cloud.dirty = false; cloud.savedMs = Date.now();
-  const r = await sbRun('Cloud save', async sb => ({ row: need(await sb.from('saves').upsert({ user_id: cloud.user.id, data: saveBlob() }).select('updated_at').single()) }));
+  const r = await sbRun('Cloud save', async sb => {
+    // Someone else saved since (another device, or a reset there): ask which save to keep instead of overwriting it.
+    const cur = !force && cloud.last && need(await sb.from('saves').select('updated_at').eq('user_id', cloud.user.id).maybeSingle());
+    if (cur && cur.updated_at !== cloud.last) return { stale: true };
+    return { row: need(await sb.from('saves').upsert({ user_id: cloud.user.id, data: saveBlob() }).select('updated_at').single()) };
+  });
+  if (r.stale) { Object.assign(cloud, { synced: false, dirty: true }); cloudSync(); return { ok: false, why: 'Another device saved first.' }; }
   if (r.ok) { cloud.last = r.row.updated_at; store.set('cloudAt', cloud.last); document.querySelectorAll('.cloud-last').forEach(el => { el.textContent = lastSaveText(); }); } else cloud.dirty = true;
   return r;
 }
@@ -189,9 +196,14 @@ function cleanSave(d) {
           || !Object.values(x.cards).every(n => Number.isInteger(n) && n >= 1 && n <= 3)) bad(k);
         return { id: x.id, name: x.name, captain: x.captain, cards: { ...x.cards } };
       });
-    } else bad(k);
+    } else if (k === 'onboard') { // starter packs progress (js/onboard.js)
+      const ok = { done: x => typeof x === 'boolean', legacy: x => typeof x === 'boolean', starter: x => str(x, 40), opened: x => int(x, 8) };
+      if (!plain(v) || !Object.entries(v).every(([f, x]) => Object.hasOwn(ok, f) && ok[f](x))) bad(k); out.onboard = { ...v };
+    } else if (k === 'resetAt') { if (!str(v, 40) || isNaN(Date.parse(v))) bad(k); out.resetAt = v; }
+    else bad(k);
   }
   if (!Object.keys(out).length) throw new Error('This save is empty.');
+  if (out.collection && !out.onboard) out.onboard = { done: true, legacy: true }; // a save from before the starter packs: same rule as app.js
   return out;
 }
 const writeSave = d => { for (const [k, v] of Object.entries(d)) try { localStorage.setItem('tismtopia.' + k, JSON.stringify(v)); } catch { /* storage full */ } };
@@ -199,15 +211,18 @@ const saveSummary = d => `${fmt(d.coins ?? 0)} coins · ${Object.values(d.collec
 
 // "Which save?" after signing in, when the two copies differ.
 function cloudAskHtml() {
-  const a = ui.cloudAsk;
-  return `<div class="cloud-ask">${sheet(`<h2>Which save do you want?</h2><p class="muted center">Your cloud save and this device's save are different. The one you don't pick is replaced.</p>
+  const a = ui.cloudAsk, cr = Date.parse(a.data.resetAt) || 0, mr = Date.parse(store.get('resetAt', '')) || 0, when = t => esc(new Date(t).toLocaleString());
+  // A reset stamps the save, so a copy from before it is named as such instead of looking like any other difference.
+  const reset = cr > mr ? `<p class="muted center">This account was reset on ${when(cr)}. This device's save is from before that.</p>`
+    : mr > cr ? `<p class="muted center">You reset your account on this device on ${when(mr)}. The cloud save is from before that.</p>` : '';
+  return `<div class="cloud-ask">${sheet(`<h2>Which save do you want?</h2><p class="muted center">Your cloud save and this device's save are different. The one you don't pick is replaced.</p>${reset}
     <div class="adj neu-in"><b>Cloud save</b><small>${esc(saveSummary(a.data))} · saved ${esc(new Date(a.at).toLocaleString())}</small></div>
     <div class="adj neu-in"><b>This device</b><small>${esc(saveSummary(saveBlob()))}</small></div>
     <button class="btn primary wide" data-act="cloud-use">Use cloud save</button><button class="btn wide" data-act="cloud-keep">Keep this device's save</button>`, false)}</div>`;
 }
 Object.assign(ACTS, {
   'cloud-use'() { const a = ui.cloudAsk; ui.cloudAsk = null; writeSave(a.data); storeSetLocal('cloudAt', a.at); location.reload(); return false; },
-  'cloud-keep'() { ui.cloudAsk = null; cloud.synced = true; cloudSaveGame(); },
+  'cloud-keep'() { ui.cloudAsk = null; cloud.synced = true; cloudSaveGame(true); }, // the player chose: overwrite even though the cloud changed
 });
 const renderNoCloud = render;
 render = function () { renderNoCloud(); if (ui.cloudAsk) $app.insertAdjacentHTML('beforeend', cloudAskHtml()); };
