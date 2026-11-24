@@ -4,8 +4,8 @@ const MUSIC = {
   title: 'title', home: 'home', packs: 'choose-pack', open: 'pack-opening', collection: 'my-cards', build: 'my-cards',
   deck: 'choose-deck', lobby: 'battle-menu', rules: 'home', battle: 'battle', winning: 'battle-winning', losing: 'battle-losing', results: 'battle-results',
 };
-const VOL = 0.55, FADE = 1400;
-let musicOn = store.get('music', true), unlocked = false, cur = null, curKey = '', wantKey = '', fanfaring = false, titleDone = false;
+let VOL = store.get('volume', 0.5); const FADE = 1400;
+let musicOn = VOL > 0, unlocked = false, cur = null, curKey = '', wantKey = '', fanfaring = false, titleDone = false;
 let lastPhase = null, lastReveal = '';
 const tracks = {}; // one Audio per track, created on demand and reused
 const track = name => (tracks[name] ||= Object.assign(new Audio(`audio/local/${name}.mp3`), { preload: 'auto' }));
@@ -67,7 +67,7 @@ function syncMusic() {
 }
 
 // Sound effects (audio/local/sfx/, same rule as the music): played by comparing state before and after each render.
-const sfx = name => { if (!musicOn || !unlocked) return; const a = new Audio(`audio/local/sfx/${name}.wav`); a.volume = 0.7; a.play().catch(() => {}); };
+const sfx = name => { if (!musicOn || !unlocked) return; const a = new Audio(`audio/local/sfx/${name}.wav`); a.volume = Math.min(1, VOL * 1.3); a.play().catch(() => {}); };
 let prev = null, prevOpen = '';
 function syncSfx() {
   if (ui.view === 'game' && game) {
@@ -114,18 +114,14 @@ const title = Object.assign(document.createElement('div'), { className: 'title-s
 title.addEventListener('pointerdown', () => { title.classList.add('gone'); setTimeout(() => title.remove(), 400); });
 document.body.append(title);
 
-// Mute button, always in the corner.
-const muteBtn = Object.assign(document.createElement('button'), { className: 'mute-btn neu', type: 'button' });
-const drawMute = () => {
-  muteBtn.setAttribute('aria-label', musicOn ? 'Mute music' : 'Play music');
-  muteBtn.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M4 9h4l5-4v14l-5-4H4z"/>${musicOn
-    ? '<path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'
-    : '<path d="M16 9l5 6M21 9l-5 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'}</svg>`;
-};
-muteBtn.addEventListener('click', () => {
-  musicOn = !musicOn; store.set('music', musicOn); drawMute();
-  if (!musicOn) { Object.values(tracks).forEach(t => fade(t, 0, 300, () => t.pause())); curKey = ''; fanfaring = false; }
-  else { unlocked = true; syncMusic(); }
+// Volume slider, always in the corner (0 = off).
+const vol = Object.assign(document.createElement('input'), { type: 'range', min: 0, max: 1, step: 0.05, value: VOL, className: 'vol-slider neu' });
+vol.setAttribute('aria-label', 'Volume');
+vol.addEventListener('input', () => {
+  VOL = +vol.value; store.set('volume', VOL); unlocked = true;
+  const was = musicOn; musicOn = VOL > 0;
+  if (!musicOn) { Object.values(tracks).forEach(t => t.pause()); curKey = ''; fanfaring = false; }
+  else if (!was) syncMusic();
+  else if (cur) { clearInterval(cur._fade); cur.volume = VOL; }
 });
-drawMute();
-document.body.append(muteBtn);
+document.body.append(vol);

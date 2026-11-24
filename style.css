@@ -759,7 +759,7 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
 .holo[data-rarity="rare holo"] .art .defb { z-index: 8; }
 
 /* Music mute button, always reachable in the top-right corner. */
-.mute-btn { position: fixed; top: calc(10px + env(safe-area-inset-top)); right: 12px; z-index: 70; width: 40px; height: 40px; border: 0; border-radius: 50%; display: grid; place-items: center; color: var(--ink); cursor: pointer; }
+.vol-slider, .mute-btn { position: fixed; top: calc(10px + env(safe-area-inset-top)); right: 12px; z-index: 70; width: 40px; height: 40px; border: 0; border-radius: 50%; display: grid; place-items: center; color: var(--ink); cursor: pointer; }
 
 /* Phones: the glare layer follows the pointer, so it does nothing on small battle cards but still costs a blend pass. */
 @media (hover: none) { [data-view="game"] .card:not(.zoom) .holo__glare { display: none; } }
@@ -778,3 +778,5 @@ h2 { font-size: 18px; font-weight: 800; text-align: center; margin: 4px 0 12px; 
 .card.v-rainbow .art::after { content: ''; position: absolute; inset: 0; pointer-events: none; mix-blend-mode: overlay;
   background: radial-gradient(circle, #fff 1px, transparent 1.5px) 0 0 / 9px 9px, radial-gradient(circle, #fff 1px, transparent 1.5px) 4px 5px / 13px 13px; }
 @keyframes rainbow-shift { to { background-position: 300% 300%; } }
+
+.vol-slider { width: 110px; padding: 8px 10px; border-radius: 999px; accent-color: var(--accent, #5b7cfa); }
