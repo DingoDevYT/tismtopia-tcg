@@ -25,7 +25,32 @@ const OVERRIDES = {
    "x": 71,
    "y": 22.590614395493837,
    "zoom": 2.35
-  }
+  },
+  "moves": [
+   {
+    "name": "Bonk",
+    "cost": 1,
+    "power": 2
+   },
+   {
+    "name": "Bobby Barrage",
+    "cost": 2,
+    "power": 3,
+    "text": "On a hit, flip a coin. Heads: 3 more damage.",
+    "onHit": [
+     [
+      "flip",
+      [
+       [
+        "hp",
+        "target",
+        -3
+       ]
+      ]
+     ]
+    ]
+   }
+  ]
  },
  "scrunge_monterey": {
   "art": "art/local/scrunge_monterey-custom.png?v=1795493895281",
@@ -51,7 +76,27 @@ const OVERRIDES = {
    "y": 17.36627720099815,
    "zoom": 4
   },
-  "rainbow": true
+  "rainbow": true,
+  "moves": [
+   {
+    "name": "Nudge",
+    "cost": 1,
+    "power": 2
+   },
+   {
+    "name": "Toru Tumble",
+    "cost": 2,
+    "power": 3,
+    "text": "On a hit, Toru heals 2 HP.",
+    "onHit": [
+     [
+      "hp",
+      "self",
+      2
+     ]
+    ]
+   }
+  ]
  },
  "scrunge_noxx_darmen": {
   "crop": {
@@ -87,6 +132,165 @@ const OVERRIDES = {
  },
  "jegg_abigaia_v2": {
   "name": "Abigaia"
+ },
+ "scrunge_sage": {
+  "moves": [
+   {
+    "name": "Cat Nap Swipe",
+    "cost": 1,
+    "power": 2
+   },
+   {
+    "name": "Cat Nap",
+    "cost": 1,
+    "ability": true,
+    "once": true,
+    "text": "Your Boredom -1 and +1 Creativity. Once per turn.",
+    "ops": [
+     [
+      "bore",
+      "me",
+      -1
+     ],
+     [
+      "goof",
+      "me",
+      1
+     ]
+    ]
+   }
+  ]
+ },
+ "jegg_poinsettia": {
+  "moves": [
+   {
+    "name": "Hidden Blade",
+    "cost": 1,
+    "power": 3
+   },
+   {
+    "name": "Royal Stab",
+    "cost": 2,
+    "power": 4,
+    "text": "On a hit, 1 more damage to the blocker.",
+    "onHit": [
+     [
+      "hp",
+      "target",
+      -1
+     ]
+    ]
+   }
+  ]
+ },
+ "jangle_fenrik": {
+  "moves": [
+   {
+    "name": "Won't Shut Up",
+    "cost": 1,
+    "power": 2,
+    "text": "On a hit, opponent +1 Boredom.",
+    "onHit": [
+     [
+      "bore",
+      "opp",
+      1
+     ]
+    ]
+   },
+   {
+    "name": "Sad Howl",
+    "cost": 3,
+    "power": 5,
+    "text": "On a hit, opponent +1 Boredom.",
+    "onHit": [
+     [
+      "bore",
+      "opp",
+      1
+     ]
+    ]
+   }
+  ]
+ },
+ "jangle_drow_paladin": {
+  "moves": [
+   {
+    "name": "Sword Bonk",
+    "cost": 1,
+    "power": 3
+   },
+   {
+    "name": "Holy Smite",
+    "cost": 2,
+    "power": 4,
+    "text": "On a hit, 2 more damage to the blocker.",
+    "onHit": [
+     [
+      "hp",
+      "target",
+      -2
+     ]
+    ]
+   }
+  ]
+ },
+ "scrunge_corin": {
+  "moves": [
+   {
+    "name": "Hair Flip",
+    "cost": 1,
+    "power": 3
+   },
+   {
+    "name": "Bby Glow",
+    "cost": 2,
+    "power": 4,
+    "text": "On a hit, opponent +1 Boredom.",
+    "onHit": [
+     [
+      "bore",
+      "opp",
+      1
+     ]
+    ]
+   }
+  ]
+ },
+ "jangle_water_dog": {
+  "onPlay": [
+   [
+    "draw",
+    "me",
+    1
+   ]
+  ],
+  "text": "When played: draw a card."
+ },
+ "scrunge_alek": {
+  "moves": [
+   {
+    "name": "Grumble",
+    "cost": 1,
+    "power": 3
+   },
+   {
+    "name": "Old Man Rules",
+    "cost": 2,
+    "power": 4,
+    "text": "On a hit, opponent +1 Boredom.",
+    "onHit": [
+     [
+      "bore",
+      "opp",
+      1
+     ]
+    ]
+   }
+  ]
+ },
+ "scrunge_nexus": {
+  "cost": 2
  }
 };
 for (const c of [...CAPTAINS, ...CARDS]) Object.assign(c, OVERRIDES[c.id] || {});
