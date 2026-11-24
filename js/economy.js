@@ -18,7 +18,7 @@ const shopHtml = () => `<section class="shop"><h3>Shop <small class="muted">new 
   `<div class="shop-item">${renderCard(c, { cls: 'mini', attrs: `data-act="view-card" data-id="${c.id}"` })}<button class="btn primary" data-act="buy" data-id="${c.id}">${COIN}${cardValue(c.id) * 2}</button></div>`).join('')}</div></section>`;
 
 const viewPacksNoShop = viewPacks;
-viewPacks = () => coinBar() + viewPacksNoShop().replace(/(<nav class="tabbar)/, `<p class="muted center-text">${COIN}${PACK_COST} per pack</p>${shopHtml()}$1`);
+viewPacks = () => coinBar() + viewPacksNoShop().replace('data-p="' , 'data-p="').replace(/(wheel-open[^>]*>)Open</, `$1Open for ${COIN}${PACK_COST}<`).replace(/(<nav class="tabbar)/, `${shopHtml()}$1`);
 const viewCollectionNoCoins = viewCollection;
 viewCollection = () => coinBar() + viewCollectionNoCoins();
 const viewerNoSell = viewer;
