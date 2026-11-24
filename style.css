@@ -826,3 +826,4 @@ img { -webkit-user-drag: none; }
 .viewer-card.copies .stack .card { opacity: 1; position: relative; z-index: 6; }
 .viewer-card.copies .stack .card.behind { position: absolute; inset: 0; z-index: calc(6 - var(--k)); transform: translate(calc(var(--k) * 5px), calc(var(--k) * -5px)); filter: brightness(calc(1 - var(--k) * .08)); pointer-events: none; }
 .stack-n { position: absolute; bottom: -10px; left: 50%; transform: translateX(-50%); z-index: 9; }
+.dust { z-index: 1000; pointer-events: none; }
