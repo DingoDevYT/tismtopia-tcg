@@ -108,19 +108,19 @@ function apply(s0, p, a, rng = Math.random) {
       if (what === 'hp') {
         const pos = a1 === 'self' ? ctx.self : ctx.target, f = pos && s.players[pos.p].field[pos.i];
         if (!f || f.hp <= 0) continue;
-        f.lastHit = a2; for (let k = 0; k < a2; k++) hurt(pos.p, pos.i);
+        f.lastHit = a2; for (let k = 0; k < a2; k++) hurt(pos.p, pos.i, true);
         say(`${c.name}: ${CARD[f.id].name} -${a2} HP.`);
         continue;
       }
       if (what === 'sac') { const f = ctx.self && s.players[ctx.self.p].field[ctx.self.i]; if (f) { f.hp = 0; f.sac = true; } continue; }
       const ti = a1 === 'opp' ? 1 - pi : pi, t = s.players[ti];
-      if (what === 'purge') { for (let k = 0; k < a2; k++) { const e = t.effects.findLastIndex(x => CARD[x.id].type === 'evil'); if (e < 0) break; say(`${c.name}: ${CARD[t.effects[e].id].name} was purged.`); t.effects.splice(e, 1); } continue; }
+      if (what === 'purge') { for (let k = 0; k < a2; k++) { const e = t.effects.findLastIndex(x => CARD[x.id].type === 'evil'); if (e < 0) break; say(`${c.name}: ${CARD[t.effects[e].id].name} was purged.`); ev({ k: 'purge', p: ti, id: t.effects[e].id }); t.effects.splice(e, 1); } continue; }
       if (what === 'goof' || what === 'bore') { const d = gain(ti, what, a2); say(`${c.name}: ${t.name} ${d >= 0 ? '+' : ''}${d} ${METERS[what]}.`); }
       else if (what === 'draw') { for (let k = 0; k < a2; k++) draw(ti); say(`${c.name}: ${t.name} draws ${a2}.`); }
-      else if (what === 'actions' && s.turn === ti) { s.actions = Math.max(0, s.actions + a2); say(`${c.name}: ${a2 > 0 ? '+' : ''}${a2} Action${Math.abs(a2) > 1 ? 's' : ''}.`); }
+      else if (what === 'actions' && s.turn === ti) { s.actions = Math.max(0, s.actions + a2); ev({ k: 'actions', p: ti, n: a2 }); say(`${c.name}: ${a2 > 0 ? '+' : ''}${a2} Action${Math.abs(a2) > 1 ? 's' : ''}.`); }
     }
   };
-  const hurt = (pi, i) => { const f = s.players[pi].field[i]; if (f.hp <= 0) return; f.hp--; ev({ k: 'hit', p: pi, i, ko: f.hp <= 0 }); };
+  const hurt = (pi, i, extra) => { const f = s.players[pi].field[i]; if (f.hp <= 0) return; f.hp--; ev({ k: 'hit', p: pi, i, ko: f.hp <= 0, ...(extra && { extra: 1 }) }); }; // extra: from a card effect, not combat damage
   const cull = pl => {
     const pi = s.players.indexOf(pl);
     pl.field = pl.field.filter(f => {
@@ -141,7 +141,7 @@ function apply(s0, p, a, rng = Math.random) {
       const id = at(me.hand, a.i), c = CARD[id];
       spend(playCost(s, p, c));
       me.hand.splice(a.i, 1);
-      if (c.type === 'character') { me.field.push({ id, hp: maxHp(c), t: s.turnNo }); ev({ k: 'play', p, zone: 'field', i: me.field.length - 1 }); }
+      if (c.type === 'character') { me.field.push({ id, hp: maxHp(c), t: s.turnNo }); ev({ k: 'play', p, zone: 'field', i: me.field.length - 1, id }); }
       else if (isInstant(c)) ev({ k: 'cast', p, id }); // instant: resolves and is gone, never sits on the table
       else { me.effects.push(c.type === 'bit' ? { id, turns: c.dur } : { id }); ev({ k: 'play', p, zone: 'fx', i: me.effects.length - 1 }); ev({ k: 'cast', p, id }); }
       say(`${me.name} played ${c.name}.`);
@@ -166,10 +166,10 @@ function apply(s0, p, a, rng = Math.random) {
       }
       if (!canAttack(s, f)) throw new Error(`${c.name} can't attack the turn it's played.`);
       spend(moveCost(s, p, mv));
-      if (opp.field.length) { s.phase = 'defend'; s.pending = { i: a.i, m: a.m }; say(`${c.name} uses ${mv.name}! ${opp.name} picks a blocker.`); }
+      if (opp.field.length) { s.phase = 'defend'; s.pending = { i: a.i, m: a.m }; ev({ k: 'declare', p, i: a.i, move: mv.name, power: mv.power + statsOf(s, p, f).bonus }); say(`${c.name} uses ${mv.name}! ${opp.name} picks a blocker.`); }
       else {
         const power = mv.power + statsOf(s, p, f).bonus;
-        ev({ k: 'attack', p, i: a.i, direct: true, move: mv.name });
+        ev({ k: 'attack', p, i: a.i, direct: true, move: mv.name, power });
         gain(1 - p, 'bore', power);
         say(`${c.name} uses ${mv.name} directly: ${opp.name} +${power} Boredom.`);
         runOps(p, mv.onHit, c, { self });
@@ -183,19 +183,20 @@ function apply(s0, p, a, rng = Math.random) {
       const ac = CARD[af.id], dc = CARD[df.id], mv = ac.moves[s.pending.m];
       const power = mv.power + statsOf(s, ai, af).bonus, armor = statsOf(s, p, df).def, dmg = Math.max(0, power - armor), hit = dmg > 0;
       // Spill-over: damage past the blocker's HP moves on to the next Character (its own armour applies), then to Boredom.
-      let left = power, ti = a.i, bore = 0; const hitIdx = new Set(), spill = [];
+      let left = power, ti = a.i, bore = 0; const hitIdx = new Set(), spill = [], hits = []; // hits: who took how much, for the animation
       while (left > 0) {
         const tf = me.field[ti];
         if (!tf) { bore = left; gain(p, 'bore', left); break; }
         const through = Math.max(0, left - statsOf(s, p, tf).def), taken = Math.min(through, tf.hp);
         for (let k = 0; k < taken; k++) hurt(p, ti);
+        hits.push({ i: ti, def: statsOf(s, p, tf).def, taken, ko: tf.hp <= 0 });
         if (ti !== a.i) spill.push(`${CARD[tf.id].name} -${taken}`);
         hitIdx.add(ti); left = through - taken;
         if (!through) break;
         ti = me.field.findIndex((f, j) => f.hp > 0 && !hitIdx.has(j));
         if (ti < 0) ti = me.field.length; // nobody left to take it
       }
-      ev({ k: 'attack', p: ai, i: s.pending.i, target: { p, i: a.i }, move: mv.name, roll: { atk: power, def: armor, dmg, hit, spill: spill.length, bore } });
+      ev({ k: 'attack', p: ai, i: s.pending.i, target: { p, i: a.i }, move: mv.name, roll: { atk: power, def: armor, dmg, hit, spill: spill.length, bore, hits } });
       s.roll = { seq: s.seq + 1, atk: power, def: armor, dmg, hit, a: af.id, d: df.id, by: ai, bore };
       say(`${mv.name} hits ${dc.name} for ${power}${armor ? ` (armour ${armor})` : ''}: ` + (hit ? `${dmg} damage${spill.length ? `, spilling over: ${spill.join(', ')}` : ''}${bore ? `, ${me.name} +${bore} Boredom` : ''}.` : 'all blocked!'));
       if (hit) {
@@ -225,6 +226,7 @@ function apply(s0, p, a, rng = Math.random) {
       if (CARD[e.id].type !== 'evil') throw new Error('Only Evils can be cleansed.');
       spend(2);
       opp.effects.splice(a.i, 1);
+      ev({ k: 'purge', p: 1 - p, id: e.id });
       ev({ k: 'move', p, name: 'Cleanse' });
       say(`${me.name} cleansed ${CARD[e.id].name}.`);
       break;
@@ -243,9 +245,9 @@ function apply(s0, p, a, rng = Math.random) {
       s.actions = Math.min(MAX_ACTIONS, saved + 2) + modSum(s, 1 - p, 'actions');
       opp.bank = 0;
       if (opp.deck.length) draw(1 - p);
-      else { opp.fatigue = (opp.fatigue || 0) + 1; gain(1 - p, 'bore', opp.fatigue); say(`${opp.name} has no cards left to draw: +${opp.fatigue} Boredom.`); } // deck-out: escalating Boredom
+      else { opp.fatigue = (opp.fatigue || 0) + 1; gain(1 - p, 'bore', opp.fatigue); say(`${opp.name} has no cards left to draw: +${opp.fatigue} Boredom.`); ev({ k: 'fatigue', p: 1 - p, n: opp.fatigue }); } // deck-out: escalating Boredom
       say(`${opp.name}'s turn${saved ? ` (${saved} Action${saved > 1 ? 's' : ''} saved, starts with ${s.actions})` : ''}.`);
-      ev({ k: 'turn', p: 1 - p });
+      ev({ k: 'turn', p: 1 - p, actions: s.actions, saved });
       gain(1 - p, 'goof', 1); // everyone gets +1 Creativity each turn, so attacking is never forced
       for (const c of sources(s, 1 - p)) runOps(1 - p, c.onTurnStart, c);
       for (const c of sources(s, p)) runOps(p, c.onOppTurnStart, c);

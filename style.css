@@ -1265,3 +1265,39 @@ body:has(#app[data-view="game"]) :is(.vol-btn, .vol-slider) { display: none !imp
   .hud .cap .head { position: absolute; z-index: 2; left: 2.2cqw; right: 2.2cqw; bottom: 2.2cqw; min-height: 0; padding: 7cqw 3cqw 2.4cqw; border-radius: 0 0 3cqw 3cqw; background: linear-gradient(transparent, rgba(10, 12, 25, .78)); }
   .hud .cap .name { color: #fff; text-shadow: 0 1px 2px #000; font-size: 9.5cqw; }
 }
+
+/* ===== rules page, tutorial and battle feedback pass ===== */
+.scroll.rules { gap: 10px; }
+.rule { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border-radius: 18px; }
+.rule-ic { flex: none; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 12px; color: var(--accent); box-shadow: var(--inset); }
+.rule-ic .i { width: 22px; height: 22px; }
+.rule h3 { margin: 0 0 2px; font-size: 15px; font-weight: 800; }
+.rule p { margin: 0; font-size: 14px; line-height: 1.4; font-weight: 500; color: #4f5874; }
+.rule p.ex { margin-top: 4px; font-size: 13px; color: var(--muted); } .rule p.ex b { color: var(--ink); }
+/* floating labels carry an icon */
+.floater { display: inline-flex; align-items: center; gap: 4px; }
+.floater .i { width: 1em; height: 1em; flex: none; }
+.floater.dmg .i { color: #e5535d; }
+.floater.atk, .floater.act, .floater.draw, .floater.super, .floater.blocked { padding: 2px 10px; border-radius: 999px; background: #fff; text-shadow: none; box-shadow: 0 4px 12px rgba(0, 0, 0, .18); font-size: 15px; }
+.floater.blocked { font-size: 16px; border: 2px solid #3b7ddc; }
+.floater.atk { color: var(--accent); border: 2px solid var(--accent); }
+.floater.act { color: #c98a00; border: 2px solid #f2a21a; }
+.floater.draw { color: #3b7ddc; border: 2px solid #3b7ddc; }
+.floater.super { color: #7348c9; border: 2px solid #7348c9; font-size: 18px; }
+/* turn banner with a detail line, card tags on the splash, spill-over streak */
+.banner span { padding: 4px 56px; }
+@media (max-width: 600px) { .banner span { font-size: 46px; padding: 4px 28px; } }
+.banner small { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 2px 4px; font: 800 14px/1.3 system-ui, sans-serif; color: var(--ink); text-shadow: none; }
+.banner small .i { width: 15px; height: 15px; margin-left: 4px; }
+.splash { display: grid; justify-items: center; gap: 8px; }
+.splash-tag { display: flex; align-items: center; gap: 6px; padding: 5px 14px; border-radius: 99px; font: 800 14px system-ui, sans-serif; color: #fff; background: var(--ink); box-shadow: 0 6px 16px rgba(0, 0, 0, .3); }
+.splash-tag .i { width: 16px; height: 16px; }
+.streak { position: fixed; height: 5px; margin-top: -2px; border-radius: 4px; transform-origin: 0 50%; background: linear-gradient(90deg, #ffb347, #e5535d); transform: rotate(var(--a)) scaleX(0); animation: streak .45s ease-out forwards; }
+@keyframes streak { 0% { transform: rotate(var(--a)) scaleX(0); opacity: 1; } 55% { transform: rotate(var(--a)) scaleX(1); opacity: 1; } 100% { transform: rotate(var(--a)) scaleX(1); opacity: 0; } }
+.hud.hit { animation: shake .4s; }
+/* meters: Boredom warns from 7, the Super notch lights when affordable, the other side's turn is tinted */
+.meter.bore.warn .mbar i { background-image: linear-gradient(90deg, #f2a21a, #e5535d, #c4313c, #f2a21a); box-shadow: 0 0 8px rgba(229, 83, 93, .6); }
+.meter.bore.warn > b, .meter.bore.warn > span, .meter.bore.warn > span .i { color: var(--accent); }
+.meter.bore.warn > span { font-weight: 800; }
+.meter .mbar u.lit { width: 5px; margin-left: -2.5px; background: #7348c9; box-shadow: 0 0 0 1.5px #fff, 0 0 10px 2px #b48cff; }
+.turn.theirs b { color: var(--accent); }

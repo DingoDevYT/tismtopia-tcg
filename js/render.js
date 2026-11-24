@@ -23,8 +23,15 @@ const ICON = Object.fromEntries(Object.entries({
   action: '<path d="M13.5 2L4.5 13.5h6.2L9.5 22l9-11.5h-6.2z"/>',
   time: '<path d="M6 2h12v2.2c0 3-2.4 5.1-4.4 7.8 2 2.7 4.4 4.8 4.4 7.8V22H6v-2.2c0-3 2.4-5.1 4.4-7.8C8.4 9.3 6 7.2 6 4.2z"/>',
   forever: G('<path stroke-width="2.6" d="M12 12c-2-2.6-3.6-4-5.6-4a4 4 0 0 0 0 8c2 0 3.6-1.4 5.6-4s3.6-4 5.6-4a4 4 0 0 1 0 8c-2 0-3.6-1.4-5.6-4z"/>'),
+  // rules and battle feedback
+  super: '<path fill-rule="evenodd" d="M12 2a10 10 0 1 0 0 20 10 10 0 1 0 0-20zM13.5 5.5l-5 8H12l-1 5 5-8h-3.5z"/>',
+  instant: G('<circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M18.7 5.3l-2.1 2.1M7.4 16.6l-2.1 2.1"/>'),
+  spill: G('<path d="M5 4v6a4 4 0 0 0 4 4h9M14 9.5l4.5 4.5-4.5 4.5"/>'),
+  draw: G('<rect x="4" y="3" width="10" height="14" rx="2"/><path d="M18 8v10M15 15.5l3 3 3-3"/>'),
+  block: G('<path d="M12 3l7.5 2.8v5.7c0 4.6-3.2 8.2-7.5 9.3-4.3-1.1-7.5-4.7-7.5-9.3V5.8z"/><path d="M9 12l2.2 2.2L15.5 10"/>'),
+  turn: G('<path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/>'),
   // ui
-  bot: '<circle cx="12" cy="3.6" r="1.7"/>' + G('<rect x="4" y="8" width="16" height="11.5" rx="3.5"/><path d="M12 8V5.5M9.5 12.5v2M14.5 12.5v2M2 12.5v3M22 12.5v3"/>'),
+  bot:'<circle cx="12" cy="3.6" r="1.7"/>' + G('<rect x="4" y="8" width="16" height="11.5" rx="3.5"/><path d="M12 8V5.5M9.5 12.5v2M14.5 12.5v2M2 12.5v3M22 12.5v3"/>'),
   school: '<path d="M12 3.5L1.5 8.8 12 14l10.5-5.2z"/>' + G('<path d="M6 11.3v4.5c0 1.6 2.7 3.2 6 3.2s6-1.6 6-3.2v-4.5M21.5 9v5.5"/>'),
   check: G('<path stroke-width="3" d="M5 12.5l4.5 4.5L19 7.5"/>'),
   chevron: G('<path stroke-width="2.4" d="M6 9l6 6 6-6"/>'),
@@ -85,7 +92,7 @@ function renderCard(c, o = {}) {
   const defTag = isChar ? `<span class="defb${def > baseArmor(c) ? ' buff' : ''}" title="Armour: damage blocked per hit">${ICON.def}<b>${def}</b></span>` : '';
   const body = isChar
     ? `${c.text ? `<div class="text passive">${c.text}</div>` : ''}<div class="moves">${c.moves.map(mv => renderMove(mv, o.bonus)).join('')}</div>`
-    : `<div class="text">${c.text}</div><div class="tag">${c.type === 'bit' ? (isInstant(c) ? `${ICON.action}Instant` : `${ICON.time}${turns} turn${turns > 1 ? 's' : ''}`) : c.type === 'evil' ? `${ICON.forever}Forever` : `${ICON.captain}${c.style}`}</div>`;
+    : `<div class="text">${c.text}</div><div class="tag">${c.type === 'bit' ? (isInstant(c) ? `${ICON.instant}Instant` : `${ICON.time}${turns} turn${turns > 1 ? 's' : ''}`) : c.type === 'evil' ? `${ICON.forever}Forever` : `${ICON.captain}${c.style}`}</div>`;
   const tv = c.type === 'character' && !c.main && TONE[c.art];
   // Foil finishes use the holo effect layers (vendor/holo/holo.css): v-holo = rare holo, v-rev = reverse holo, v-full = full-art ultra rare.
   const fin = /\bv-full\b/.test(cls) ? ' data-rarity="rare ultra" data-supertype="pokémon"' : /\bv-rev\b/.test(cls) ? ' data-rarity="reverse holo"' : /\bv-holo\b/.test(cls) ? ' data-rarity="rare holo"' : '';
@@ -100,8 +107,9 @@ function renderCard(c, o = {}) {
 
 const renderAvatar = (c, cls = '') => `<span class="avatar${cls}">${ICON.captain}${c.art ? `<img src="${c.art}" alt="" onerror="this.remove()">` : ''}</span>`;
 // Boredom is health (lose at BORE_MAX); Creativity is hype up to 10, with the Captain's Super cost marked on the bar.
-const meter = (k, v, max, sup) => `<div class="meter ${k}"><span>${ICON[k]}${k === 'goof' ? 'Creativity' : 'Boredom'}</span><b>${v}/${max}</b>
-  <div class="mbar"><i style="width:${Math.min(100, 100 * v / max)}%"></i>${sup ? `<u style="left:${100 * sup / max}%" title="Super: ${sup}"></u>` : ''}</div></div>`;
+// The Super notch lights up once you can afford it; Boredom turns to warning colours from 7.
+const meter = (k, v, max, sup) => `<div class="meter ${k}${k === 'bore' && v >= 7 ? ' warn' : ''}"><span>${ICON[k]}${k === 'goof' ? 'Creativity' : 'Boredom'}</span><b>${v}/${max}</b>
+  <div class="mbar"><i style="width:${Math.min(100, 100 * v / max)}%"></i>${sup ? `<u${v >= sup ? ' class="lit"' : ''} style="left:${100 * sup / max}%" title="Super: ${sup}"></u>` : ''}</div></div>`;
 
 // Clickable bits carry data-act="card" + who/zone/i; the app reads them with one delegated click handler.
 const pick = (who, zone, i) => `data-act="card" data-who="${who}" data-zone="${zone}" data-i="${i}" tabindex="0" role="button"`;
@@ -142,7 +150,7 @@ function renderBoard(s, me, o = {}) {
     <div class="side">${renderHud(opp, 'opp')}${renderFx(opp, 'opp')}${renderField(opp, [], 'opp', stat(1 - me))}</div>
     <div class="mid neu">
       <div class="deckn" role="img" aria-label="${you.deck.length} cards left in your deck">${ICON.cards}<b>${you.deck.length}</b></div>
-      <div class="turn"><b>${s.turn === me ? 'Your turn' : `${esc(opp.name)}'s turn`}</b>
+      <div class="turn${s.turn === me ? '' : ' theirs'}"><b>${s.turn === me ? 'Your turn' : `${esc(opp.name)}'s turn`}</b>
         <div class="pips">${Array.from({ length: Math.max(2, s.actions) }, (_, i) => `<i class="${i < s.actions ? 'on' : ''}">${ICON.action}</i>`).join('')}</div></div>
       <button class="btn end" data-act="end"${live ? '' : ' disabled'}>End Turn</button>
     </div>

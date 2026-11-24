@@ -125,7 +125,10 @@ function viewLobby() {
 }
 
 const viewRules = () => `${header('How to Play')}
-  <div class="scroll">${RULES.map(([h, t], i) => `<details class="acc neu"${i < 3 ? ' open' : ''}><summary>${h}${ICON.chevron}</summary><p>${t}</p></details>`).join('')}</div>
+  <div class="scroll rules">${RULES.map(([h, t, ic, ex]) => {
+    if (h === 'Coins' && typeof PAY !== 'undefined') t = `Finished battles pay coins. Beating the bot: ${PAY.bot[0]}, losing to it: ${PAY.bot[1]}. Playing a friend: ${PAY.player[0]} for a win, ${PAY.player[1]} for a loss.`;
+    return `<section class="rule neu"><span class="rule-ic">${ICON[ic] || ''}</span><div><h3>${h}</h3><p>${t}</p>${ex ? `<p class="ex"><b>Example:</b> ${ex}</p>` : ''}</div></section>`;
+  }).join('')}</div>
   ${tabbar('rules')}`;
 
 function viewGame() {
@@ -148,15 +151,19 @@ const TM = TC.moves.find(m => m.cost === 1 && !m.ability);
 const TUT = [
   { text: `Welcome to Tismtopia! Bore your opponent out: whoever reaches ${BORE_MAX} Boredom loses. This quick battle shows you how.`, next: true },
   { text: 'This is you: your Captain card and your meters. Boredom (grey) is your health: fill it up and you lose. Creativity (orange) is your hype: you gain 1 every turn, then spend it on your Captain\'s Super (the marked notch).', sel: `${MY} .hud`, next: true },
-  { text: "Every turn you gain 2 Actions. Playing a card costs 1, and each move shows its cost. Actions you don't spend are saved for next turn (up to 5), so you can save up for big moves.", sel: '.pips', next: true },
+  { text: "Actions are the lightning bolts. Playing a card costs 1 (the number on the card) and each move shows its cost. Each turn you get 2 more, and unspent ones are saved up to 5. (In a real game the first player's very first turn has just 1; this lesson gives you 2.)", sel: '.pips', next: true },
   { text: `Tap ${TC.name} in your hand, then tap Play.`, sel: () => (ui.zoom ? '.dim [data-a*=\'"play"\']' : `.hand .card[data-id="${TC.id}"]`), done: g => g.players[0].field.length > 0 },
   { text: `Characters attack with moves, each costing Actions. Tap ${TC.name} on the field and use ${TM.name} (1 Action). Nobody can block, so its damage goes straight to their Boredom.`,
     sel: () => (ui.zoom ? '.dim [data-a*=\'"attack"\']' : `${MY} .field .card`), done: g => g.players[1].bore > 0 },
   { text: "Their Boredom went up by the attack's damage. You're out of Actions, so tap End Turn.", sel: '[data-act=end]', done: g => g.turn === 1 },
-  { text: "The bot's turn. When it attacks, you pick which of your Characters blocks. The blocker takes the attack's damage minus its armour (the shield number).",
+  { text: "The bot's turn. When it attacks, you pick which of your Characters blocks: tap one, then tap Block. The blocker takes the attack's power minus its armour (the shield number).",
     sel: () => (game.phase !== 'defend' ? null : ui.defPick != null ? '.sheet [data-a*=\'"defend"\']' : '.sheet .field .card'), done: g => !!g.roll || (g.turn === 0 && g.turnNo > 2) },
-  { text: 'Damage that gets through lowers HP; damage past a Character’s HP spills to the next one, and only what’s left after the whole field becomes Boredom.', next: true },
-  { text: 'Items are instant and last a few turns. Evils stay until removed. Tap your Captain to use its Super once you have enough Creativity, or your meters for the log, manual fixes, or to leave.', next: true },
+  { text: 'The blue shield number is armour: it soaks up that much of every hit. If armour covers the whole hit, you see "Blocked!" and nothing gets through.', next: true },
+  { text: 'Overkill: damage past a Character’s HP spills to your next Character (its armour counts too), and only what is left after the whole field becomes Boredom. Watch for the streak between cards.', next: true },
+  { text: 'At the start of each of your turns you draw a card, get 2 Actions and gain 1 Creativity. A banner tells you, and a +1 pops up on the meter.', sel: `${MY} .meter.goof`, next: true },
+  { text: "Creativity is spent on your Captain's Super (once per turn, no Actions needed). The notch on the bar is its cost, and it lights up when you can afford it. Tap your Captain to use it.", sel: `${MY} .hud .card.cap`, next: true },
+  { text: 'Items come in two kinds. Instant Items (lightning tag) do their thing when played, then vanish. Timed Items (hourglass tag) stay and count down turns when you end your turn.', sel: '.hand', next: true },
+  { text: 'Evils (infinity tag) stay until they are cleansed. Tap an opponent’s Evil and pay 2 Actions to Cleanse it. Tap your meters any time for the log and tools.', next: true },
   { text: "That's the basics! Finish this battle against the bot, then build your own deck.", next: 'Got it' },
 ];
 
@@ -178,19 +185,19 @@ function startBot(tutorial) {
   leave(true); bot = true; isHost = true; me = 0;
   const d = tutorial ? STARTER : deck(), g = newGame([{ captain: d.captain, cards: d.cards, finishes: finishesFor(d) }, BOT_DECK], [myName, 'Bot']);
   if (tutorial) {
-    g.turn = 0; g.log = ['Tutorial battle: you go first.'];
+    g.turn = 0; g.actions = 2; g.log = ['Tutorial battle: you go first.']; // 2 Actions so you can play and attack in the first turn
     g.players[0].hand[0] = TC.id;
   }
   ui.tut = tutorial ? 0 : null;
   state = game = null; setGame(g); botSoon();
 }
 
-const botSoon = () => { clearTimeout(botTimer); botTimer = setTimeout(botMove, 1100); };
+const botSoon = (ms = 1100) => { clearTimeout(botTimer); botTimer = setTimeout(botMove, ms); }; // a pause between the bot's actions so each one can be seen
 
 function botMove() {
   const g = state;
   if (!bot || !g || g.phase === 'over') return;
-  if (game !== g) return botSoon(); // wait until the screen has caught up with the last move
+  if (game !== g) return botSoon(300); // wait until the screen has caught up with the last move
   const B = g.players[1], n = g.actions, all = B.field.map((_, i) => i);
   let a = null;
   if (g.phase === 'defend' && g.turn === 0) {
@@ -253,7 +260,7 @@ function zoomGame(z) {
   const w = z.who === 'me' ? me : 1 - me, t = game.players[w];
   if (z.zone === 'cap') {
     const c = CARD[t.captain], can = w === me && game.turn === me && game.phase === 'play' && c.ability && t.goof >= (c.goof || 0) && !(c.once && game.capUsed);
-    return `<div class="dim" data-act="close">${renderCard(c, { cls: 'zoom' })}<div class="row2">${can ? btn({ type: 'ability', i: -1 }, `${ICON.main}Super: ${c.goof} Creativity`, 'primary') : ''}
+    return `<div class="dim" data-act="close">${renderCard(c, { cls: 'zoom' })}<div class="row2">${can ? btn({ type: 'ability', i: -1 }, `${ICON.super}Super: ${c.goof} Creativity`, 'primary') : ''}
       <button class="btn" data-act="sheet" data-s="adjust">Meters, log &amp; tools</button></div><button class="btn sm" data-act="close">Close</button></div>`;
   }
   const item = { hand: t.hand, field: t.field, fx: t.effects }[z.zone]?.[z.i];
@@ -335,10 +342,10 @@ function flash(el, cls, ms = 700) {
   el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls);
   setTimeout(() => el.classList.remove(cls), ms);
 }
-function floatText(el, text, cls, nudge = 0) {
+function floatText(el, text, cls, nudge = 0, icon = '') { // icon: an ICON svg string shown before the text
   if (!el) return;
   const r = el.getBoundingClientRect(), f = document.createElement('div');
-  f.className = `floater ${cls}`; f.textContent = text;
+  f.className = `floater ${cls}`; f.innerHTML = `${icon}<span>${esc(text)}</span>`;
   f.style.left = `${r.left + r.width / 2}px`; f.style.top = `${r.top + r.height * 0.3 - nudge}px`;
   fxLayer.append(f); setTimeout(() => f.remove(), 1900);
 }
@@ -346,9 +353,20 @@ const banner = (html, cls) => { bannerQ = bannerQ.then(async () => {
   const b = Object.assign(document.createElement('div'), { className: `banner ${cls}`, innerHTML: `<span>${html}</span>` });
   fxLayer.append(b); await sleep(950); setTimeout(() => b.remove(), 600);
 }); };
-function splash(id) {
-  const d = Object.assign(document.createElement('div'), { className: 'splash', innerHTML: renderCard(CARD[id]) });
+// tag = [icon key, label] shown under the card, e.g. Instant vs timed Items.
+function splash(id, tag) {
+  const d = Object.assign(document.createElement('div'), { className: 'splash', innerHTML: renderCard(CARD[id]) + (tag ? `<div class="splash-tag">${ICON[tag[0]]}<span>${esc(tag[1])}</span></div>` : '') });
   fxLayer.append(d); setTimeout(() => d.remove(), 1400);
+}
+const castTag = c => (c.type === 'captain' ? ['super', `Super! ${c.name}`] : c.type === 'evil' ? ['forever', 'Evil: stays until cleansed']
+  : isInstant(c) ? ['instant', 'Instant: used up'] : ['time', `Item: lasts ${c.dur} turn${c.dur > 1 ? 's' : ''}`]);
+// A thin streak from one element to another (spill-over travelling to the next Character or the Boredom meter).
+function streakFx(from, to) {
+  if (!from || !to) return;
+  const a = from.getBoundingClientRect(), b = to.getBoundingClientRect(), x1 = a.left + a.width / 2, y1 = a.top + a.height / 2, x2 = b.left + b.width / 2, y2 = b.top + b.height / 2;
+  const d = Object.assign(document.createElement('div'), { className: 'streak' });
+  d.style.cssText = `left:${x1}px;top:${y1}px;width:${Math.hypot(x2 - x1, y2 - y1)}px;--a:${Math.atan2(y2 - y1, x2 - x1)}rad`;
+  fxLayer.append(d); setTimeout(() => d.remove(), 600);
 }
 // A move's coin flip: a small coin spins mid-board, then shows Heads/Tails. Queued so multiple flips play in turn.
 const coinToss = heads => { bannerQ = bannerQ.then(async () => {
@@ -413,19 +431,38 @@ function disintegrate(el) {
 async function attackAnim(e, ev) {
   const atkEl = fieldEl(e.p, e.i);
   if (!atkEl) return;
-  if (e.direct) { await jump(atkEl, hudEl(1 - e.p)); await sleep(350); return; }
-  const defEl = fieldEl(e.target.p, e.target.i), r = e.roll;
+  if (e.direct) { // nobody to block: the hit goes straight to their Boredom
+    floatText(atkEl, `${e.move} ${e.power}`, 'atk', 0, ICON.atk);
+    await jump(atkEl, hudEl(1 - e.p)); flash(hudEl(1 - e.p), 'hit', 450); await sleep(300); return;
+  }
+  const defEl = fieldEl(e.target.p, e.target.i), r = e.roll, hits = r.hits || [], absorbed = Math.min(r.atk, r.def), tp = e.target.p;
   if (!defEl) return;
+  // The sequence: shield shows the blocker's armour, attacker lunges, impact on the blocker, then spill streaks onward (all within ~1.2s).
   const shield = overlayOn(defEl, `<div class="shield">${ICON.def}<b>${r.def}</b></div>`, 'shield-on');
-  await sleep(420);
+  await sleep(240);
+  floatText(atkEl, `${e.move} ${r.atk}`, 'atk', 0, ICON.atk);
   await jump(atkEl, defEl);
-  if (r.hit) { shield.classList.add('shatter'); flash(defEl, 'hurt', 600); floatText(defEl, `−${r.dmg} HP`, 'dmg'); }
-  else { shield.classList.add('block'); floatText(defEl, 'Blocked!', 'blocked'); }
-  await sleep(560);
-  shield.remove();
-  const kos = ev.filter(x => x.k === 'hit' && x.ko);
-  kos.forEach(k => disintegrate(fieldEl(k.p, k.i)));
-  if (kos.length) await sleep(1300);
+  if (r.hit) { shield.classList.add('shatter'); flash(defEl, 'hurt', 600); floatText(defEl, `−${hits[0]?.taken ?? r.dmg}`, 'dmg', absorbed ? 30 : 0, ICON.hp); }
+  else { shield.classList.add('block'); flash(defEl, 'bump', 500); floatText(defEl, 'Blocked!', 'blocked', 30, ICON.block); if (typeof sfx === 'function') sfx('colorlessAttackSmall'); }
+  if (absorbed) floatText(defEl, `${absorbed} blocked`, 'blocked', 0, ICON.def);
+  setTimeout(() => shield.remove(), 450);
+  let t = 0, from = defEl;
+  const at = (fn) => { t += 140; setTimeout(fn, t); };
+  for (const h of hits.slice(1)) { // overkill: a streak to the next Character, then its own hit or block
+    const el = fieldEl(tp, h.i), src = from; if (el) from = el;
+    at(() => { streakFx(src, el); setTimeout(() => {
+      if (h.taken) { flash(el, 'hurt', 600); floatText(el, `−${h.taken}`, 'dmg', 0, ICON.hp); } else { flash(el, 'bump', 500); floatText(el, 'Blocked!', 'blocked', 0, ICON.block); }
+    }, 130); });
+  }
+  if (r.bore) at(() => { // spill past the whole field: a streak to the Boredom meter, which pulses
+    streakFx(from, hudEl(tp)); flash(hudEl(tp)?.querySelector('.meter.bore'), 'bump', 600);
+    if (typeof sfx === 'function') sfx('damageToken');
+  });
+  const extra = new Map(); // extra damage from the card's own effect (e.g. "2 more damage to the blocker")
+  ev.filter(x => x.k === 'hit' && x.extra).forEach(x => extra.set(`${x.p}:${x.i}`, [x, (extra.get(`${x.p}:${x.i}`)?.[1] || 0) + 1]));
+  for (const [x, n] of extra.values()) at(() => { const el = fieldEl(x.p, x.i); flash(el, 'hurt', 600); floatText(el, `−${n}`, 'dmg', 0, ICON.hp); });
+  await sleep(Math.min(800, Math.max(380, t + 240)));
+  ev.filter(x => x.k === 'hit' && x.ko).forEach(k => disintegrate(fieldEl(k.p, k.i))); // the dust plays on while the new board shows
 }
 
 async function preAnimate(ev) {
@@ -435,25 +472,43 @@ async function preAnimate(ev) {
   const hits = ev.filter(e => e.k === 'hit'); // manual HP changes
   for (const e of hits) {
     const el = fieldEl(e.p, e.i);
-    if (e.ko) disintegrate(el); else { flash(el, 'hurt', 600); floatText(el, '−1 HP', 'dmg'); }
+    if (e.ko) disintegrate(el); else { flash(el, 'hurt', 600); floatText(el, '−1', 'dmg', 0, ICON.hp); }
   }
-  await sleep(hits.some(e => e.ko) ? 1300 : 450);
+  await sleep(450);
 }
 
 function postAnimate(ev, prev, s) {
-  const nudges = new Map();
+  const nudges = new Map(), stack = el => { const n = nudges.get(el) || 0; nudges.set(el, n + 24); return n; }; // labels on one element stack upwards
+  const pips = $app.querySelector('.mid .pips');
   for (const e of ev) {
-    if (e.k === 'play') flash(e.zone === 'field' ? fieldEl(e.p, e.i) : $app.querySelector(`.fxc[data-who="${whoOf(e.p)}"][data-i="${e.i}"]`), e.zone === 'field' ? 'slam' : 'pop', 700);
-    if (e.k === 'cast') splash(e.id);
-    if (e.k === 'coin') coinToss(e.heads);
-    if (e.k === 'meter') {
-      const h = hudEl(e.p), n = nudges.get(h) || 0;
-      nudges.set(h, n + 24);
-      flash(h?.querySelector(`.meter.${e.key}`), 'bump', 600); flash(h?.querySelector(`.meter.${e.key}`), 'hl', 1400);
-      floatText(h?.querySelector('.meters'), `${e.n > 0 ? '+' : ''}${e.n} ${e.key === 'goof' ? 'Creativity' : 'Boredom'}`, e.key, n);
+    if (e.k === 'play') {
+      flash(e.zone === 'field' ? fieldEl(e.p, e.i) : $app.querySelector(`.fxc[data-who="${whoOf(e.p)}"][data-i="${e.i}"]`), e.zone === 'field' ? 'slam' : 'pop', 700);
+      if (e.zone === 'field' && e.p !== me && e.id) splash(e.id, ['character', 'Enters the field']); // show the opponent's played Character
     }
-    if (e.k === 'draw' && e.p === me) flash($app.querySelector('.hand .card:last-child'), 'drawn', 650);
-    if (e.k === 'turn') banner(e.p === me ? 'Your turn' : `${esc(s.players[e.p].name)}'s turn`, 'turn');
+    if (e.k === 'cast') {
+      const c = CARD[e.id]; splash(e.id, castTag(c));
+      if (c.type === 'captain') { const cap = hudEl(e.p)?.querySelector('.cap'); flash(cap, 'pop', 700); floatText(cap, 'Super!', 'super', 0, ICON.super); if (typeof sfx === 'function') sfx('versus_rewards_2_barfillsparkle'); }
+    }
+    if (e.k === 'coin') coinToss(e.heads);
+    if (e.k === 'declare') floatText(fieldEl(e.p, e.i), `${e.move} ${e.power}`, 'atk', 0, ICON.atk);
+    if (e.k === 'move' && e.i != null) floatText(fieldEl(e.p, e.i), e.name, 'atk', 0, ICON.atk);
+    if (e.k === 'purge') floatText($app.querySelector(`.side:nth-child(${e.p === me ? 4 : 2})`), `${CARD[e.id].name} removed`, 'blocked', 0, ICON.forever);
+    if (e.k === 'actions') { flash(pips, 'bump', 600); floatText(pips, `${e.n > 0 ? '+' : '−'}${Math.abs(e.n)} Action${Math.abs(e.n) > 1 ? 's' : ''}`, 'act', stack(pips), ICON.action); }
+    if (e.k === 'meter') {
+      const h = hudEl(e.p);
+      flash(h?.querySelector(`.meter.${e.key}`), 'bump', 600); flash(h?.querySelector(`.meter.${e.key}`), 'hl', 1400);
+      floatText(h?.querySelector('.meters'), `${e.n > 0 ? '+' : '−'}${Math.abs(e.n)} ${e.key === 'goof' ? 'Creativity' : 'Boredom'}`, e.key, stack(h), ICON[e.key]);
+    }
+    if (e.k === 'fatigue') { const h = hudEl(e.p); floatText(h?.querySelector('.meters'), 'Deck empty!', 'bore', stack(h), ICON.draw); }
+    if (e.k === 'draw') {
+      if (e.p === me) { const hand = $app.querySelector('.hand'); flash($app.querySelector('.hand .card:last-child'), 'drawn', 650); floatText(hand, '+1 card', 'draw', stack(hand), ICON.draw); }
+      else { const h = hudEl(e.p); floatText(h?.querySelector('.meters'), '+1 card', 'draw', stack(h), ICON.draw); }
+    }
+    if (e.k === 'turn') {
+      const gain = ev.find(x => x.k === 'meter' && x.p === e.p && x.key === 'goof' && x.n > 0)?.n || 0, drew = ev.some(x => x.k === 'draw' && x.p === e.p);
+      flash(pips, 'bump', 600);
+      banner(`${e.p === me ? 'Your turn' : `${esc(s.players[e.p].name)}'s turn`}<small>${e.actions} ${ICON.action}Action${e.actions === 1 ? '' : 's'}${gain ? ` · +${gain} ${ICON.goof}Creativity` : ''}${drew ? ` · ${ICON.draw}+1 card` : ''}</small>`, 'turn');
+    }
   }
   if (s.phase === 'over' && prev.phase !== 'over') flash($app.querySelector('.big'), 'enter', 1000);
 }
@@ -567,7 +622,7 @@ async function present(prev, s) {
 function act(p, a) { // host (or bot game) only; returns whether the action was legal
   try { setGame(apply(state, p, a)); conn?.send({ t: 'state', s: state }); }
   catch (e) { if (p === me) toast(e.message); else conn?.send({ t: 'error', msg: e.message }); return false; }
-  if (bot) botSoon();
+  if (bot) botSoon(p === 1 && a.type === 'play' ? 1600 : 1100); // longer after a played card so its splash is readable
   return true;
 }
 

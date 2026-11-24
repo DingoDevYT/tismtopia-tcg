@@ -39,15 +39,27 @@ const DECK_SIZE = 40; // shortcut: the rules don't set a deck size yet, change o
 const STARTER = STARTERS[0];
 
 const RULES = [
-  ['Goal', `Bore your opponent out. Reach ${BORE_MAX} Boredom and you lose. Boredom is your health; Creativity is your hype, and you spend it.`],
-  ['Your turn', "Draw 1 card (the first player skips this on turn one; the second player starts with 6 cards instead of 5). You gain 2 Actions (the first player gets only 1 on their very first turn); any you don't spend are saved for your next turn, up to 5. Playing a card costs 1 Action unless it says otherwise. Each Character move costs what's printed next to it, and each Character can use one move per turn. If you have no cards left to draw, you gain Boredom instead: 1, then 2, then 3, and so on. End your turn whenever."],
-  ['Moves', 'Each move shows its Action cost on the left and its damage on the right.'],
-  ['Combat', "Pick one of your Character's attacks. Your opponent picks which of their Characters blocks it. The blocker takes the attack's damage minus its armour (the shield number). If any damage gets through, the attack's extra effect happens, your opponent loses 1 Creativity and you gain 1. No Characters to block? The full damage goes straight to their Boredom."],
-  ['Defeated', 'A Character at 0 HP leaves the field. Damage past its HP spills over to its owner’s next Character (that Character’s armour applies too), and so on down the field. Only damage left after the whole field goes to Boredom. Time a big hit to sweep a field. Sacrificing your own Character costs no Boredom.'],
-  ['Creativity', 'Gain it by landing break-throughs and from card effects (up to 10). Spend it on moves that cost Creativity and on your Captain\'s Super. Your Captain card shows the Super and how much Creativity it needs.'],
-  ['Card types', 'Characters stay on the field to attack and defend. Items are instant and last a set number of turns. Evils last forever, until your opponent Cleanses them (tap the Evil: 2 Actions) or a card purges them.'],
-  ['Card effects', "Card text runs automatically. If something isn't covered, tap a player's bar to change meters or Actions, or tap a card to change its HP or remove it. Both players see every change in the log."],
-  ['Deck rules', `${DECK_SIZE} cards plus 1 Captain. Max 3 copies of a card.`],
+  // (the "3 copies" below mirrors MAX_COPIES in game.js, which loads later)
+  // [heading, one-line rule, icon key (see ICON in render.js), one-line example]. Drawn as short cards by viewRules.
+  ['Goal', `Reach ${BORE_MAX} Boredom and you lose, so make your opponent get there first.`, 'bore', `They are on 8 and a hit adds 2? Game over.`],
+  ['Starting out', 'A coin flip picks who goes first. First player: 5 cards, and on turn one no draw, no +1 Creativity and only 1 Action. Second player: 6 cards.', 'turn', 'Going second means one extra card in hand.'],
+  ['Your turn', 'You draw 1 card, get 2 Actions and +1 Creativity. Then play cards and use moves in any order, and press End Turn.', 'turn', 'Turn 4: draw, 2 Actions, +1 Creativity.'],
+  ['Actions', 'Actions pay for everything. Cards and moves show their cost. Unspent Actions are saved: you start a turn with at most 5.', 'action', 'Spend 1 and save 1: next turn you start with 3.'],
+  ['Draw', 'You draw at the start of your turn. There is no hand limit. With an empty deck you gain Boredom instead: 1, then 2, then 3, and so on.', 'draw', 'Third turn with an empty deck: +3 Boredom.'],
+  ['Characters', 'Characters stay on the field and attack with moves. Each Character can use one move per turn. Some cannot attack the turn they are played.', 'character', 'A Character with two moves still only uses one each turn.'],
+  ['Attacking', 'Pick a move, then your opponent picks which of their Characters blocks it. No Characters on their side? The full damage goes to their Boredom.', 'atk', 'Power 3 into an empty field: they gain 3 Boredom.'],
+  ['Armour', 'The blocker takes the move’s power minus its armour (the shield number). Armour comes from the card, Tough, and some card effects.', 'def', 'Power 3 against armour 1: the blocker takes 2.'],
+  ['Blocked', 'If armour is as big as the power, nothing gets through: the hit is fully blocked, and the move’s extra effect does not happen.', 'block', 'Power 2 against armour 2: Blocked!'],
+  ['Overkill', 'A Character at 0 HP leaves the field. Leftover damage spills to their next Character (its armour counts too), and what is left after the whole field goes to Boredom.', 'spill', 'Power 5 hits a 2 HP Character with armour 1: it takes 2, and 2 more spills to the next one.'],
+  ['Boredom', 'Boredom is your health. It rises from spill-over, direct hits and card effects. The meter turns to warning colours at 7.', 'bore', 'At 7 or more, be careful.'],
+  ['Creativity', 'You gain +1 every turn, up to 10. Cards can add or remove it. Landing hits does not change it.', 'goof', 'Start of your turn: 3 becomes 4.'],
+  ['Super', 'Your Captain’s Super costs Creativity (shown on the card and as a notch on the meter). It needs no Actions and works once per turn.', 'super', 'Xee’s Supernova costs 6 Creativity.'],
+  ['Instant Items', 'An Instant Item does its thing the moment you play it, then it is gone.', 'instant', 'U-2 Flyover: +1 Action, then it disappears.'],
+  ['Timed Items', 'Other Items stay in play and show how many turns are left. The count goes down when you end your turn, and the Item leaves at 0.', 'time', 'Bee Swarm lasts 3 turns.'],
+  ['Evils', 'Evils stay until they are removed. Tap an opponent’s Evil and pay 2 Actions to Cleanse it on your turn, or use a card that purges.', 'forever', 'Cleanse costs 2 Actions.'],
+  ['Deck rules', `${DECK_SIZE} cards plus 1 Captain. Max 3 copies of a card, and Main Characters max 1.`, 'cards', 'Your deck screen tells you when it is ready.'],
+  ['Coins', 'Finished battles pay coins. Beating the bot: 1000, losing to it: 500. Playing a friend: 2000 for a win, 1000 for a loss.', 'point', 'Spend them on packs and in the shop.'],
+  ['Card effects', 'Card text runs by itself. If something is missed, tap a player’s meters for the log and manual fixes.', 'rules', 'Both players see every change.'],
 ];
 
 // Captains get their own letter codes (AAA, AAB, ...); every other card is numbered from 001.
