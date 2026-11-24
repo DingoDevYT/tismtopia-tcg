@@ -79,10 +79,10 @@ function viewOpen() {
     <p class="open-hint">Swipe across the top to cut it open</p>
     <div class="tear-zone"><div class="rays"></div><div class="pack3d"><div class="pack-back"></div>${packArt(P, 'big body')}${packArt(P, 'big strip')}<div class="pack-shade"></div><div class="tear-guide"></div><div class="cut"><i></i></div></div></div>
     <button class="btn sm" data-act="tear-now">Tap to open</button></div>`;
-  if (o.stage === 'deck') return `<div class="open-stage deck-stage">
+  if (o.stage === 'deck') { const fresh = o.fresh; o.fresh = false; return `<div class="open-stage deck-stage${fresh ? ' from-pack' : ''}">
     <p class="open-hint">Spin the stack to peek at the edges</p>
-    <div class="deck3d" data-act="noop"><div class="deck-rot">${o.cards.map((c, k) => `<div class="dc ${edgeOf(c)}" style="--z:${(o.cards.length - k) * 7}px"></div>`).join('')}</div></div>
-    <button class="btn primary" data-act="start-reveal">Reveal cards</button></div>`;
+    <div class="stack-wrap">${fresh ? `<div class="tear-zone torn pack-leave" style="--tear:1"><div class="rays"></div><div class="pack3d"><div class="pack-back"></div><div class="inner-cards">${[4, 3, 2, 1, 0].map(k => `<i style="--k:${k}"></i>`).join('')}</div>${packArt(P, 'big body')}${packArt(P, 'big strip')}<div class="pack-shade"></div></div></div>` : ''}<div class="deck3d" data-act="noop"><div class="deck-rot">${o.cards.map((c, k) => `<div class="dc ${edgeOf(c)}" style="--z:${(o.cards.length - k) * 7}px"></div>`).join('')}</div></div></div>
+    <button class="btn primary" data-act="start-reveal">Reveal cards</button></div>`; }
   if (o.stage === 'reveal') {
     const cur = o.cards[o.i], c = CARD[cur.id], rare = cur.rarity === 'R' || cur.rarity === 'UR' || cur.finish !== 'normal';
     const behind = o.cards.slice(o.i + 1).map((n, k) => `<div class="stack-back ${edgeOf(n)}" style="--k:${k + 1}"></div>`).join('');
@@ -93,10 +93,10 @@ function viewOpen() {
       return `<div class="open-stage reveal cine${big}${o.god ? ' god' : ''}" data-act="skip-cine"><div class="aura"></div><div class="aura a2"></div><div class="sparks">${'<i></i>'.repeat(14)}</div>
         <div class="cine-card"></div></div>`;
     }
-    const fresh = o.fresh; o.fresh = false;
-    return `<div class="open-stage reveal${rare ? ' rare r-' + cur.rarity : ''}${big}${o.god ? ' god' : ''}${fresh ? ' from-pack' : ''}" data-act="next-card">
+    const fresh = o.flipFirst; o.flipFirst = false; // the first card flips over from its back
+    return `<div class="open-stage reveal${rare ? ' rare r-' + cur.rarity : ''}${big}${o.god ? ' god' : ''}${fresh ? ' first-flip' : ''}" data-act="next-card">
       ${rare ? '<div class="burst"></div>' : ''}${big ? `<div class="big-rays"></div><p class="big-tag">${cur.finish === 'rainbow' ? '★★★★★ RAINBOW' : '★★★★ FULL ART'}</p>` : ''}${o.god ? '<p class="god-tag">GOD PACK</p>' : ''}
-      <div class="stack-wrap">${fresh ? `<div class="tear-zone torn pack-leave" style="--tear:1"><div class="rays"></div><div class="pack3d"><div class="pack-back"></div><div class="inner-cards">${[4, 3, 2, 1, 0].map(k => `<i style="--k:${k}"></i>`).join('')}</div>${packArt(P, 'big body')}${packArt(P, 'big strip')}<div class="pack-shade"></div></div></div>` : ''}<div class="stack" data-act="noop">${behind}${renderCard((cur.finish === 'full' || cur.finish === 'rainbow') ? { ...c, crop: null } : c, { cls: `zoom flick enter ${FINISH_CLS[cur.finish]}` })}${fresh ? '<div class="flip-back"></div>' : ''}</div></div>
+      <div class="stack-wrap"><div class="stack" data-act="noop">${behind}${renderCard((cur.finish === 'full' || cur.finish === 'rainbow') ? { ...c, crop: null } : c, { cls: `zoom flick enter ${FINISH_CLS[cur.finish]}` })}${fresh ? '<div class="flip-back"></div>' : ''}</div></div>
       <p class="pull-tag">${cur.isNew ? '<span class="new">NEW</span>' : ''}${starsOf(cur.id, cur.finish)}${cur.finish !== 'normal' ? ` · ${FINISH_NAME[cur.finish]}` : ''}</p>
       <p class="open-hint">Drag to tilt · flick to the side for the next card (${o.i + 1}/${o.cards.length})</p></div>`;
   }
@@ -112,14 +112,14 @@ Object.assign(ACTS, {
   'pick-pack'(d) { if (Date.now() - lastSwipe < 350) return false; ui.open = openPack(d.p); ui.view = 'open'; }, // a swipe isn't a tap
   'skip-cine'() { clearTimeout(cineTimer); const c = ui.open?.cards[ui.open.i]; if (c) c.cine = true; },
   'tear-now'() { tearOpen(); return false; },
-  'start-reveal'() { ui.open.stage = 'reveal'; ui.open.i = 0; },
+  'start-reveal'() { Object.assign(ui.open, { stage: 'reveal', i: 0, flipFirst: true }); },
   'next-card'() { flick(-1); return false; },
   noop() { return false; },
 });
 function advance() { const o = ui.open; if (++o.i >= o.cards.length) o.stage = 'summary'; }
 function tearOpen() {
   const z = $app.querySelector('.tear-zone');
-  const go = () => { Object.assign(ui.open, { stage: 'reveal', i: 0, fresh: true }); render(); };
+  const go = () => { Object.assign(ui.open, { stage: 'deck', fresh: true }); render(); };
   if (z && !calm) {
     // hand the pack over to the reveal screen exactly as it is: same spot, same 3D turn, then it opens in front of the real cards
     const from = z.getBoundingClientRect(), turn = getComputedStyle(z).getPropertyValue('--t') || '0';

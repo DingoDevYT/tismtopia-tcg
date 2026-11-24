@@ -1144,3 +1144,12 @@ img { -webkit-user-drag: none; }
 .from-pack .stack, .reveal .stack { transform-style: flat; }
 .from-pack .stack .stack-back { transform: translate(calc(var(--k) * 5px), calc(var(--k) * 5px)) rotate(calc(var(--k) * 1.5deg)); }
 .reveal .stack > .card, .reveal .stack > .flip-back { position: relative; z-index: 5; }
+
+/* the cards that come out of the pouch land as the peekable deck (same size, same spot), then turn so you can see the edges */
+.deck-stage .stack-wrap { --cw: min(260px, 64vw); }
+.deck-stage .deck3d { width: var(--cw); }
+.from-pack .deck3d { animation: showLate 0s 1.3s both; }
+.from-pack .deck-rot { animation: deckTurnIn .7s 1.3s ease-out backwards; }
+@keyframes deckTurnIn { from { transform: none; } }
+.first-flip .flip-back { animation: flipAway .28s .15s ease-in both; }
+.first-flip .stack .card.flick.enter { animation: flipFace .3s .43s ease-out both, sway 6s ease-in-out .8s infinite alternate; }
