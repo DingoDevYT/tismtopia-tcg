@@ -44,7 +44,8 @@ viewer = () => {
   // Missing card: point to the pack that can give it, with the chance per pack.
   const pk = !coll[v.id]?.n && PACKS.find(p => PACK_SET[p.id]?.includes(v.id));
   const get = pk ? (() => { const r = CARD[v.id].rarity || 'C', n = pool(r, pk.id).length, miss = SLOTS.reduce((m, t) => m * (1 - (t.find(([, x]) => x === r)?.[0] || 0) / n), 1);
-    return `<button class="btn primary wide find-btn" data-act="goto-pack" data-p="${pk.id}">Find it in ${esc(pk.name)}<small>${((1 - miss) * 100).toFixed(1)}% chance per pack</small></button>`; })() : '';
+    return `<button class="btn primary wide find-btn" data-act="goto-pack" data-p="${pk.id}">Find it in ${esc(pk.name)}<small>${((1 - miss) * 100).toFixed(1)}% chance per pack</small></button>`; })()
+    : !coll[v.id]?.n && CARD[v.id].community ? '<p class="muted center">Not in a pack yet</p>' : ''; // approved, but the reviewer hasn't put it in a pack
   const sell = get || (have && spare > 0 ? `<button class="btn wide" data-act="sell">Sell one for ${COIN}${fmt(cardValue(v.id, v.finish))}</button>` : '');
   const fs = Object.entries(coll[v.id]?.f || {}).filter(([, n]) => n > 0).sort(([a], [b]) => FORDER.indexOf(a) - FORDER.indexOf(b));
   // Every copy you own as a row of big cards, the chosen finish first.

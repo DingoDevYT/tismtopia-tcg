@@ -279,5 +279,16 @@ new Function(['cards-data', 'card-overrides', 'cards', 'render', 'rainbow', 'gam
   g.players[d].field = []; g.players[a].field[0].acted = 0; g.actions = 2; const bd = g.players[d].bore;
   g = apply(g, a, { type: 'attack', i: 0, m: 1 }); ok(g.players[d].bore === bd + 4 && g.players[a].bore === 1, 'direct hit + onHit');
   g = apply(g, a, { type: 'end' }); g = apply(g, d, { type: 'end' }); ok(g.turn === a && g.players[a].field[0].id === j.id, 'turns go on');
+  // packs: the reviewer's pick decides. null, an unknown id, a name like 'constructor' or an old cached row without pack = in no pack.
+  const pr = (id, name, pack) => ({ ...row(id, { ...card, name }), pack });
+  cmRegister([pr('a1000000-0000-0000-0000-000000000001', 'In Emp', 'empirical'), pr('a2000000-0000-0000-0000-000000000002', 'No Pack', null),
+    pr('a3000000-0000-0000-0000-000000000003', 'Bad Pack', 'nopack'), pr('a4000000-0000-0000-0000-000000000004', 'Proto', 'constructor'),
+    row('a5000000-0000-0000-0000-000000000005', { ...card, name: 'Old Cache' })], CARDS, CARD);
+  const ps = { heehn: ['h1'], empirical: ['e1', 'community_zzzzzzzz'] }, pk = [{ id: 'heehn' }, { id: 'empirical' }, CM_PACK];
+  cmPacks(CARDS, ps, pk);
+  ok(ps.empirical.join() === 'e1,community_a1000000' && ps.heehn.join() === 'h1' && !('community' in ps) && pk.map(p => p.id).join() === 'heehn,empirical', 'only the named known pack; no Community Pack without a card: ' + JSON.stringify(ps));
+  ok(CARD.community_a2000000.pack === null && CARD.community_a5000000.pack === null && CARD.community_a3000000.pack === 'nopack', 'pack kept on the card, old cache = null');
+  cmRegister([pr('a6000000-0000-0000-0000-000000000006', 'Comm One', 'community')], CARDS, CARD); cmPacks(CARDS, ps, pk);
+  ok(ps.community.join() === 'community_a6000000' && pk.at(-1) === CM_PACK && pk.length === 3 && ps.empirical.join() === 'e1', 'one card makes the Community Pack; a refresh drops cards no longer listed');
 `, x); }
 console.log('game.test.js: all checks passed');

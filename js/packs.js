@@ -206,7 +206,7 @@ function viewCollection() {
   const s = (ui.coll ||= { q: '', own: 'all', type: 'all', rar: 'all', sort: 'no' }), q = s.q.trim().toLowerCase();
   let list = CARDS.filter(c => (s.own === 'all' || (s.own === 'owned' ? owned(c.id) : s.own === 'missing' ? !owned(c.id) : favs.has(c.id)))
     && (s.type === 'all' || c.type === s.type) && (s.rar === 'all' || String(starN(c.id, owned(c.id) ? bestFinish(c.id) : 'normal')) === s.rar)
-    && (!q || [c.name, c.text, c.role, ...(c.moves || []).flatMap(m => [m.name, m.text])].some(t => t && t.toLowerCase().includes(q))));
+    && (!q || [c.name, c.text, c.role, c.artist, ...(c.moves || []).flatMap(m => [m.name, m.text])].some(t => t && t.toLowerCase().includes(q))));
   const by = { no: (a, b) => a.no.localeCompare(b.no), rarity: (a, b) => RANK[b.rarity || 'C'] - RANK[a.rarity || 'C'] || a.no.localeCompare(b.no), name: (a, b) => a.name.localeCompare(b.name), copies: (a, b) => owned(b.id) - owned(a.id) || a.no.localeCompare(b.no) };
   list = [...list].sort(by[s.sort]);
   const chip = (key, val, label) => `<button class="chip${s[key] === val ? ' on' : ''}" data-act="coll-set" data-k="${key}" data-v="${val}">${label}</button>`;
@@ -215,7 +215,7 @@ function viewCollection() {
     <div class="coll-progress"><b>${ownedCount()} / ${CARDS.length}</b> cards owned<div class="progress"><i style="width:${(100 * ownedCount() / CARDS.length).toFixed(1)}%"></i></div></div>
     ${filtersToggle()}
     <div class="fbody">
-    <input id="coll-search" class="coll-search" type="search" placeholder="Search names, moves, text…" value="${esc(s.q)}" autocomplete="off">
+    <input id="coll-search" class="coll-search" type="search" placeholder="Search name, moves, text or artist…" value="${esc(s.q)}" autocomplete="off">
     <div class="chips">${chip('own', 'all', 'All')}${chip('own', 'owned', 'Owned')}${chip('own', 'missing', 'Missing')}${chip('own', 'favs', '★ Favourites')}</div>
     <div class="chips">${chip('type', 'all', 'Any type')}${chip('type', 'character', 'Characters')}${chip('type', 'bit', 'Items')}${chip('type', 'evil', 'Evils')}</div>
     <div class="chips">${chip('rar', 'all', 'Any')}${[0, 1, 2, 3, 4, 5].map(n => chip('rar', String(n), n ? n + '★' : '☆')).join('')}</div>

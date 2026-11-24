@@ -2,6 +2,7 @@
 // The last good list is kept in localStorage and applied at once on load, then refreshed in the background; pictures come from the
 // private bucket with the public key, as blob URLs, cached with the Cache API. Everything from the database is untrusted player input.
 const CM_MAX = 200, CM_ART = {}; // CM_ART: image path -> blob URL, kept across list refreshes
+let cmRefresh = () => Promise.resolve(); // reloads the approved list now (set below in the browser; js/review.js calls it)
 
 // Rarity from strength, so strong cards are rarer. Characters: printed HP + 2 x armour + best attack power, >= 15 UR, >= 12 R, >= 9 U,
 // else C (the built-in Commons score 2-10, Uncommons 7-12, Rares 9-16, Ultra Rares 15-18). Items/Evils have neither, so they use the
@@ -46,10 +47,22 @@ function cmRegister(rows, cards, byId) {
     const card = cmCard(r.card), id = 'community_' + r.id.slice(0, 8).toLowerCase();
     if (out.length >= CM_MAX || !card || byId[id] || names.has(card.name.toLowerCase()) || typeof r.image_path !== 'string' || !/^[\w-]{1,64}\/[\w-]{1,64}\.(webp|png|jpe?g)$/i.test(r.image_path)) continue;
     // straight apostrophes become ’ so names like "Duke's" read the same in renderCard and in the esc()aped spots (viewer, toasts, log)
-    const c = Object.assign(cfSafe(JSON.parse(JSON.stringify(card).replace(/'/g, '’'))), { id, no: String(++no).padStart(3, '0'), rarity: cmRarity(card), community: true, artPath: r.image_path });
+    const c = Object.assign(cfSafe(JSON.parse(JSON.stringify(card).replace(/'/g, '’'))), { id, no: String(++no).padStart(3, '0'), rarity: cmRarity(card), community: true, artPath: r.image_path,
+      pack: typeof r.pack === 'string' ? r.pack : null }); // old cached rows have no pack: null
     names.add(card.name.toLowerCase()); cards.push(c); byId[id] = c; out.push(c);
   }
   return out;
+}
+
+// Pure: puts each community card into the one pack its `pack` names (the reviewer picks it). null or an unknown id = the card exists
+// (collection, decks, shop, battles) but no pack can give it. The Community Pack is on the wheel only while a card is assigned to it.
+const CM_PACK = { id: 'community', name: 'Community Pack', colour: '#d6336c' };
+function cmPacks(cards, packSet, packs) {
+  for (const k in packSet) packSet[k] = packSet[k].filter(id => !id.startsWith('community_'));
+  delete packSet.community; for (let i = packs.length; i--;) if (packs[i].id === 'community') packs.splice(i, 1);
+  const list = cards.filter(c => c.community);
+  if (list.some(c => c.pack === 'community')) { packSet.community = []; packs.push(CM_PACK); }
+  for (const c of list) if (Object.hasOwn(packSet, c.pack)) packSet[c.pack].push(c.id); // hasOwn: 'constructor' and the like are not packs
 }
 
 // ?dev test panel (economy.js): 3 normal copies of every community card, to deck them and play the bot.
@@ -66,12 +79,8 @@ if (typeof window !== 'undefined') {
   let cmText = JSON.stringify(cached), cmLoading = null, cmHeld = null;
   const cmShow = () => { if (ui.view !== 'open' && ui.view !== 'game') render(); }; // never redraw under a pack tear or a battle animation
   const cmApply = rows => {
-    const added = cmRegister(rows, CARDS, CARD), ids = added.map(c => c.id);
-    // 5+ community cards get their own pack; fewer join every pack's pool so they can still be pulled
-    for (const k in PACK_SET) PACK_SET[k] = PACK_SET[k].filter(id => !id.startsWith('community_'));
-    delete PACK_SET.community; if (PACKS.at(-1).id === 'community') PACKS.pop();
-    if (ids.length >= 5) { PACK_SET.community = ids; PACKS.push({ id: 'community', name: 'Community Pack', colour: '#d6336c' }); }
-    else for (const k in PACK_SET) PACK_SET[k].push(...ids);
+    const added = cmRegister(rows, CARDS, CARD);
+    cmPacks(CARDS, PACK_SET, PACKS);
     // decks: drop a card taken off the list; put back ones app.js dropped at load because it didn't know them yet (saved decks still hold them)
     const raw = store.get('decks', []);
     for (const d of decks) {
@@ -108,6 +117,7 @@ if (typeof window !== 'undefined') {
     } catch { /* offline or refused: keep what we have */ }
   };
   const cmLoad = () => (cmLoading ||= cmFetch().finally(() => { cmLoading = null; }));
+  cmRefresh = () => (cmLoading || Promise.resolve()).then(cmLoad); // after a review: a fetch that started earlier may predate the change
 
   // Battles: both players must know the same cards. An unknown id in the other side's deck (hosting) or in the dealt game (joining)
   // refreshes the list once and retries; still unknown = refuse with a toast. Messages that arrive meanwhile wait their turn.
