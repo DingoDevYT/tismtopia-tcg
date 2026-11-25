@@ -344,7 +344,7 @@ const OVERRIDES = {
     "power": 3
    },
    {
-    "name": "Old Man Rules",
+    "name": "House Rules",
     "cost": 2,
     "power": 4,
     "text": "On a hit, opponent +1 Boredom.",
