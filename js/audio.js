@@ -43,7 +43,7 @@ function musicKey() {
   if (v === 'home' && !titleDone) return 'title';
   if (v === 'game' && game) {
     if (game.phase === 'over') return 'results';
-    const mine = game.players[me].bore, theirs = game.players[1 - me].bore, close = BORE_MAX - 3;
+    const mine = game.players[me].bore, theirs = game.players[1 - me].bore, close = BORE_MAX - 5; // the winning/losing music starts 5 Boredom from the end
     if (mine >= close && mine > theirs) return 'losing';
     if (theirs >= close && theirs > mine) return 'winning';
     return 'battle';
@@ -126,7 +126,7 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // Version shown small on the title screens, so a refresh shows whether the new code arrived. Bump the last number with every push; 1.0.0 = public, balanced release.
-const APP_VERSION = '0.1.2';
+const APP_VERSION = '0.1.3';
 // Title screen: browsers block sound until the first tap, so the game opens on the logo and that tap starts the music.
 const title = Object.assign(document.createElement('div'), { className: 'title-screen',
   innerHTML: `<img src="art/logo.png" alt="Tismtopia TCG"><p>Tap anywhere to start</p><small class="ver">v${APP_VERSION}</small>` });
