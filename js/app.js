@@ -140,7 +140,7 @@ function viewGame() {
   const g = game, mine = g.players[me], live = g.turn === me && g.phase === 'play';
   if (g.phase === 'over') return viewOver();
   const glow = live ? mine.field.flatMap((f, i) => (canUseAny(g, me, f) ? [i] : [])) : [];
-  let html = renderBoard(g, me, { glow, sel: ui.zoom?.zone === 'hand' ? ui.zoom.i : undefined });
+  let html = renderBoard(g, me, { glow, sel: ui.zoom?.zone === 'hand' ? ui.zoom.i : undefined, superReady: superReady(g) });
   if (g.phase === 'defend' && g.turn !== me) html += defendSheet();
   else html += overlay();
   const wait = g.phase === 'defend' && g.turn === me;
@@ -166,7 +166,7 @@ const TUT = [
   { text: 'The blue shield number is armour: it soaks up that much of every hit. If armour covers the whole hit, you see "Blocked!" and nothing gets through.', next: true },
   { text: 'Overkill: damage past a Character’s HP spills to your next Character (its armour counts too), and only what is left after the whole field becomes Boredom. Watch for the streak between cards.', next: true },
   { text: 'At the start of each of your turns you draw a card, get 2 Actions and gain 1 Creativity. A banner tells you, and a +1 pops up on the meter.', sel: `${MY} .meter.goof`, next: true },
-  { text: "Creativity is spent on your Captain's Super (once per turn, no Actions needed). The notch on the bar is its cost, and it lights up when you can afford it. Tap your Captain to use it.", sel: `${MY} .hud .card.cap`, next: true },
+  { text: "Creativity is spent on your Captain's Super (once per turn, no Actions needed). The notch on the bar is its cost, and it lights up when you can afford it. Then a glowing SUPER button appears on your Captain: tap it to see what it does, then tap Use Super.", sel: `${MY} .hud .card.cap`, next: true },
   { text: 'Items come in two kinds. Instant Items (lightning tag) do their thing when played, then vanish. Timed Items (hourglass tag) stay and count down turns when you end your turn.', sel: '.hand', next: true },
   { text: 'Evils (infinity tag) stay until they are cleansed. Tap an opponent’s Evil and pay 2 Actions to Cleanse it. Tap your meters any time for the log and tools.', next: true },
   { text: "That's the basics! Finish this battle against the bot, then build your own deck.", next: 'Got it' },
@@ -182,13 +182,14 @@ function coach() {
 
 // ---------------- bot: adds a Character, attacks with its strongest, plays Items/Evils, uses abilities, blocks with its toughest ----------------
 // shortcut: greedy, no lookahead; fine for practice, not a real opponent.
-const BOT_DECK = STARTERS[1];
+// Each battle the bot takes a random starter deck and a random Captain, so it isn't the same opponent every time (the tutorial keeps one fixed).
+const botDeck = tutorial => tutorial ? STARTERS[1] : { ...STARTERS[Math.floor(Math.random() * STARTERS.length)], captain: CAPTAINS[Math.floor(Math.random() * CAPTAINS.length)].id };
 const best = (idx, score) => idx.reduce((b, i) => (score(i) > score(b) ? i : b), idx[0]);
 
 function startBot(tutorial) {
   if (!tutorial && deckProblems(deck()).length) return toast('Fix your deck first.');
   leave(true); bot = true; isHost = true; me = 0;
-  const d = tutorial ? STARTER : deck(), g = newGame([{ captain: d.captain, cards: d.cards, finishes: finishesFor(d) }, BOT_DECK], [myName, 'Bot']);
+  const d = tutorial ? STARTER : deck(), g = newGame([{ captain: d.captain, cards: d.cards, finishes: finishesFor(d) }, botDeck(tutorial)], [myName, 'Bot']);
   if (tutorial) {
     g.turn = 0; g.actions = 2; g.log = ['Tutorial battle: you go first.']; // 2 Actions so you can play and attack in the first turn
     g.players[0].hand[0] = TC.id;
@@ -250,6 +251,7 @@ function overlay() {
     <div class="grid caps">${CAPTAINS.map(c => renderCard(c, { cls: c.id === deck().captain ? 'picked' : '', attrs: tappable('captain', `data-id="${c.id}"`) })).join('')}</div>
     <button class="btn wide" data-act="close">Close</button>`);
   if (ui.sheet === 'adjust' && game) return adjustSheet();
+  if (ui.sheet === 'super' && game) return superSheet();
   if (ui.sheet?.startsWith('fx:') && game) { // phone: a side's active Items/Evils, full size
     const who = ui.sheet.slice(3), t = game.players[who === 'me' ? me : 1 - me];
     return sheet(`<h2>${who === 'me' ? 'Your' : `${esc(t.name)}'s`} effects</h2>
@@ -288,6 +290,21 @@ function zoomGame(z) {
   if (z.zone === 'fx') rows = `<div class="row2">${!mine && live && c.type === 'evil' ? btn({ type: 'cleanse', i: z.i }, `Cleanse ${cost(2)}`, 'primary') : ''}${item.turns != null ? stepper(`${item.turns} turn${item.turns > 1 ? 's' : ''}`, { type: 'turns', who: w, i: z.i, d: -1 }, { type: 'turns', who: w, i: z.i, d: 1 }) : ''}${remove}</div>`;
   const stats = z.zone === 'field' ? statsOf(game, w, item) : {};
   return `<div class="dim" data-act="close">${renderCard(finCard(t, item.id ?? item), { cls: 'zoom' + finCls(t, item.id ?? item), hp: item.hp, turns: item.turns, ...stats })}${rows}<button class="btn sm" data-act="close">Close</button></div>`;
+}
+
+// Your Captain's Super can be used right now (the engine's rule in game.js 'ability').
+const superReady = (g = game) => { const t = g.players[me], c = CARD[t.captain]; return g.turn === me && g.phase === 'play' && !!c.ability && t.goof >= (c.goof || 0) && !(c.once && g.capUsed); };
+// "Super, 6 Creativity: Supernova. Opponent +4 Boredom…" -> { name: 'Supernova', effect: 'Opponent +4 Boredom…' }
+const superInfo = c => { const m = /^Super,\s*\d+\s*Creativity:\s*([^.!]+)[.!]\s*([\s\S]*)$/.exec(c.text || ''); return m ? { name: m[1].trim(), effect: m[2].trim() } : { name: 'Super', effect: c.text || '' }; };
+
+// Confirm popup for the SUPER button: what the Super does and what it costs, then Use Super / Not now.
+function superSheet() {
+  if (!superReady()) { ui.sheet = null; return ''; } // no longer usable (turn ended, Creativity changed)
+  const c = CARD[game.players[me].captain], s = superInfo(c);
+  return sheet(`<div class="super-ask"><div class="super-art">${ICON.captain}${c.art ? `<img ${assetSrc(c.art)} alt="" onerror="this.remove()">` : ''}</div>
+      <div><small>${esc(c.name)}'s Super</small><h2>${esc(s.name)}</h2><span class="super-cost"><span class="goof">${ICON.goof}</span>${c.goof || 0} Creativity</span></div></div>
+    <p class="super-what"><b>What it does</b>${esc(s.effect)}</p>
+    <div class="row2"><button class="btn" data-act="close">Not now</button>${btn({ type: 'ability', i: -1 }, `${ICON.super}Use Super`, 'primary')}</div>`);
 }
 
 function adjustSheet() {
@@ -482,7 +499,28 @@ async function preAnimate(ev) {
   await sleep(450);
 }
 
-function postAnimate(ev, prev, s) {
+// Full-screen Super cut-in (either side): the screen dims, a band with the Captain's art slashes across with the Super's name, then fades.
+// Purely visual (state has already moved on); tap anywhere skips. Reduced motion: a short plain fade with the name. Resolves when it's gone.
+function superCutIn(e, s) {
+  const c = CARD[e.id], info = superInfo(c), mine = e.p === me, d = document.createElement('div');
+  d.className = `cutin ${mine ? 'mine' : 'theirs'}${calm ? ' calm' : ''}`;
+  d.setAttribute('role', 'status');
+  d.innerHTML = `<div class="cutin-band"><div class="cutin-art">${ICON.captain}${c.art ? `<img ${assetSrc(c.art)} alt="" onerror="this.remove()">` : ''}</div>
+    <div class="cutin-text"><small>${ICON.super}${mine ? '' : `${esc(s.players[e.p].name)}: `}${esc(c.name)}'s Super</small><b style="--n:${Math.max(6, ...info.name.split(/\s+/).map(w => w.length))}">${esc(info.name)}</b></div></div>`; // --n: longest word, so it fits without breaking
+  return new Promise(res => {
+    let done = false;
+    const end = () => { if (done) return; done = true; d.classList.add('out'); setTimeout(() => d.remove(), 220); res(); };
+    d.addEventListener('pointerdown', ev => { ev.preventDefault(); end(); });
+    fxLayer.append(d);
+    if (typeof sfx === 'function') sfx('packopen_11_rarereveal');
+    setTimeout(end, calm ? 900 : 1100);
+  });
+}
+const superCast = ev => ev.find(e => e.k === 'cast' && CARD[e.id]?.type === 'captain');
+
+async function postAnimate(ev, prev, s) {
+  const sup = superCast(ev);
+  if (sup) await superCutIn(sup, s); // the effect lands on the meters once the cut-in is gone
   const nudges = new Map(), stack = el => { const n = nudges.get(el) || 0; nudges.set(el, n + 24); return n; }; // labels on one element stack upwards
   const pips = $app.querySelector('.mid .pips');
   for (const e of ev) {
@@ -491,8 +529,13 @@ function postAnimate(ev, prev, s) {
       if (e.zone === 'field' && e.p !== me && e.id) splash(e.id, ['character', 'Enters the field']); // show the opponent's played Character
     }
     if (e.k === 'cast') {
-      const c = CARD[e.id]; splash(e.id, castTag(c));
-      if (c.type === 'captain') { const cap = hudEl(e.p)?.querySelector('.cap'); flash(cap, 'pop', 700); floatText(cap, 'Super!', 'super', 0, ICON.super); if (typeof sfx === 'function') sfx('versus_rewards_2_barfillsparkle'); }
+      const c = CARD[e.id];
+      if (c.type !== 'captain') splash(e.id, castTag(c)); // a Captain's Super had its cut-in instead
+      else {
+        const cap = hudEl(e.p)?.querySelector('.cap'), target = ev.some(x => x.k === 'meter' && x.p !== e.p) ? 1 - e.p : e.p; // shake whoever it hit
+        flash(cap, 'pop', 700); floatText(cap, 'Super!', 'super', 0, ICON.super); flash(hudEl(target), 'hit', 450);
+        if (typeof sfx === 'function') sfx('versus_rewards_2_barfillsparkle');
+      }
     }
     if (e.k === 'coin') coinToss(e.heads);
     if (e.k === 'declare') floatText(fieldEl(e.p, e.i), `${e.move} ${e.power}`, 'atk', 0, ICON.atk);
@@ -620,8 +663,8 @@ async function present(prev, s) {
   if (!calm && ui.view === 'game' && game && ev.some(e => e.k === 'attack' || e.k === 'hit')) await preAnimate(ev);
   game = s; ui.view = 'game'; ui.code = ''; ui.status = ''; ui.defPick = null; ui.atk = null;
   toast(s.log[s.log.length - 1]);
-  if (calm) return;
-  if (!prev) coinFlip(s); else postAnimate(ev, prev, s);
+  if (calm) { if (prev && superCast(ev)) await superCutIn(superCast(ev), s); return; } // reduced motion: just the plain name fade
+  if (!prev) coinFlip(s); else await postAnimate(ev, prev, s);
 }
 
 function act(p, a) { // host (or bot game) only; returns whether the action was legal
@@ -646,7 +689,11 @@ const ACTS = {
   filter(d) { ui.filter = d.f; },
   filters() { ui.fopen = !ui.fopen; },
   zoom(d) { ui.zoom = { id: d.id }; },
-  card(d) { ui.zoom = { who: d.who, zone: d.zone, i: Number(d.i) }; ui.sheet = null; },
+  card(d) {
+    if (d.zone === 'cap' && d.who === 'me' && game && superReady()) { ui.sheet = 'super'; ui.zoom = null; return; } // ready: straight to the Super popup
+    ui.zoom = { who: d.who, zone: d.zone, i: Number(d.i) }; ui.sheet = null;
+  },
+  super() { ui.sheet = 'super'; ui.zoom = null; },
   sheet(d) { ui.sheet = d.s; ui.zoom = null; },
   close() { ui.zoom = ui.sheet = ui.atk = null; },
   aim(d) { ui.atk = { i: Number(d.i), m: Number(d.m) }; ui.defPick = null; ui.zoom = null; },
@@ -707,7 +754,7 @@ document.addEventListener('click', e => {
 document.addEventListener('keydown', e => {
   if ((e.key === 'Enter' || e.key === ' ') && e.target.matches?.('[data-act]:not(button)')) { e.preventDefault(); e.target.click(); }
   if (e.key === 'Enter' && e.target.id === 'join-code') join();
-  if (e.key === 'Escape' && (ui.zoom || ui.sheet === 'captain' || ui.sheet === 'adjust')) { ui.zoom = ui.sheet = null; render(); }
+  if (e.key === 'Escape' && (ui.zoom || ['captain', 'adjust', 'super'].includes(ui.sheet))) { ui.zoom = ui.sheet = null; render(); }
 });
 document.addEventListener('input', e => { if (e.target.id === 'join-code') { e.target.value = e.target.value.toUpperCase(); ui.joinCode = e.target.value; } });
 document.addEventListener('change', e => {

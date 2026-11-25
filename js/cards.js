@@ -27,7 +27,7 @@
 //   role (Characters): shown on the card, e.g. 'Tank', 'Support', 'Glass Cannon', 'Gimmick'. cost (Characters too): Actions to play, default 1.
 //   ['purge','opp'|'me',n]: remove that player's n newest Evils.
 // Anything these can't express still works by hand from the Adjust panel.
-const BORE_MAX = 10;
+const BORE_MAX = 15;
 // Fixed-damage combat: a move's power is its damage. Printed HP is multiplied by HP_SCALE; printed DEF becomes armour
 // (damage blocked per hit): DEF 8-10 -> 0, 11-13 -> 1, 14-16 -> 2. "Tough" Characters (disadv) get +1 armour. tools/sim.js tries other HP_SCALEs.
 const HP_SCALE = 1.2;
@@ -41,7 +41,7 @@ const STARTER = STARTERS[0];
 const RULES = [
   // (the "3 copies" below mirrors MAX_COPIES in game.js, which loads later)
   // [heading, one-line rule, icon key (see ICON in render.js), one-line example]. Drawn as short cards by viewRules.
-  ['Goal', `Reach ${BORE_MAX} Boredom and you lose, so make your opponent get there first.`, 'bore', `They are on 8 and a hit adds 2? Game over.`],
+  ['Goal', `Reach ${BORE_MAX} Boredom and you lose, so make your opponent get there first.`, 'bore', `They are on ${BORE_MAX - 2} and a hit adds 2? Game over.`],
   ['Starting out', 'A coin flip picks who goes first. First player: 5 cards, and on turn one no draw, no +1 Creativity and only 1 Action. Second player: 6 cards.', 'turn', 'Going second means one extra card in hand.'],
   ['Your turn', 'You draw 1 card, get 2 Actions and +1 Creativity. Then play cards and use moves in any order, and press End Turn.', 'turn', 'Turn 4: draw, 2 Actions, +1 Creativity.'],
   ['Actions', 'Actions pay for everything. Cards and moves show their cost. Unspent Actions are saved: you start a turn with at most 5.', 'action', 'Spend 1 and save 1: next turn you start with 3.'],
