@@ -43,11 +43,11 @@ const WHY = {
   jangle_dizzy: 'Coin Boredom becomes coin damage.',
   scrunge_anna_lee: 'Text fix: it also gave +1 Creativity when played, which the text didn’t say.',
   captain_moth: 'Owner: genuinely nerf. Super costs 5 (was 4); clears 3 Boredom (was 2) so it still does something when it lands.',
-  captain_xee: 'Was the top Captain (73%): +3 Boredom (was +4).',
+  captain_xee: 'Was the top Captain (~70%): +3 Boredom and -2 Creativity (was +4 and -3).',
   captain_rotgrease: 'Second best (62%): costs 4 (was 3).',
-  captain_anonagon: 'Weakest by far (28%): costs 3 (was 4); +2 Actions and draw 2 cards (was +3 Actions).',
-  captain_hamish: 'Fell behind once Boredom riders left the game: +2 Boredom (was +1).',
-  captain_wawa: 'Below 50%: tails no longer gives you Boredom, it just misses.',
+  captain_anonagon: 'Weakest by far (~30%): costs 2 (was 4), same +3 Actions. In the sim extra cards barely helped him; Actions and how often he gets them do.',
+  captain_hamish: 'Swings hard on Boredom: +2 Boredom (was +1) but costs 5 (was 3). At cost 3 it won 78%.',
+  captain_wawa: 'Tails no longer gives you Boredom, it just misses; costs 3 (was 2) to pay for that.',
 };
 const pairs = Object.keys(WHY).map(id => [id, now[id] ? id : Object.keys(now).find(k => k === id + '_v2'), WHY[id]]);
 for (const [o, n] of pairs) if (!old[o] || !now[n]) throw new Error('missing ' + o + ' / ' + n);

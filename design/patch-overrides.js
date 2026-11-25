@@ -46,7 +46,7 @@ const CHANGES = {
   captain_wawa: { goof: 3, text: 'Super, 3 Creativity: Random Button. Flip a coin. Heads: opponent +3 Boredom. Tails: nothing happens.', ability: [['flip', [['bore', 'opp', 3]], []]] },
   captain_xee: { text: 'Super, 6 Creativity: Supernova. Opponent +3 Boredom and -2 Creativity.', ability: [['bore', 'opp', 3], ['goof', 'opp', -2]] },
   captain_rotgrease: { goof: 4, text: 'Super, 4 Creativity: Grind. Opponent +2 Boredom.', ability: [['bore', 'opp', 2]] },
-  captain_anonagon: { goof: 3, text: 'Super, 3 Creativity: Crunch Time. +4 Actions this turn.', ability: [['actions', 'me', 4]] },
+  captain_anonagon: { goof: 2, text: 'Super, 2 Creativity: Crunch Time. +3 Actions this turn.', ability: [['actions', 'me', 3]] },
 };
 const extra = process.argv[2] ? JSON.parse(fs.readFileSync(process.argv[2], 'utf8')) : {}; // optional second file of tweaks on top
 for (const [id, ch] of Object.entries({ ...CHANGES })) O[id] = { ...(O[id] || {}), ...ch, ...(extra[id] || {}) };

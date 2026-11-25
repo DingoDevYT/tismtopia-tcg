@@ -37,7 +37,8 @@ const fix = c => (c.art && !/^https?:/.test(c.art) ? { ...c, art: ART + c.art } 
 // old cards keep their old card number
 const groups = [['Evils retired: the Items that replaced them', id => /^item_/.test(id)], ['Characters reworked (new hook)', id => !/^item_|^captain_/.test(id) && /Bland|Text fix/.test(PAIRS.find(p => p[0] === id)[2])],
   ['Boredom riders removed', id => !/^item_|^captain_/.test(id) && !/Bland|Text fix/.test(PAIRS.find(p => p[0] === id)[2])], ['Captain Supers', id => /^captain_/.test(id)]];
-document.getElementById('out').innerHTML = groups.map(([title, test]) => `<h2>${title}</h2><div class="grid">${PAIRS.filter(p => test(p[0])).map(([o, n, why]) => {
+const only = new URLSearchParams(location.search).get('g'); // ?g=0..3 shows one section (for screenshots)
+document.getElementById('out').innerHTML = groups.filter((_, k) => only == null || +only === k).map(([title, test]) => `<h2>${title}</h2><div class="grid">${PAIRS.filter(p => test(p[0])).map(([o, n, why]) => {
   const oc = fix({ ...OLD[o], no: CARD[n].no }), nc = fix(CARD[n]);
   return `<div class="pair"><div class="lbl"><span>BEFORE</span><span>AFTER</span></div><div class="row">${renderCard(oc)}<span class="arrow">→</span>${renderCard(nc)}</div><p class="why">${why}</p></div>`;
 }).join('')}</div>`).join('');
