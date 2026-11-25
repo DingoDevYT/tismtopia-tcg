@@ -2,7 +2,7 @@
 // These two values are PUBLIC by design (the project URL and its publishable key; Row Level Security decides what anyone can read or write),
 // so they are safe to commit. Never put a secret / service_role key here. An empty url switches accounts off: every call returns CLOUD_OFF.
 const CLOUD = { url: 'https://ikmohktrubvpykvwyxuf.supabase.co', key: 'sb_publishable_GSno-kcVbX_vi5eQYQ8Vaw_jaSwsWST' };
-const SAVE_KEYS = ['name', 'collection', 'coins', 'decks', 'deck', 'favs', 'volume', 'stats', 'onboard', 'resetAt', 'pfp', 'showcase', 'capPlays', 'pbClaimed']; // pfp, showcase, capPlays: js/social.js; pbClaimed: js/prebuilt.js
+const SAVE_KEYS = ['name', 'collection', 'coins', 'decks', 'deck', 'favs', 'volume', 'stats', 'onboard', 'resetAt', 'pfp', 'showcase', 'capPlays', 'pbClaimed', 'rank']; // pfp, showcase, capPlays: js/social.js; pbClaimed: js/prebuilt.js; rank: js/ranked.js
 const STAT_KEYS = ['botPlayed', 'botWon', 'pvpPlayed', 'pvpWon'];
 const CLOUD_OFF = { ok: false, why: 'Accounts are not connected yet.' }, NO_USER = { ok: false, why: 'Not signed in.' };
 // checked: we know whether someone is signed in. synced: the sign-in comparison is settled, so auto-save may run.
@@ -254,6 +254,7 @@ function cleanSave(d) {
     else if (k === 'showcase') { const s = cleanStands(v); if (!s) bad(k); out.showcase = s; } // display stands
     else if (k === 'capPlays') { const c = cleanCapPlays(v); if (!c) bad(k); out.capPlays = c; } // battles per Captain
     else if (k === 'pbClaimed') { const c = pbCleanClaimed(v); if (!c) bad(k); out.pbClaimed = c; } // completed pre-built decks, reward paid (js/prebuilt.js)
+    else if (k === 'rank') { const c = rkClean(v); if (!c) bad(k); out.rank = c; } // ranked rating, games, wins, peak (js/ranked.js)
     else if (k === 'resetAt') { if (!str(v, 40) || isNaN(Date.parse(v))) bad(k); out.resetAt = v; }
     else bad(k);
   }

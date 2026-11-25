@@ -1,7 +1,7 @@
 // Coins: packs cost coins, matches pay coins, cards sell for coins, and a daily shop sells a few cards.
 const PACK_PRICE = { heehn: 300, empirical: 400, foreseen: 500, community: 400 }, price = pk => PACK_PRICE[pk] || 300;
 const PAY = { bot: [1000, 500], player: [2000, 1000] }; // [win, loss] // 10-card packs resell for roughly their price on average
-const RVAL = { C: 15, U: 38, R: 90, UR: 300 }, FVAL = { normal: 1, rev: 1.5, holo: 2, full: 4, rainbow: 12 }; // a weak pack sells for about half its cost
+// Card values (cardValue: stars x a light power adjustment) live in js/odds.js; selling pays the value, the shop charges SHOP_MARKUP x it.
 const fmt = n => Math.round(n).toLocaleString('en-US'); // 10000 -> 10,000
 const COIN = '<img class="coin" src="art/coin.svg" alt="coins">';
 const START_COINS = 900; // a new (or reset) account's coins
@@ -11,7 +11,6 @@ let shown = coins, tick = null;
 const setCoins = n => { coins = n; store.set('coins', coins); clearInterval(tick);
   tick = setInterval(() => { shown += Math.sign(coins - shown) * Math.max(1, Math.round(Math.abs(coins - shown) / 8));
     document.querySelectorAll('.coin-bar b').forEach(b => { b.textContent = fmt(shown); }); if (shown === coins) clearInterval(tick); }, 30); };
-const cardValue = (id, f = 'normal') => (RVAL[CARD[id].rarity || 'C'] || 10) * (FVAL[f] || 1);
 // Starter copies come back on every load, so they can't be sold (no free-money loop).
 // Selling below 3 copies means you can no longer run a full set of this card in a deck.
 const lowWarn = (id, n) => `Sell ${CARD[id].name}? You'll have ${n - 1} left, and decks can use up to 3 copies of a card, so you won't be able to run a full set of it.`;
@@ -31,7 +30,7 @@ function shopToday() {
   const pool = [...CARDS]; return Array.from({ length: 4 }, () => pool.splice(Math.floor(rnd() * pool.length), 1)[0]);
 }
 const shopHtml = () => `<section class="shop"><h3>Shop <small class="muted">new cards every day</small></h3><div class="shop-row">${shopToday().map(c =>
-  `<div class="shop-item">${renderCard(c, { cls: 'mini', attrs: `data-act="view-card" data-id="${c.id}"` })}<button class="btn primary" data-act="buy" data-id="${c.id}">${COIN}${fmt(cardValue(c.id) * 2)}</button></div>`).join('')}</div></section>`;
+  `<div class="shop-item">${renderCard(c, { cls: 'mini', attrs: `data-act="view-card" data-id="${c.id}"` })}<button class="btn primary" data-act="buy" data-id="${c.id}">${COIN}${fmt(cardValue(c.id) * SHOP_MARKUP)}</button></div>`).join('')}</div></section>`;
 
 const viewPacksNoShop = viewPacks;
 viewPacks = () => (viewPacksNoShop().replace('data-p="' , 'data-p="').replace(/(wheel-open[^>]*data-p="([^"]*)"[^>]*>)Open<\/button>/, (m, a, pk) => `${a}Open for ${COIN}${fmt(price(pk))}</button><button class="btn odds-btn" data-act="odds" data-p="${pk}">What's in this pack?</button>`));
@@ -46,10 +45,10 @@ viewer = () => {
   const have = coll[v.id]?.f?.[v.finish] || 0, spare = (coll[v.id]?.n || 0) - keep(v.id);
   // Missing card: point to the pack that can give it, with the chance per pack.
   const pk = !coll[v.id]?.n && PACKS.find(p => PACK_SET[p.id]?.includes(v.id));
-  const get = pk ? (() => { const r = CARD[v.id].rarity || 'C', n = pool(r, pk.id).length, miss = SLOTS.reduce((m, t) => m * (1 - (t.find(([, x]) => x === r)?.[0] || 0) / n), 1);
-    return `<button class="btn primary wide find-btn" data-act="goto-pack" data-p="${pk.id}">Find it in ${esc(pk.name)}<small>${((1 - miss) * 100).toFixed(1)}% chance per pack</small></button>`; })()
+  const get = pk ? `<button class="btn primary wide find-btn" data-act="goto-pack" data-p="${pk.id}">Find it in ${esc(pk.name)}<small>${(cardChance(v.id, pk.id) * 100).toFixed(1)}% chance per pack</small></button>`
     : !coll[v.id]?.n && CARD[v.id].community ? '<p class="muted center">Not in a pack yet</p>' : ''; // approved, but the reviewer hasn't put it in a pack
-  const sell = get || (have && spare > 0 ? `<button class="btn wide" data-act="sell">Sell one for ${COIN}${fmt(cardValue(v.id, v.finish))}</button>` : '');
+  const worth = `<small class="muted card-worth">${starsOf(v.id, v.finish)} value ${COIN}<b>${fmt(cardValue(v.id, v.finish))}</b> · shop price ${fmt(cardValue(v.id, v.finish) * SHOP_MARKUP)}</small>`;
+  const sell = worth + (get || (have && spare > 0 ? `<button class="btn wide" data-act="sell">Sell one for ${COIN}${fmt(cardValue(v.id, v.finish))}</button>` : ''));
   const fs = Object.entries(coll[v.id]?.f || {}).filter(([, n]) => n > 0).sort(([a], [b]) => FORDER.indexOf(a) - FORDER.indexOf(b));
   // Every copy you own as a row of big cards, the chosen finish first.
   // One stack per finish: copies sit behind each other so only their edges show.
@@ -140,16 +139,20 @@ viewOpen = () => {
     .replace('<div class="pull-grid">', `<button class="btn wide" data-act="sell-all-pulls">Sell all for ${COIN}${fmt(o.cards.filter(p => !p.sold).reduce((a, p) => a + cardValue(p.id, p.finish), 0))}</button><div class="pull-grid">`);
 };
 
-// "What's in this pack?": every card, in number order, with its share of all pulled cards (adds up to 100%).
+// "What's in this pack?": stars decide the odds (packOdds, js/odds.js). At the top, the chance a pack holds at least one card of each star level;
+// then one group per star level, 5★ first: the chance per pack of each card in it (the same for every card in the group), its finish and the cards.
+// Each group also shows how many of its cards a pack holds on average; those add up to the pack's 5 cards.
+const STAR_FIN = ['Normal', 'Normal', 'Holo', 'Reverse Holo', 'Full Art', 'Rainbow'];
 function oddsHtml() {
-  // One entry per card per finish (Characters only get special finishes), rarest first.
-  const rows = CARDS.filter(c => c.type !== 'captain').flatMap(c => { const r = c.rarity || 'C', n = pool(r, ui.odds).length; if (!PACK_SET[ui.odds]?.includes(c.id)) return [];
-    const p = SLOTS.reduce((s, t) => s + (t.find(([, v]) => v === r)?.[0] || 0) / n, 0) / SLOTS.length;
-    return Object.values((c.type === 'character' ? boosted(FINISH[r], ui.odds) : [[1, 'normal']]).reduce((o, [fp, f]) => { f = allowFin(c, f); (o[f] ||= { c, f, p: 0 }).p += p * fp; return o; }, {})); }) // a finish the card doesn't allow counts toward the one it drops to
-    .sort((a, b) => FORDER.indexOf(b.f) - FORDER.indexOf(a.f) || a.p - b.p || a.c.no.localeCompare(b.c.no));
-  const pc = p => (p * 100).toFixed(p < 0.001 ? 3 : p < 0.01 ? 2 : 1) + '%';
-  return `<h3>${esc(PACKS.find(p => p.id === ui.odds)?.name || 'This pack')}: ${fmt(price(ui.odds))} coins</h3><small class="muted">Chance that any card you pull is this one, rarest first</small><div class="grid odds">${rows.map(({ c, f, p }) =>
-    `<div class="cell coll-cell${hasFin(c.id, f) ? ' owned' : ''}">${renderCard((f === 'full' || f === 'rainbow') ? { ...c, crop: null } : c, { cls: FINISH_CLS[f] || '', attrs: `data-act="view-card" data-id="${c.id}" data-f="${f}"` })}${ownedTag(c.id, f)}<small class="chip on">${starsOf(c.id, f)} · ${pc(p)}</small></div>`).join('')}</div>`;
+  const pk = ui.odds, o = packOdds(pk), pc = p => (p >= 0.9995 ? '100' : (p * 100).toFixed(p < 0.001 ? 3 : p < 0.01 ? 2 : 1)) + '%', st = s => (s ? '★'.repeat(s) : '☆');
+  const groups = [5, 4, 3, 2, 1, 0].filter(s => o.n[s]).map(s => {
+    const list = o.list.filter(e => e.s === s).sort((a, b) => a.c.no.localeCompare(b.c.no));
+    return `<div class="odds-group"><h4><span class="chip on">${st(s)} ${STAR_FIN[s]}</span> <b>${pc(o.each[s])}</b> each per pack <small class="muted">· ${list.length} card${list.length > 1 ? 's' : ''} · ${o.expect[s].toFixed(o.expect[s] < 0.1 ? 3 : 2)} per pack on average</small></h4>
+      <div class="grid odds">${list.map(({ c, f }) => `<div class="cell coll-cell${hasFin(c.id, f) ? ' owned' : ''}">${renderCard((f === 'full' || f === 'rainbow') ? { ...c, crop: null } : c, { cls: FINISH_CLS[f] || '', attrs: `data-act="view-card" data-id="${c.id}" data-f="${f}"` })}${ownedTag(c.id, f)}</div>`).join('')}</div></div>`; }).join('');
+  return `<h3>${esc(PACKS.find(p => p.id === pk)?.name || 'This pack')}: ${fmt(price(pk))} coins</h3>
+    <small class="muted">5 cards: four from the whole pack, the last always 1★ or better. Only stars change the odds: every card at the same star level is equally likely. Cards sell for ${fmt(o.value)} coins per pack on average.</small>
+    <ul class="odds-any">${[5, 4, 3, 2, 1].filter(s => o.n[s]).map(s => `<li><span>At least one ${st(s)}</span><b>${pc(o.any[s])}</b></li>`).join('')}</ul>
+    ${groups}<small class="muted">Averages add up to ${o.expect.reduce((a, b) => a + b, 0).toFixed(2)} cards. About 1 pack in ${fmt(1 / GOD_ODDS)} is a God pack instead: every card Rare or better, with a 4★ and a 5★.</small>`;
 }
 const viewPacksNoOdds = viewPacks;
 viewPacks = () => viewPacksNoOdds() + (ui.odds ? `<div class="viewer"><div class="viewer-bg" data-act="odds"></div><div class="shop-sheet neu">${oddsHtml()}<button class="btn wide" data-act="odds">Close</button></div></div>` : '');
@@ -173,8 +176,7 @@ function shopSlots() {
   return Array.from({ length: 20 }, () => {
     const c = list[Math.floor(rnd() * list.length)];
     let f = 'normal'; if (c.type === 'character') { let x = rnd(); for (const [p, v] of SHOP_FIN) if ((x -= p) < 0) { f = v; break; } }
-    if (f === 'rainbow' && c.rarity !== 'UR') f = 'full'; // rainbow is Ultra Rare only
-    return { c, f: allowFin(c, f), ends };
+    return { c, f: allowFin(c, f), ends }; // a finish the card can't have (cardFins, js/odds.js) drops to the best one it can
   }).sort((a, b) => starN(b.c.id, b.f) - starN(a.c.id, a.f) || cardValue(b.c.id, b.f) - cardValue(a.c.id, a.f));
 }
 const left = ms => { const m = Math.floor(ms / 6e4), sec = Math.floor(ms % 6e4 / 1000); return `${m}m ${String(sec).padStart(2, '0')}s`; };

@@ -87,7 +87,8 @@ function apply(s0, p, a, rng = Math.random) {
   const s = structuredClone(s0);
   const me = s.players[p], opp = s.players[1 - p];
   const say = t => { s.log.push(t); if (s.log.length > 60) s.log.shift(); };
-  const ev = e => s.events.push(e);
+  let tag = null; // while a card effect runs: { src: { p, zone, i, id, m? }, when }, copied onto every event it causes (the UI's cause -> effect highlight)
+  const ev = e => s.events.push(tag ? { ...e, ...tag } : e);
   const at = (arr, i) => { if (!Number.isInteger(i) || !arr[i]) throw new Error('That card is gone.'); return arr[i]; };
   const who = () => { if (a.who !== 0 && a.who !== 1) throw new Error('Bad player.'); return s.players[a.who]; };
   const step = () => { if (a.d !== 1 && a.d !== -1) throw new Error('Bad amount.'); return a.d; };
@@ -111,8 +112,13 @@ function apply(s0, p, a, rng = Math.random) {
     if (d) ev({ k: 'meter', p: pi, key, n: d });
     return d;
   };
-  // ctx: { self, target } as { p, i } field positions, for 'hp' steps inside moves
+  // ctx: { self, target } as { p, i } field positions, for 'hp' steps inside moves; { src, when }: which card this is and why it fired
+  // (when: 'play' | 'turn' | 'oppTurn' | 'hit' | 'move' | 'attack' | 'defend' (Item triggers)), only for the UI
   const runOps = (pi, ops, c, ctx = {}) => {
+    const outer = tag; if (ctx.src) tag = { src: ctx.src, when: ctx.when };
+    try { runSteps(pi, ops, c, ctx); } finally { tag = outer; }
+  };
+  const runSteps = (pi, ops, c, ctx) => {
     for (const [what, a1, a2] of ops || []) {
       if (what === 'flip') {
         const heads = rng() < 0.5;
@@ -163,7 +169,7 @@ function apply(s0, p, a, rng = Math.random) {
     for (const e of [...s.players[pi].effects]) {
       const c = CARD[e.id];
       if (!c[key] || !fxOn(s, pi, e)) continue;
-      runOps(pi, c[key], c, ctx);
+      runOps(pi, c[key], c, { ...ctx, src: { p: pi, zone: 'effects', i: s.players[pi].effects.indexOf(e), id: e.id }, when: key === 'onAttack' ? 'attack' : 'defend' });
       useUp(pi, e);
     }
   };
@@ -197,11 +203,12 @@ function apply(s0, p, a, rng = Math.random) {
       const id = at(me.hand, a.i), c = CARD[id];
       spend(playCost(s, p, c));
       me.hand.splice(a.i, 1);
-      if (c.type === 'character') { me.field.push({ id, hp: maxHp(c), t: s.turnNo }); ev({ k: 'play', p, zone: 'field', i: me.field.length - 1, id }); }
-      else if (isInstant(c)) ev({ k: 'cast', p, id }); // instant: resolves and is gone, never sits on the table
-      else { me.effects.push(c.type === 'bit' ? { id, turns: c.dur, ...(c.uses && { uses: c.uses }), t: s.turnNo } : { id }); ev({ k: 'play', p, zone: 'fx', i: me.effects.length - 1 }); ev({ k: 'cast', p, id }); }
+      let src;
+      if (c.type === 'character') { me.field.push({ id, hp: maxHp(c), t: s.turnNo }); ev({ k: 'play', p, zone: 'field', i: me.field.length - 1, id }); src = { p, zone: 'field', i: me.field.length - 1, id }; }
+      else if (isInstant(c)) { ev({ k: 'cast', p, id }); src = { p, zone: 'hand', i: a.i, id }; } // instant: resolves and is gone, never sits on the table
+      else { me.effects.push(c.type === 'bit' ? { id, turns: c.dur, ...(c.uses && { uses: c.uses }), t: s.turnNo } : { id }); ev({ k: 'play', p, zone: 'fx', i: me.effects.length - 1 }); ev({ k: 'cast', p, id }); src = { p, zone: 'effects', i: me.effects.length - 1, id }; }
       say(`${me.name} played ${c.name}.`);
-      runOps(p, c.onPlay, c);
+      runOps(p, c.onPlay, c, { src, when: 'play' });
       break;
     }
     case 'attack': { // use one of a Character's moves: a.i = field position, a.m = move index
@@ -216,7 +223,7 @@ function apply(s0, p, a, rng = Math.random) {
         spend(moveCost(s, p, mv));
         say(`${c.name} used ${mv.name}.`);
         ev({ k: 'move', p, i: a.i, name: mv.name });
-        runOps(p, mv.ops, c, { self });
+        runOps(p, mv.ops, c, { self, src: { p, zone: 'field', i: a.i, id: f.id, m: a.m }, when: 'move' });
         cull(me); cull(opp);
         break;
       }
@@ -230,7 +237,7 @@ function apply(s0, p, a, rng = Math.random) {
         ev({ k: 'attack', p, i: a.i, direct: true, move: mv.name, power });
         gain(1 - p, 'bore', power);
         say(`${c.name} uses ${mv.name} directly: ${opp.name} +${power} Boredom.`);
-        runOps(p, mv.onHit, c, { self });
+        runOps(p, mv.onHit, c, { self, src: { p, zone: 'field', i: a.i, id: f.id }, when: 'hit' });
       }
       cull(me);
       break;
@@ -242,6 +249,9 @@ function apply(s0, p, a, rng = Math.random) {
       if (!canBlock(s, p, a.i)) throw new Error(`${dc.name} is too scared to block.`);
       const arm = tf => (mv.pierce ? 0 : statsOf(s, p, tf).def); // mv.pierce: armour doesn't count
       const power = movePower(s, ai, af, mv), armor = arm(df), dmg = Math.max(0, power - armor), hit = dmg > 0;
+      // a.order (optional): the defender's own spill order, field positions after the blocker; without it (or past its end) the spill goes in field order.
+      const order = a.order == null ? [] : a.order;
+      if (!Array.isArray(order) || order.length >= me.field.length || order.some((j, k) => !Number.isInteger(j) || j === a.i || !(me.field[j]?.hp > 0) || order.indexOf(j) !== k)) throw new Error('Bad damage order.');
       // Spill-over: damage past the blocker's HP moves on to the next Character (its own armour applies), then to Boredom.
       let left = power, ti = a.i, bore = 0; const hitIdx = new Set(), spill = [], hits = []; // hits: who took how much, for the animation
       while (left > 0) {
@@ -258,15 +268,16 @@ function apply(s0, p, a, rng = Math.random) {
         if (ti !== a.i) spill.push(`${CARD[tf.id].name} -${taken}`);
         hitIdx.add(ti); left = own || save ? 0 : through - taken;
         if (!through) break;
-        ti = me.field.findIndex((f, j) => f.hp > 0 && !hitIdx.has(j));
+        ti = order.find(j => !hitIdx.has(j)) ?? me.field.findIndex((f, j) => f.hp > 0 && !hitIdx.has(j));
         if (ti < 0) ti = me.field.length; // nobody left to take it
       }
       ev({ k: 'attack', p: ai, i: s.pending.i, target: { p, i: a.i }, move: mv.name, roll: { atk: power, def: armor, dmg, hit, spill: spill.length, bore, hits } });
       s.roll = { seq: s.seq + 1, atk: power, def: armor, dmg, hit, a: af.id, d: df.id, by: ai, bore };
       say(`${mv.name} hits ${dc.name} for ${power}${armor ? ` (armour ${armor})` : ''}: ` + (hit ? `${dmg} damage${spill.length ? `, spilling over: ${spill.join(', ')}` : ''}${bore ? `, ${me.name} +${bore} Boredom` : ''}.` : 'all blocked!'));
       if (hit) {
-        runOps(ai, mv.onHit, ac, { self: { p: ai, i: s.pending.i }, target: { p, i: a.i } });
-        runOps(ai, ac.onBreak, ac, { self: { p: ai, i: s.pending.i } });
+        const src = { p: ai, zone: 'field', i: s.pending.i, id: af.id };
+        runOps(ai, mv.onHit, ac, { self: { p: ai, i: s.pending.i }, target: { p, i: a.i }, src, when: 'hit' });
+        runOps(ai, ac.onBreak, ac, { self: { p: ai, i: s.pending.i }, src, when: 'hit' });
       }
       trigger(p, 'onDefend', { self: { p, i: a.i }, target: { p: ai, i: s.pending.i } }); // the defender's Items: target = the attacker
       cull(opp); cull(me);
@@ -316,8 +327,10 @@ function apply(s0, p, a, rng = Math.random) {
       say(`${opp.name}'s turn${saved ? ` (${saved} Action${saved > 1 ? 's' : ''} saved, starts with ${s.actions})` : ''}.`);
       ev({ k: 'turn', p: 1 - p, actions: s.actions, saved });
       gain(1 - p, 'goof', 1); // everyone gets +1 Creativity each turn, so attacking is never forced
-      for (const c of sources(s, 1 - p)) runOps(1 - p, c.onTurnStart, c);
-      for (const c of sources(s, p)) runOps(p, c.onOppTurnStart, c);
+      // sources() with where each one sits (same cards, same order), so what it causes can name it
+      const placed = pi => { const P = s.players[pi]; return [[P.captain, 'cap', 0], ...P.field.map((f, i) => [f.id, 'field', i]), ...P.effects.map((e, i) => [e.id, 'effects', i])]; };
+      for (const [id, zone, i] of placed(1 - p)) runOps(1 - p, CARD[id].onTurnStart, CARD[id], { src: { p: 1 - p, zone, i, id }, when: 'turn' });
+      for (const [id, zone, i] of placed(p)) runOps(p, CARD[id].onOppTurnStart, CARD[id], { src: { p, zone, i, id }, when: 'oppTurn' });
       break;
     }
     // ---- manual tools for card text the effect data doesn't cover ----

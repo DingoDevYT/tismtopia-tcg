@@ -105,6 +105,12 @@
     <label class="num">Zoom <input type="range" id="rzoom" min="1" max="4" step="0.01"><input class="inp" type="number" id="nzoom" min="1" max="4" step="0.01"></label>
     <div class="row"><button class="btn sm" id="copyFull">Copy standard → full art</button><button class="btn sm" id="reset">Reset this crop</button></div>
     <label class="chk"><input type="checkbox" id="safe"> Safe zones on full art (header, text, moves)</label>
+    <div id="finBox" hidden>
+      <h3>Finishes in packs</h3>
+      <label class="chk"><input type="checkbox" id="pf-full"> Full art (4★)</label>
+      <label class="chk"><input type="checkbox" id="pf-rainbow"> Rainbow (5★)</label>
+      <small class="muted" id="pfNote"></small>
+    </div>
     <div id="subBox" hidden>
       <h3>Submission</h3>
       <div class="neu-in" id="subNotes"></div>
@@ -201,12 +207,23 @@ const moveSel = d => { const vis = [...list.children].filter(li => !li.hidden), 
 
 // ---- centre stage
 const finsOf = e => { const c = raw(e); return e.sub ? c.finishes : c.type === 'character' ? Object.keys(FIN) : ['normal']; };
+// Which finishes packs and the shop can give a built-in Character (same rule as cardFins in js/odds.js): normal, holo and reverse always;
+// full art and rainbow from its `finishes` list, or, with no list, when it has a full-art crop. The toggles write `finishes` to the overrides
+// (dropped again when it matches that default).
+const STD_FINS = ['normal', 'holo', 'rev'], dfltFins = c => [...STD_FINS, ...(c.cropFull ? ['full', 'rainbow'] : [])];
+const packFins = e => { const c = raw(e); return Array.isArray(c.finishes) ? c.finishes : dfltFins(c); };
+function setPackFin(f, on) {
+  const c = raw(sel), want = new Set(packFins(sel)); if (on) want.add(f); else want.delete(f);
+  const list = Object.keys(FIN).filter(k => STD_FINS.includes(k) || want.has(k));
+  begin(sel, 'fins'); setKey(sel, 'finishes', list.join() === dfltFins(c).join() && !Array.isArray(sel.base.finishes) ? undefined : list);
+  renderStage(); renderInspector(); paint(); say(`${FIN[f][0]} ${on ? 'on' : 'off'} in packs for ${c.name}; Save to keep it`);
+}
 function renderStage() {
   const c = view(sel), fins = finsOf(sel).filter(f => FIN[f]);
   const groups = ['crop', 'cropFull'].map(g => [g, fins.filter(f => GRP(f) === g)]).filter(([, l]) => l.length);
   $('#groups').innerHTML = groups.map(([g, l]) => `<section class="grp" data-g="${g}" style="--n:${l.length}">
     <div class="grp-h"><b>${g === 'crop' ? 'Standard crop' : 'Full-art crop'}</b><small>${l.map(f => FIN[f][0]).join(' · ')}</small><span class="etag">Editing</span></div>
-    <div class="fins">${l.map(f => `<figure class="fin" data-f="${f}">${renderCard(c, { cls: FIN[f][1] })}<figcaption>${FIN[f][0]}</figcaption></figure>`).join('')}</div></section>`).join('');
+    <div class="fins">${l.map(f => `<figure class="fin" data-f="${f}">${renderCard(c, { cls: FIN[f][1] })}<figcaption>${FIN[f][0]}${!sel.sub && c.type === 'character' && !packFins(sel).includes(f) ? ' · not in packs' : ''}</figcaption></figure>`).join('')}</div></section>`).join('');
   setGroup(groups.some(([g]) => g === grp) ? grp : 'crop');
 }
 function setGroup(g) {
@@ -275,9 +292,13 @@ for (const k of AXES) for (const p of ['r', 'n']) $('#' + p + k).addEventListene
 $('#copyFull').onclick = () => { begin(sel, 'copy'); setKey(sel, 'cropFull', { ...curCrop(sel, 'crop') }); schedule(); say('Copied the standard crop to full art'); };
 $('#reset').onclick = resetCrop;
 $('#safe').onchange = ev => stage.classList.toggle('safe', ev.target.checked);
+for (const f of ['full', 'rainbow']) $('#pf-' + f).onchange = ev => setPackFin(f, ev.target.checked);
 function renderInspector() {
   const c = raw(sel), sub = sel.sub;
   $('#subBox').hidden = !sub; $('#drop').hidden = !!sub;
+  const fb = !sub && c.type === 'character'; $('#finBox').hidden = !fb;
+  if (fb) { const pf = packFins(sel); for (const f of ['full', 'rainbow']) $('#pf-' + f).checked = pf.includes(f);
+    $('#pfNote').textContent = Array.isArray(c.finishes) ? 'Set by hand. Normal, holo and reverse holo are always in.' : `Default: ${c.cropFull ? 'on, because it has a full-art crop' : 'off until it has a full-art crop'}. Normal, holo and reverse holo are always in.`; }
   if (sub) { $('#subNotes').textContent = sub.form.notes || 'No notes.'; $('#saveSubImg').disabled = !sub.image; }
   const facts = [['Id', c.id], ['Number', c.no], ['Type', TYPE[c.type] + (c.main ? ' (Main)' : '')], c.type !== 'captain' && ['Cost', c.cost ?? 1],
     c.type === 'character' && ['HP / DEF', `${c.hp} HP (${maxHp(c)} in play) · DEF ${c.def} (armour ${baseArmor(c)})`], ['Rarity', c.rarity || (sub ? 'not set' : '-')], ['Owner', c.artist || '-']].filter(Boolean);

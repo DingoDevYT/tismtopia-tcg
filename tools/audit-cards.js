@@ -12,7 +12,7 @@ function base(fieldOpp) {
   const s = newGame([STARTERS[0], STARTERS[1]], ['A', 'B'], rng); const p = s.turn;
   s.actions = 5; s.players[p].goof = 3; s.players[1 - p].goof = 3; s.players[p].bore = 3; s.players[1 - p].bore = 3;
   s.players[1 - p].field = fieldOpp ? [{ id: 'scrunge_snoob', hp: maxHp(CARD.scrunge_snoob), t: 0 }, { id: 'scrunge_bobby', hp: maxHp(CARD.scrunge_bobby), t: 0 }] : [];
-  s.players[1 - p].effects = [{ id: 'item_won_let_rest' in CARD ? 'item_won_let_rest' : 'item_wont_let_rest' }];
+  s.players[1 - p].effects = [{ id: REPLACED.item_wont_let_rest || 'item_wont_let_rest' }];
   return [s, p];
 }
 const flags = [];
