@@ -58,9 +58,11 @@ function rkVal(s, p) {
   return side(s.players[p]) - side(s.players[1 - p]) + (s.turn === p ? s.actions : s.players[p].bank) * 0.5;
 }
 // Defender p picks the blocker that loses least (survives if it can, takes the least damage).
+// Field positions that may block (a shy Character can't while a braver one is there: canBlock in js/game.js).
+const rkBlockers = (s, p) => s.players[p].field.map((_, i) => i).filter(i => canBlock(s, p, i));
 function rkBlock(s, p) {
   const af = s.players[1 - p].field[s.pending.i], pw = CARD[af.id].moves[s.pending.m].power + statsOf(s, 1 - p, af).bonus, F = s.players[p].field;
-  return rkBest(F.map((_, i) => i), i => { const d = Math.max(0, pw - statsOf(s, p, F[i]).def); return (d < F[i].hp ? 100 : 0) - d * 10 + F[i].hp; });
+  return rkBest(rkBlockers(s, p), i => { const d = Math.max(0, pw - statsOf(s, p, F[i]).def); return (d < F[i].hp ? 100 : 0) - d * 10 + F[i].hp; });
 }
 // Defender p's spill order once blocker b is picked: every order of its other Characters is played out on a copy (same coin each time)
 // and the one that leaves p's board best (least lost) wins; ties keep field order.
@@ -135,7 +137,7 @@ function rkDeep(g, p, depth, width) {
 function rkPick(g, p, tier, rnd = Math.random) {
   if (g.phase === 'defend') {
     const smart = tier >= 2 || (tier === 1 && rnd() < 0.5);
-    const i = smart ? rkBlock(g, p) : tier === 1 ? Math.floor(rnd() * g.players[p].field.length) : 0;
+    const ok = rkBlockers(g, p), i = smart ? rkBlock(g, p) : tier === 1 ? ok[Math.floor(rnd() * ok.length)] : ok[0];
     return { type: 'defend', i, order: rkOrder(g, p, i) };
   }
   const first = () => rkOptions(g, p).find(a => a.type === 'play' || a.type === 'attack') || RK_END; // the first legal thing, never the Super
@@ -214,7 +216,7 @@ botMove = function () {
   if (game !== g) return botSoon(300);
   if (g.phase === 'defend' ? g.turn !== 0 : g.turn !== 1) return;
   let a = null; try { a = rkPick(g, 1, g.rk.tier); } catch (e) { console.warn('ranked bot', e); }
-  const safe = g.phase === 'defend' ? { type: 'defend', i: 0 } : RK_END;
+  const safe = g.phase === 'defend' ? { type: 'defend', i: rkBlockers(g, 1)[0] ?? 0 } : RK_END;
   if (!act(1, a || safe) && a && a.type !== safe.type) act(1, safe);
 };
 

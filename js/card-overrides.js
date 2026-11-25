@@ -75,7 +75,32 @@ const OVERRIDES = {
    "x": 95.26,
    "y": 16.85,
    "zoom": 1.57
-  }
+  },
+  "moves": [
+   {
+    "name": "Nibble",
+    "cost": 1,
+    "power": 2
+   },
+   {
+    "name": "Monterey Jack Attack",
+    "cost": 2,
+    "power": 3,
+    "text": "On a hit, flip a coin. Heads: 1 more damage to the blocker.",
+    "onHit": [
+     [
+      "flip",
+      [
+       [
+        "hp",
+        "target",
+        1
+       ]
+      ]
+     ]
+    ]
+   }
+  ]
  },
  "scrunge_whippie": {
   "art": "art/local/scrunge_whippie-custom.png?v=1795493910487",
@@ -132,7 +157,29 @@ const OVERRIDES = {
    "x": 51.76,
    "y": 25.09,
    "zoom": 1.3
-  }
+  },
+  "role": "Tank",
+  "text": "",
+  "onPlay": [],
+  "moves": [
+   {
+    "name": "Dad Hug",
+    "cost": 1,
+    "ability": true,
+    "text": "Your other Characters heal 2 HP.",
+    "ops": [
+     [
+      "healAll",
+      2
+     ]
+    ]
+   },
+   {
+    "name": "Piggyback Tackle",
+    "cost": 2,
+    "power": 4
+   }
+  ]
  },
  "scrunge_robo_cat_girl": {
   "crop": {
@@ -170,10 +217,37 @@ const OVERRIDES = {
    "x": 64.4,
    "y": 52.3,
    "zoom": 1.42
-  }
+  },
+  "role": "Tank",
+  "unkillable": true,
+  "text": "Tough. Can’t be killed: once per game, an attack that would defeat Arhakoth leaves it on 1 HP.",
+  "moves": [
+   {
+    "name": "Squish",
+    "cost": 1,
+    "power": 3
+   },
+   {
+    "name": "Unkillable Slam",
+    "cost": 3,
+    "power": 5
+   }
+  ]
  },
  "jegg_abigaia_v2": {
-  "name": "Abigaia"
+  "name": "Abigaia",
+  "moves": [
+   {
+    "name": "Stab",
+    "cost": 1,
+    "power": 3
+   },
+   {
+    "name": "Fire!",
+    "cost": 3,
+    "power": 5
+   }
+  ]
  },
  "jegg_poinsettia": {
   "moves": [
@@ -208,27 +282,19 @@ const OVERRIDES = {
     "name": "Won't Shut Up",
     "cost": 1,
     "power": 2,
-    "text": "On a hit, opponent +1 Boredom.",
+    "text": "On a hit, opponent -1 Creativity.",
     "onHit": [
      [
-      "bore",
+      "goof",
       "opp",
-      1
+      -1
      ]
     ]
    },
    {
     "name": "Sad Howl",
     "cost": 3,
-    "power": 5,
-    "text": "On a hit, opponent +1 Boredom.",
-    "onHit": [
-     [
-      "bore",
-      "opp",
-      1
-     ]
-    ]
+    "power": 5
    }
   ]
  },
@@ -275,13 +341,13 @@ const OVERRIDES = {
    {
     "name": "Lamp Dive",
     "cost": 2,
-    "power": 4,
-    "text": "On a hit, opponent +1 Boredom.",
+    "power": 5,
+    "text": "On a hit, Salem takes 2 damage. Drawn to the light.",
     "onHit": [
      [
-      "bore",
-      "opp",
-      1
+      "hp",
+      "self",
+      2
      ]
     ]
    }
@@ -296,7 +362,8 @@ const OVERRIDES = {
    "x": 100,
    "y": 61.82,
    "zoom": 1.67
-  }
+  },
+  "role": "Glass Cannon"
  },
  "jangle_water_dog": {
   "onPlay": [
@@ -316,24 +383,21 @@ const OVERRIDES = {
     "power": 3
    },
    {
-    "name": "House Rules",
+    "name": "Cane Whack",
     "cost": 2,
-    "power": 4,
-    "text": "On a hit, opponent +1 Boredom.",
-    "onHit": [
-     [
-      "bore",
-      "opp",
-      1
-     ]
-    ]
+    "power": 4
    }
   ],
   "cropFull": {
    "x": 100,
    "y": 11.35,
    "zoom": 1.29
-  }
+  },
+  "role": "Tank",
+  "mod": {
+   "oppSick": 1
+  },
+  "text": "House Rules: your opponent’s new Characters can’t attack the turn they’re played."
  },
  "scrunge_nexus": {
   "cost": 2,
@@ -384,15 +448,7 @@ const OVERRIDES = {
    {
     "name": "Frost Breath",
     "cost": 2,
-    "power": 5,
-    "text": "On a hit, opponent +1 Boredom.",
-    "onHit": [
-     [
-      "bore",
-      "opp",
-      1
-     ]
-    ]
+    "power": 5
    }
   ],
   "hp": 4,
@@ -423,7 +479,27 @@ const OVERRIDES = {
    "y": 88.31,
    "zoom": 2.321
   },
-  "art": "art/local/jangle_enoch-custom.png?v=1795518672798"
+  "art": "art/local/jangle_enoch-custom.png?v=1795518672798",
+  "moves": [
+   {
+    "name": "Grumble",
+    "cost": 1,
+    "power": 2
+   },
+   {
+    "name": "Hard Stare",
+    "cost": 3,
+    "power": 4,
+    "text": "On a hit, 1 more damage to the blocker.",
+    "onHit": [
+     [
+      "hp",
+      "target",
+      1
+     ]
+    ]
+   }
+  ]
  },
  "jangle_grim": {
   "cropFull": {
@@ -449,7 +525,19 @@ const OVERRIDES = {
    "x": 49,
    "y": 17.3,
    "zoom": 1.45
-  }
+  },
+  "role": "Soak",
+  "cost": 0,
+  "hp": 3,
+  "text": "",
+  "onPlay": [],
+  "moves": [
+   {
+    "name": "Pan Bonk",
+    "cost": 1,
+    "power": 2
+   }
+  ]
  },
  "jangle_vesper": {
   "cropFull": {
@@ -475,42 +563,158 @@ const OVERRIDES = {
    "x": 1.9,
    "y": 50.1,
    "zoom": 2.57
-  }
+  },
+  "role": "Loner",
+  "mod": {
+   "atk": 2,
+   "if": "alone"
+  },
+  "text": "Lonely: your attacks get +2 power while AJ is your only Character.",
+  "moves": [
+   {
+    "name": "Lonely Stare",
+    "cost": 1,
+    "power": 2
+   },
+   {
+    "name": "Strike Back",
+    "cost": 2,
+    "power": 3
+   }
+  ]
  },
  "jegg_anxio": {
   "cropFull": {
    "x": 0,
    "y": 50,
    "zoom": 1
-  }
+  },
+  "moves": [
+   {
+    "name": "Worried Stomp",
+    "cost": 1,
+    "power": 2
+   },
+   {
+    "name": "Panic Crush",
+    "cost": 3,
+    "power": 4,
+    "text": "On a hit, you gain 1 Creativity.",
+    "onHit": [
+     [
+      "goof",
+      "me",
+      1
+     ]
+    ]
+   }
+  ]
  },
  "jegg_brulee": {
   "cropFull": {
    "x": 0,
    "y": 50,
    "zoom": 1
-  }
+  },
+  "role": "Blaster",
+  "text": "",
+  "onPlay": [],
+  "moves": [
+   {
+    "name": "Honey Tail",
+    "cost": 1,
+    "power": 2,
+    "text": "On a hit, Brûlée heals 1 HP.",
+    "onHit": [
+     [
+      "hp",
+      "self",
+      -1
+     ]
+    ]
+   },
+   {
+    "name": "Fire Breath",
+    "cost": 2,
+    "power": 3,
+    "text": "On a hit, 1 damage to each of their other Characters.",
+    "onHit": [
+     [
+      "splash",
+      1
+     ]
+    ]
+   }
+  ]
  },
  "jegg_jenosu": {
   "cropFull": {
    "x": 0,
    "y": 50,
    "zoom": 1
-  }
+  },
+  "role": "Bruiser",
+  "moves": [
+   {
+    "name": "Meme Bark",
+    "cost": 1,
+    "power": 3
+   },
+   {
+    "name": "Zoomies",
+    "cost": 2,
+    "power": 3,
+    "text": "On a hit, Jenosu can use a move again this turn.",
+    "onHit": [
+     [
+      "ready"
+     ]
+    ]
+   }
+  ]
  },
  "jegg_lyra": {
   "cropFull": {
    "x": 55.6,
    "y": 13.4,
    "zoom": 1.75
-  }
+  },
+  "role": "Finisher",
+  "text": "",
+  "onPlay": [],
+  "moves": [
+   {
+    "name": "Quick Doodle",
+    "cost": 1,
+    "power": 2
+   },
+   {
+    "name": "Big Finish",
+    "cost": 3,
+    "power": 4,
+    "text": "+3 power if your opponent has 10 or more Boredom.",
+    "late": 3
+   }
+  ]
  },
  "jegg_pomegranate": {
   "cropFull": {
    "x": 46.8,
    "y": 16.7,
    "zoom": 1.53
-  }
+  },
+  "moves": [
+   {
+    "name": "Seed Spit",
+    "cost": 1,
+    "power": 2
+   },
+   {
+    "name": "Juicy Burst",
+    "cost": 3,
+    "power": 5
+   }
+  ]
  },
  "jegg_u2": {
   "cropFull": {
@@ -524,7 +728,27 @@ const OVERRIDES = {
    "x": 50,
    "y": 0,
    "zoom": 1.24
-  }
+  },
+  "moves": [
+   {
+    "name": "Molten Drip",
+    "cost": 1,
+    "power": 2
+   },
+   {
+    "name": "Lava Bloom",
+    "cost": 3,
+    "power": 4,
+    "text": "On a hit, 1 more damage to the blocker.",
+    "onHit": [
+     [
+      "hp",
+      "target",
+      1
+     ]
+    ]
+   }
+  ]
  },
  "scrunge_acer": {
   "art": "art/local/scrunge_acer-custom.png?v=1795576433589",
@@ -544,21 +768,52 @@ const OVERRIDES = {
    "x": 43.07,
    "y": 4.42,
    "zoom": 1.85
-  }
+  },
+  "text": "When played and at the start of your turn: +1 Creativity."
  },
  "scrunge_atlas": {
   "cropFull": {
    "x": 83.47,
    "y": 5.2,
    "zoom": 2.9
-  }
+  },
+  "moves": [
+   {
+    "name": "Sunbeam",
+    "cost": 1,
+    "power": 2
+   },
+   {
+    "name": "Deity Form",
+    "cost": 3,
+    "power": 6
+   }
+  ]
  },
  "scrunge_calytrix_and_noli": {
   "cropFull": {
    "x": 28.79,
    "y": 12.62,
    "zoom": 2.82
-  }
+  },
+  "role": "Leader",
+  "text": "",
+  "onPlay": [],
+  "moves": [
+   {
+    "name": "Cal Jumper",
+    "cost": 1,
+    "power": 2
+   },
+   {
+    "name": "Sillies Assemble",
+    "cost": 2,
+    "power": 2,
+    "text": "+1 power for each other Character you have, up to +2.",
+    "perAlly": 1,
+    "allyMax": 2
+   }
+  ]
  },
  "scrunge_monday": {
   "cropFull": {
@@ -579,7 +834,25 @@ const OVERRIDES = {
    "x": 0,
    "y": 100,
    "zoom": 1.57
-  }
+  },
+  "role": "Striker",
+  "def": 10,
+  "hp": 3,
+  "shy": true,
+  "text": "Scaredy: can’t block while you have another Character.",
+  "onPlay": [],
+  "moves": [
+   {
+    "name": "Silly Face",
+    "cost": 1,
+    "power": 3
+   },
+   {
+    "name": "Scrung Stare",
+    "cost": 2,
+    "power": 4
+   }
+  ]
  },
  "scrunge_maxos": {
   "cropFull": {
@@ -612,7 +885,32 @@ const OVERRIDES = {
    "x": 62.98,
    "y": 58.8,
    "zoom": 1.19
-  }
+  },
+  "moves": [
+   {
+    "name": "Slug Slam",
+    "cost": 1,
+    "power": 2
+   },
+   {
+    "name": "Three-Way Squish",
+    "cost": 2,
+    "power": 4,
+    "text": "On a hit, flip a coin. Heads: 1 more damage to the blocker.",
+    "onHit": [
+     [
+      "flip",
+      [
+       [
+        "hp",
+        "target",
+        1
+       ]
+      ]
+     ]
+    ]
+   }
+  ]
  },
  "scrunge_wiffle_salamander": {
   "art": "art/local/scrunge_wiffle_salamander-custom.png?v=1795517846279",
@@ -638,7 +936,19 @@ const OVERRIDES = {
    "x": 44.83,
    "y": 59.31,
    "zoom": 1
-  }
+  },
+  "moves": [
+   {
+    "name": "Horn Bonk",
+    "cost": 1,
+    "power": 3
+   },
+   {
+    "name": "Ring Flourish",
+    "cost": 3,
+    "power": 5
+   }
+  ]
  },
  "scrunge_wiffle_v3": {
   "crop": {
@@ -690,7 +1000,22 @@ const OVERRIDES = {
    "x": 71.01,
    "y": 0,
    "zoom": 1.162
-  }
+  },
+  "role": "Glass Cannon",
+  "moves": [
+   {
+    "name": "Claw Rake",
+    "cost": 1,
+    "power": 3
+   },
+   {
+    "name": "Glowing Stare",
+    "cost": 2,
+    "power": 3,
+    "text": "Ignores armour.",
+    "pierce": true
+   }
+  ]
  },
  "lord_fey_v2": {
   "art": "art/local/lord_fey_v2.png?v=1795577074263",
@@ -704,6 +1029,195 @@ const OVERRIDES = {
    "y": 0,
    "zoom": 1.822
   }
+ },
+ "scrunge_alto": {
+  "role": "Soak",
+  "cost": 0,
+  "hp": 2,
+  "disadv": true,
+  "text": "Tough: +1 armour.",
+  "moves": [
+   {
+    "name": "Silent Stare",
+    "cost": 1,
+    "power": 1
+   }
+  ]
+ },
+ "jangle_evil_oc": {
+  "role": "Thief",
+  "text": "",
+  "onPlay": [],
+  "moves": [
+   {
+    "name": "Menacing Glare",
+    "cost": 1,
+    "power": 3
+   },
+   {
+    "name": "Evil Monologue",
+    "cost": 2,
+    "ability": true,
+    "text": "Opponent -2 Creativity, you +2. (Nobody asked.)",
+    "ops": [
+     [
+      "goof",
+      "opp",
+      -2
+     ],
+     [
+      "goof",
+      "me",
+      2
+     ]
+    ]
+   }
+  ]
+ },
+ "anonagon_jeremy": {
+  "role": "Skirmisher",
+  "text": "",
+  "onPlay": [],
+  "moves": [
+   {
+    "name": "Gust Jab",
+    "cost": 1,
+    "power": 2,
+    "text": "On a hit, +1 Action.",
+    "onHit": [
+     [
+      "actions",
+      "me",
+      1
+     ]
+    ]
+   },
+   {
+    "name": "Tailwind Swoop",
+    "cost": 2,
+    "power": 4
+   }
+  ]
+ },
+ "jangle_dizzy": {
+  "moves": [
+   {
+    "name": "Dizzy Spin",
+    "cost": 1,
+    "power": 3
+   },
+   {
+    "name": "Gummy Breath",
+    "cost": 2,
+    "power": 4,
+    "text": "On a hit, flip a coin. Heads: 1 more damage to the blocker. Tails: +1 Creativity.",
+    "onHit": [
+     [
+      "flip",
+      [
+       [
+        "hp",
+        "target",
+        1
+       ]
+      ],
+      [
+       [
+        "goof",
+        "me",
+        1
+       ]
+      ]
+     ]
+    ]
+   }
+  ]
+ },
+ "captain_moth": {
+  "goof": 5,
+  "text": "Super, 5 Creativity: Wing Dust. Opponent -4 Creativity, and clear 3 of your Boredom.",
+  "ability": [
+   [
+    "goof",
+    "opp",
+    -4
+   ],
+   [
+    "bore",
+    "me",
+    -3
+   ]
+  ]
+ },
+ "captain_xee": {
+  "text": "Super, 6 Creativity: Supernova. Opponent +3 Boredom and -2 Creativity.",
+  "ability": [
+   [
+    "bore",
+    "opp",
+    3
+   ],
+   [
+    "goof",
+    "opp",
+    -2
+   ]
+  ]
+ },
+ "captain_rotgrease": {
+  "goof": 4,
+  "text": "Super, 4 Creativity: Grind. Opponent +2 Boredom.",
+  "ability": [
+   [
+    "bore",
+    "opp",
+    2
+   ]
+  ]
+ },
+ "captain_anonagon": {
+  "goof": 4,
+  "text": "Super, 4 Creativity: Crunch Time. +4 Actions this turn.",
+  "ability": [
+   [
+    "actions",
+    "me",
+    4
+   ]
+  ]
+ },
+ "captain_hamish": {
+  "text": "Super, 5 Creativity: Plot Twist. Opponent -3 Creativity and +2 Boredom.",
+  "ability": [
+   [
+    "goof",
+    "opp",
+    -3
+   ],
+   [
+    "bore",
+    "opp",
+    2
+   ]
+  ],
+  "goof": 5
+ },
+ "captain_wawa": {
+  "text": "Super, 3 Creativity: Random Button. Flip a coin. Heads: opponent +3 Boredom. Tails: nothing happens.",
+  "ability": [
+   [
+    "flip",
+    [
+     [
+      "bore",
+      "opp",
+      3
+     ]
+    ],
+    []
+   ]
+  ],
+  "goof": 3
  }
 };
 for (const c of [...CAPTAINS, ...CARDS]) Object.assign(c, OVERRIDES[c.id] || {});

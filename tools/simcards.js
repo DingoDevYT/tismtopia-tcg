@@ -1,7 +1,7 @@
 // Combines CARDS=1 sim runs: node tools/simcards.js <folder of .json runs>. Prints a per-card balance table.
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const dir = process.argv[2], ctx = {};
-vm.runInNewContext(fs.readFileSync(path.join(__dirname, '..', 'js', 'cards-data.js'), 'utf8') + ';this.A=[...CAPTAINS,...CARDS]', ctx);
+vm.runInNewContext(['cards-data', 'card-overrides', 'cards'].map(f => fs.readFileSync(path.join(__dirname, '..', 'js', f + '.js'), 'utf8')).join('\n;\n') + ';this.A=[...CAPTAINS,...CARDS]', ctx); // with overrides and the Evil -> Item swap
 const CARD = Object.fromEntries(ctx.A.map(c => [c.id, c]));
 const T = { games: 0, turns: 0, firstWins: 0, cards: {}, caps: {} };
 for (const f of fs.readdirSync(dir).filter(f => f.endsWith('.json'))) {

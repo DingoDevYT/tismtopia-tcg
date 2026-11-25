@@ -32,24 +32,39 @@ function deckProblems(d) {
   return out;
 }
 
-// Everything of a player's that can carry effects: Captain, Characters in play, active Items and Evils.
-const sources = (s, pi) => { const p = s.players[pi]; return [CARD[p.captain], ...p.field.map(f => CARD[f.id]), ...p.effects.map(e => CARD[e.id])]; };
+// Direct hits (attacking an empty field). NO_DIRECT_UNTIL: no direct attacks while turnNo <= this (2 = each player's first turn).
+// DIRECT_HALF: direct attacks deal half power, rounded down, at least 1. tools/sim.js can swap both (DIRECT=<until>,<half 0|1>).
+const NO_DIRECT_UNTIL = 2, DIRECT_HALF = false; // design pass 2026-11: (a) won the sim, see design/proposal.md
+const directPower = n => (DIRECT_HALF ? Math.max(1, Math.floor(n / 2)) : n);
+// An Item in play is live unless it's a `next` Item (works from your next turn on) still in the turn it was played.
+const fxOn = (s, pi, e) => !CARD[e.id].next || (s.turn === pi && s.turnNo > (e.t ?? 0));
+// Everything of a player's that can carry effects: Captain, Characters in play, live Items and Evils.
+const sources = (s, pi) => { const p = s.players[pi]; return [CARD[p.captain], ...p.field.map(f => CARD[f.id]), ...p.effects.filter(e => fxOn(s, pi, e)).map(e => CARD[e.id])]; };
 const modSum = (s, pi, key) => sources(s, pi).reduce((n, c) =>
   n + (c.mod?.[key] && modOn(s, pi, c) ? c.mod[key] : 0), 0);
 // mod.if: 'noGoof' = while you have 0 Creativity; any other word = while you have another Character of that group on the field.
-const modOn = (s, pi, c) => { const w = c.mod.if, F = s.players[pi].field; return !w || (w === 'noGoof' ? !s.players[pi].goof : F.filter(f => CARD[f.id].group === w && f.id !== c.id).length > 0); };
+// mod.if 'alone' = while it's your only Character.
+const modOn = (s, pi, c) => { const w = c.mod.if, F = s.players[pi].field; return !w || (w === 'noGoof' ? !s.players[pi].goof : w === 'alone' ? F.length === 1 : F.filter(f => CARD[f.id].group === w && f.id !== c.id).length > 0); };
 // A Character's live numbers: DEF with modifiers, and `bonus` power added to each of its attacks.
 const statsOf = (s, pi, f) => ({ def: baseArmor(CARD[f.id]) + modSum(s, pi, 'def'), bonus: modSum(s, pi, 'atk') }); // def = armour
+// A move's power right now: printed power + passive bonuses + its own conditions
+// (mv.perAlly: +n for each of your other Characters, counting at most mv.allyMax of them; mv.late: +n while the opponent has LATE_BORE or more Boredom).
+const LATE_BORE = 10;
+const movePower = (s, pi, f, mv) => mv.power + statsOf(s, pi, f).bonus + (mv.perAlly || 0) * Math.min(mv.allyMax ?? 99, s.players[pi].field.length - 1) + (mv.late && s.players[1 - pi].bore >= LATE_BORE ? mv.late : 0);
 const moveCost = (s, pi, mv) => mv.cost + (mv.ability ? 0 : modSum(s, 1 - pi, 'oppAttackCost'));
 const playCost = (s, pi, c) => (c.cost ?? 1) + (c.type === 'evil' ? modSum(s, 1 - pi, 'oppEvilCost') : 0);
-const canAttack = (s, f) => !(CARD[f.id].sick && f.t === s.turnNo);
+// Played this turn and sick (or the opponent has mod.oppSick, e.g. Alek's House Rules): can't attack yet.
+const canAttack = (s, f, pi = s.turn) => !((CARD[f.id].sick || modSum(s, 1 - pi, 'oppSick') > 0) && f.t === s.turnNo);
+// shy Characters can't be picked to block while their side has a Character that isn't shy.
+const canBlock = (s, pi, i) => { const F = s.players[pi].field; return !!F[i] && (!CARD[F[i].id].shy || F.every(f => CARD[f.id].shy)); };
 // Why move m of field card f can't be used right now ('' = it can).
 function moveBlock(s, pi, f, m) {
   const mv = CARD[f.id].moves?.[m];
   if (!mv) return 'No such move.';
   if (moveCost(s, pi, mv) > s.actions) return 'Not enough Actions';
   if ((mv.goof || 0) > s.players[pi].goof) return 'Not enough Creativity';
-  if (!mv.ability && !canAttack(s, f)) return 'Can attack next turn';
+  if (!mv.ability && !canAttack(s, f, pi)) return 'Can attack next turn';
+  if (!mv.ability && !s.players[1 - pi].field.length && s.turnNo <= NO_DIRECT_UNTIL) return 'No direct hits on a first turn';
   if (mv.once && f.once?.[m] === s.turnNo) return 'Used this turn';
   if (f.acted === s.turnNo) return 'Already moved this turn';
   return '';
@@ -98,7 +113,7 @@ function apply(s0, p, a, rng = Math.random) {
     return d;
   };
   // ctx: { self, target } as { p, i } field positions, for 'hp' steps inside moves; { src, when }: which card this is and why it fired
-  // (when: 'play' | 'turn' | 'oppTurn' | 'hit' | 'move'), only for the UI
+  // (when: 'play' | 'turn' | 'oppTurn' | 'hit' | 'move' | 'attack' | 'defend' (Item triggers)), only for the UI
   const runOps = (pi, ops, c, ctx = {}) => {
     const outer = tag; if (ctx.src) tag = { src: ctx.src, when: ctx.when };
     try { runSteps(pi, ops, c, ctx); } finally { tag = outer; }
@@ -120,6 +135,18 @@ function apply(s0, p, a, rng = Math.random) {
         say(`${c.name}: ${CARD[f.id].name} -${a2} HP.`);
         continue;
       }
+      if (what === 'splash') { // ['splash', n]: n damage to each of the opponent's Characters except the one just hit (armour doesn't apply)
+        const ti = 1 - pi, F = s.players[ti].field;
+        F.forEach((f, j) => { if (f.hp <= 0 || (ctx.target && ctx.target.p === ti && ctx.target.i === j)) return; for (let k = 0; k < a1; k++) hurt(ti, j, true); });
+        say(`${c.name}: ${a1} damage to each other Character.`);
+        continue;
+      }
+      if (what === 'ready') { const f = ctx.self && s.players[ctx.self.p].field[ctx.self.i]; if (f && f.hp > 0) { f.acted = 0; say(`${c.name} can move again this turn.`); } continue; } // ['ready']: this Character may use a move again
+      if (what === 'healAll') { // ['healAll', n]: your other Characters heal n HP each (up to full)
+        s.players[pi].field.forEach((f, j) => { if (f.hp <= 0 || (ctx.self && ctx.self.p === pi && ctx.self.i === j)) return; f.hp = Math.min(maxHp(CARD[f.id]), f.hp + a1); });
+        say(`${c.name}: your other Characters heal ${a1} HP.`);
+        continue;
+      }
       if (what === 'sac') { const f = ctx.self && s.players[ctx.self.p].field[ctx.self.i]; if (f) { f.hp = 0; f.sac = true; } continue; }
       const ti = a1 === 'opp' ? 1 - pi : pi, t = s.players[ti];
       if (what === 'purge') { for (let k = 0; k < a2; k++) { const e = t.effects.findLastIndex(x => CARD[x.id].type === 'evil'); if (e < 0) break; say(`${c.name}: ${CARD[t.effects[e].id].name} was purged.`); ev({ k: 'purge', p: ti, id: t.effects[e].id }); t.effects.splice(e, 1); } continue; }
@@ -127,6 +154,33 @@ function apply(s0, p, a, rng = Math.random) {
       else if (what === 'draw') { for (let k = 0; k < a2; k++) draw(ti); say(`${c.name}: ${t.name} draws ${a2}.`); }
       else if (what === 'actions' && s.turn === ti) { s.actions = Math.max(0, s.actions + a2); ev({ k: 'actions', p: ti, n: a2 }); say(`${c.name}: ${a2 > 0 ? '+' : ''}${a2} Action${Math.abs(a2) > 1 ? 's' : ''}.`); }
     }
+  };
+  // Items with uses: spend one; the Item leaves at 0. Items without uses are untouched.
+  const useUp = (pi, e) => {
+    if (e.uses == null) return;
+    if (--e.uses > 0) return;
+    const fx = s.players[pi].effects, k = fx.indexOf(e);
+    if (k >= 0) { fx.splice(k, 1); say(`${CARD[e.id].name} is used up.`); }
+  };
+  // First live Item of player pi whose card has `key` (in play order).
+  const fxWith = (pi, key) => s.players[pi].effects.find(e => CARD[e.id][key] && fxOn(s, pi, e));
+  // Item triggers (onAttack, onDefend): every live Item with that trigger runs its ops and spends a use.
+  const trigger = (pi, key, ctx) => {
+    for (const e of [...s.players[pi].effects]) {
+      const c = CARD[e.id];
+      if (!c[key] || !fxOn(s, pi, e)) continue;
+      runOps(pi, c[key], c, { ...ctx, src: { p: pi, zone: 'effects', i: s.players[pi].effects.indexOf(e), id: e.id }, when: key === 'onAttack' ? 'attack' : 'defend' });
+      useUp(pi, e);
+    }
+  };
+  // boreGuard Items: an attack that would give player pi Boredom gives that much less (one use per attack).
+  const guardBore = (pi, n) => {
+    const e = n > 0 && fxWith(pi, 'boreGuard');
+    if (!e) return n;
+    const cut = Math.min(n, CARD[e.id].boreGuard);
+    say(`${CARD[e.id].name}: ${cut} less Boredom.`);
+    useUp(pi, e);
+    return n - cut;
   };
   const hurt = (pi, i, extra) => { const f = s.players[pi].field[i]; if (f.hp <= 0) return; f.hp--; ev({ k: 'hit', p: pi, i, ko: f.hp <= 0, ...(extra && { extra: 1 }) }); }; // extra: from a card effect, not combat damage
   const cull = pl => {
@@ -152,7 +206,7 @@ function apply(s0, p, a, rng = Math.random) {
       let src;
       if (c.type === 'character') { me.field.push({ id, hp: maxHp(c), t: s.turnNo }); ev({ k: 'play', p, zone: 'field', i: me.field.length - 1, id }); src = { p, zone: 'field', i: me.field.length - 1, id }; }
       else if (isInstant(c)) { ev({ k: 'cast', p, id }); src = { p, zone: 'hand', i: a.i, id }; } // instant: resolves and is gone, never sits on the table
-      else { me.effects.push(c.type === 'bit' ? { id, turns: c.dur } : { id }); ev({ k: 'play', p, zone: 'fx', i: me.effects.length - 1 }); ev({ k: 'cast', p, id }); src = { p, zone: 'effects', i: me.effects.length - 1, id }; }
+      else { me.effects.push(c.type === 'bit' ? { id, turns: c.dur, ...(c.uses && { uses: c.uses }), t: s.turnNo } : { id }); ev({ k: 'play', p, zone: 'fx', i: me.effects.length - 1 }); ev({ k: 'cast', p, id }); src = { p, zone: 'effects', i: me.effects.length - 1, id }; }
       say(`${me.name} played ${c.name}.`);
       runOps(p, c.onPlay, c, { src, when: 'play' });
       break;
@@ -173,11 +227,13 @@ function apply(s0, p, a, rng = Math.random) {
         cull(me); cull(opp);
         break;
       }
-      if (!canAttack(s, f)) throw new Error(`${c.name} can't attack the turn it's played.`);
+      if (!canAttack(s, f, p)) throw new Error(`${c.name} can't attack the turn it's played.`);
+      if (!opp.field.length && s.turnNo <= NO_DIRECT_UNTIL) throw new Error('No direct attacks on a player’s first turn.');
       spend(moveCost(s, p, mv));
-      if (opp.field.length) { s.phase = 'defend'; s.pending = { i: a.i, m: a.m }; ev({ k: 'declare', p, i: a.i, move: mv.name, power: mv.power + statsOf(s, p, f).bonus }); say(`${c.name} uses ${mv.name}! ${opp.name} picks a blocker.`); }
+      trigger(p, 'onAttack', { self });
+      if (opp.field.length) { s.phase = 'defend'; s.pending = { i: a.i, m: a.m }; ev({ k: 'declare', p, i: a.i, move: mv.name, power: movePower(s, p, f, mv) }); say(`${c.name} uses ${mv.name}! ${opp.name} picks a blocker.`); }
       else {
-        const power = mv.power + statsOf(s, p, f).bonus;
+        const power = guardBore(1 - p, directPower(movePower(s, p, f, mv)));
         ev({ k: 'attack', p, i: a.i, direct: true, move: mv.name, power });
         gain(1 - p, 'bore', power);
         say(`${c.name} uses ${mv.name} directly: ${opp.name} +${power} Boredom.`);
@@ -190,7 +246,9 @@ function apply(s0, p, a, rng = Math.random) {
       if (s.phase !== 'defend' || s.turn === p) throw new Error('Nothing to defend.');
       const ai = 1 - p, af = at(opp.field, s.pending.i), df = at(me.field, a.i);
       const ac = CARD[af.id], dc = CARD[df.id], mv = ac.moves[s.pending.m];
-      const power = mv.power + statsOf(s, ai, af).bonus, armor = statsOf(s, p, df).def, dmg = Math.max(0, power - armor), hit = dmg > 0;
+      if (!canBlock(s, p, a.i)) throw new Error(`${dc.name} is too scared to block.`);
+      const arm = tf => (mv.pierce ? 0 : statsOf(s, p, tf).def); // mv.pierce: armour doesn't count
+      const power = movePower(s, ai, af, mv), armor = arm(df), dmg = Math.max(0, power - armor), hit = dmg > 0;
       // a.order (optional): the defender's own spill order, field positions after the blocker; without it (or past its end) the spill goes in field order.
       const order = a.order == null ? [] : a.order;
       if (!Array.isArray(order) || order.length >= me.field.length || order.some((j, k) => !Number.isInteger(j) || j === a.i || !(me.field[j]?.hp > 0) || order.indexOf(j) !== k)) throw new Error('Bad damage order.');
@@ -198,12 +256,17 @@ function apply(s0, p, a, rng = Math.random) {
       let left = power, ti = a.i, bore = 0; const hitIdx = new Set(), spill = [], hits = []; // hits: who took how much, for the animation
       while (left > 0) {
         const tf = me.field[ti];
-        if (!tf) { bore = left; gain(p, 'bore', left); break; }
-        const through = Math.max(0, left - statsOf(s, p, tf).def), taken = Math.min(through, tf.hp);
+        if (!tf) { bore = guardBore(p, left); gain(p, 'bore', bore); break; }
+        const through = Math.max(0, left - arm(tf));
+        let taken = Math.min(through, tf.hp);
+        // Survive on 1 HP and stop the rest: the Character's own once-per-game `unkillable`, else a lastStand Item.
+        const own = taken >= tf.hp && CARD[tf.id].unkillable && !tf.saved, save = taken >= tf.hp && !own && fxWith(p, 'lastStand');
+        if (own) { tf.saved = true; taken = tf.hp - 1; say(`${CARD[tf.id].name} can't be killed: stays on 1 HP!`); }
+        if (save) { taken = tf.hp - 1; say(`${CARD[save.id].name}: ${CARD[tf.id].name} survives on 1 HP!`); useUp(p, save); }
         for (let k = 0; k < taken; k++) hurt(p, ti);
-        hits.push({ i: ti, def: statsOf(s, p, tf).def, taken, ko: tf.hp <= 0 });
+        hits.push({ i: ti, def: arm(tf), taken, ko: tf.hp <= 0 });
         if (ti !== a.i) spill.push(`${CARD[tf.id].name} -${taken}`);
-        hitIdx.add(ti); left = through - taken;
+        hitIdx.add(ti); left = own || save ? 0 : through - taken;
         if (!through) break;
         ti = order.find(j => !hitIdx.has(j)) ?? me.field.findIndex((f, j) => f.hp > 0 && !hitIdx.has(j));
         if (ti < 0) ti = me.field.length; // nobody left to take it
@@ -216,6 +279,7 @@ function apply(s0, p, a, rng = Math.random) {
         runOps(ai, mv.onHit, ac, { self: { p: ai, i: s.pending.i }, target: { p, i: a.i }, src, when: 'hit' });
         runOps(ai, ac.onBreak, ac, { self: { p: ai, i: s.pending.i }, src, when: 'hit' });
       }
+      trigger(p, 'onDefend', { self: { p, i: a.i }, target: { p: ai, i: s.pending.i } }); // the defender's Items: target = the attacker
       cull(opp); cull(me);
       s.phase = 'play'; s.pending = null;
       break;
@@ -225,6 +289,7 @@ function apply(s0, p, a, rng = Math.random) {
       if (a.i !== -1 || !c.ability) throw new Error(`${c.name} has no ability to use.`);
       if (c.once && s.capUsed) throw new Error(`${c.name}'s Super is once per turn.`);
       if (s.turn !== p) throw new Error('Not your turn.');
+      if (modSum(s, 1 - p, 'oppNoSuper') > 0) throw new Error(`${c.name}'s Super is blocked this turn.`);
       if (me.goof < (c.goof || 0)) throw new Error(`${c.name}'s Super needs ${c.goof} Creativity.`);
       gain(p, 'goof', -(c.goof || 0));
       s.capUsed = true;
@@ -291,7 +356,7 @@ function apply(s0, p, a, rng = Math.random) {
     }
     case 'turns': {
       const e = at(who().effects, a.i);
-      if (e.turns == null) throw new Error('Evil cards last forever.');
+      if (e.turns == null) throw new Error(e.uses != null ? 'This Item counts uses, not turns.' : 'Evil cards last forever.');
       e.turns = Math.max(1, e.turns + step());
       say(`${me.name} set ${CARD[e.id].name} to ${e.turns} turn${e.turns > 1 ? 's' : ''}.`);
       break;

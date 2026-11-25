@@ -126,7 +126,7 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // Version shown small on the title screens, so a refresh shows whether the new code arrived. Bump the last number with every push; 1.0.0 = public, balanced release.
-const APP_VERSION = '0.1.9';
+const APP_VERSION = '0.1.10';
 // Title screen: browsers block sound until the first tap, so the game opens on the logo and that tap starts the music.
 const title = Object.assign(document.createElement('div'), { className: 'title-screen',
   innerHTML: `<img src="art/logo.png" alt="Tismtopia TCG"><p>Tap anywhere to start</p><small class="ver">v${APP_VERSION}</small>` });

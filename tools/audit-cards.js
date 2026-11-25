@@ -3,16 +3,16 @@
 // A move or card is flagged when the game state is identical afterwards apart from the Actions it spent.
 const fs = require('fs'), vm = require('vm'), path = require('path');
 const ctx = vm.createContext({ structuredClone });
-vm.runInContext(['js/cards-data.js', 'js/cards.js', 'js/game.js'].map(f => fs.readFileSync(path.join(__dirname, '..', f), 'utf8')).join('\n') + '\nthis.E = { CARDS, CAPTAINS, STARTERS, CARD, newGame, apply, maxHp };', ctx);
-const { CARDS, STARTERS, CARD, newGame, apply, maxHp } = ctx.E;
+vm.runInContext(['js/cards-data.js', 'js/card-overrides.js', 'js/cards.js', 'js/game.js'].map(f => fs.readFileSync(path.join(__dirname, '..', f), 'utf8')).join('\n') + '\nthis.E = { CARDS, CAPTAINS, STARTERS, CARD, REPLACED, newGame, apply, maxHp };', ctx);
+const { CARDS, STARTERS, CARD, REPLACED, newGame, apply, maxHp } = ctx.E;
 let r = 7; const rng = () => (r = (r * 16807) % 2147483647) / 2147483647;
 
 const snap = (s, p) => JSON.stringify({ me: { ...s.players[p], hand: s.players[p].hand.length, deck: s.players[p].deck.length }, opp: { ...s.players[1 - p], hand: s.players[1 - p].hand.length, deck: s.players[1 - p].deck.length } });
 function base(fieldOpp) {
-  const s = newGame([STARTERS[0], STARTERS[1]], ['A', 'B'], rng); const p = s.turn;
+  const s = newGame([STARTERS[0], STARTERS[1]], ['A', 'B'], rng); const p = s.turn; s.turnNo = 3; // past the first-turn rule (no direct hits on turns 1-2)
   s.actions = 5; s.players[p].goof = 3; s.players[1 - p].goof = 3; s.players[p].bore = 3; s.players[1 - p].bore = 3;
   s.players[1 - p].field = fieldOpp ? [{ id: 'scrunge_snoob', hp: maxHp(CARD.scrunge_snoob), t: 0 }, { id: 'scrunge_bobby', hp: maxHp(CARD.scrunge_bobby), t: 0 }] : [];
-  s.players[1 - p].effects = [{ id: 'item_won_let_rest' in CARD ? 'item_won_let_rest' : 'item_wont_let_rest' }];
+  s.players[1 - p].effects = [{ id: REPLACED.item_wont_let_rest || 'item_wont_let_rest' }];
   return [s, p];
 }
 const flags = [];

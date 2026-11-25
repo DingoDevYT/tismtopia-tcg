@@ -168,7 +168,7 @@ const TUT = [
   { text: 'At the start of each of your turns you draw a card, get 2 Actions and gain 1 Creativity. A banner tells you, and a +1 pops up on the meter.', sel: `${MY} .meter.goof`, next: true },
   { text: "Creativity is spent on your Captain's Super (once per turn, no Actions needed). The notch on the bar is its cost, and it lights up when you can afford it. Then a glowing SUPER button appears on your Captain: tap it to see what it does, then tap Use Super.", sel: `${MY} .hud .card.cap`, next: true },
   { text: 'Items come in two kinds. Instant Items (lightning tag) do their thing when played, then vanish. Timed Items (hourglass tag) stay and count down turns when you end your turn.', sel: '.hand', next: true },
-  { text: 'Evils (infinity tag) stay until they are cleansed. Tap an opponent’s Evil and pay 2 Actions to Cleanse it. Tap your meters any time for the log and tools.', next: true },
+  { text: 'Some Items stay in play: the tag shows the turns or uses left, and they leave when it runs out. Tap your meters any time for the log and tools.', next: true },
   { text: "That's the basics! Finish this battle against the bot, then build your own deck.", next: 'Got it' },
 ];
 
@@ -209,7 +209,7 @@ function botMove() {
   let a = null;
   if (g.phase === 'defend' && g.turn === 0) {
     const mv = CARD[g.players[0].field[g.pending.i].id].moves[g.pending.m], pw = mv.power + statsOf(g, 0, g.players[0].field[g.pending.i]).bonus;
-    a = { type: 'defend', i: best(all, i => { const d = Math.max(0, pw - statsOf(g, 1, B.field[i]).def); return (d < B.field[i].hp ? 100 : 0) - d * 10 + B.field[i].hp; }) };
+    a = { type: 'defend', i: best(all.filter(i => canBlock(g, 1, i)), i => { const d = Math.max(0, pw - statsOf(g, 1, B.field[i]).def); return (d < B.field[i].hp ? 100 : 0) - d * 10 + B.field[i].hp; }) }; // shy Characters can't block (canBlock)
     if (typeof rkOrder === 'function') a.order = rkOrder(g, 1, a.i); // least-loss spill order (js/ranked.js)
   } else if (g.turn === 1 && g.phase === 'play') {
     const hc = B.hand.findIndex(id => CARD[id].type === 'character'), canPlay = hc >= 0 && B.field.length < 3;
@@ -578,7 +578,7 @@ function causeSteps(ev) {
 const CAUSE_ICON = { goof: 'goof', bore: 'bore', act: 'action', draw: 'cards', purge: 'evil' };
 function causeWhen(st, s) { // the trigger in words, from the viewer's side
   const start = pi => (pi === me ? 'Start of your turn' : `Start of ${s.players[pi].name}'s turn`);
-  return { play: 'When played', hit: 'On hit', turn: start(st.src.p), oppTurn: start(1 - st.src.p), move: CARD[st.src.id]?.moves?.[st.src.m]?.name || 'Ability' }[st.when] || 'Effect';
+  return { play: 'When played', hit: 'On hit', turn: start(st.src.p), oppTurn: start(1 - st.src.p), move: CARD[st.src.id]?.moves?.[st.src.m]?.name || 'Ability', attack: 'When attacking', defend: 'When blocking' }[st.when] || 'Effect';
 }
 const causeText = st => { const n = Math.abs(st.n), sg = st.n < 0 ? '−' : '+';
   return st.kind === 'draw' ? `+${n} card${n === 1 ? '' : 's'}` : st.kind === 'act' ? `${sg}${n} Action${n === 1 ? '' : 's'}` : st.kind === 'purge' ? `${CARD[st.id]?.name || 'Evil'} removed` : `${sg}${n} ${METERS[st.kind]}`; };
