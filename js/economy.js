@@ -19,8 +19,9 @@ const hasFin = (id, f) => (coll[id]?.f?.[f] || 0) > 0; // you own this exact ver
 const ownedTag = (id, f) => hasFin(id, f) ? `<span class="owned-tag">OWNED ×${coll[id].f[f]}</span>` : '';
 const FORDER = ['normal', 'holo', 'rev', 'full', 'rainbow']; // common to rare
 let sellAt = 0; const cooled = () => { const t = Date.now(); if (t - sellAt < 100) return false; sellAt = t; return true; }; // stops double-taps and spam
-// Unsellable copies: the starter you picked (so you can't sell yourself out of a playable deck); legacy saves keep every starter's.
-const keep = id => (onb.legacy ? Math.max(0, ...STARTERS.map(s => s.cards[id] || 0)) : STARTERS.find(s => s.name === onb.starter)?.cards[id] || 0);
+// Unsellable copies: the starter you picked (so you can't sell yourself out of a playable deck); legacy saves keep every starter's;
+// and whatever a completed pre-built deck uses (pbKeep, js/prebuilt.js).
+const keep = id => Math.max(typeof pbKeep === 'function' ? pbKeep(id) : 0, onb.legacy ? Math.max(0, ...STARTERS.map(s => s.cards[id] || 0)) : STARTERS.find(s => s.name === onb.starter)?.cards[id] || 0);
 // Account corner on every screen but battles: your name/captain (opens your Profile, js/profile.js), then your coins.
 const coinBar = () => `<div class="acct"><button class="profile neu" data-act="profile" aria-label="Your profile">${typeof myPfp === 'function' ? pfpAvatar(myPfp()) : renderAvatar(CARD[deck().captain] || CAPTAINS[0])}<b>${esc(myName)}</b></button><div class="coin-bar neu">${COIN}<b>${fmt(shown)}</b></div></div>`;
 

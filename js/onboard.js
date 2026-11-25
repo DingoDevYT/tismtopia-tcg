@@ -187,7 +187,7 @@ async function resetAccount() {
   Object.assign(ui, { resetAsk: false, resetBusy: true }); render();
   // Fresh values written out (not just removed), so a device that later picks this save from the cloud gets every key replaced too.
   try { for (const k of ['deck', 'tour']) localStorage.removeItem('tismtopia.' + k); } catch { /* private mode */ }
-  writeSave({ collection: {}, coins: START_COINS, decks: [], favs: [], stats: {}, onboard: { opened: 0 }, resetAt: new Date().toISOString() }); // straight to storage: no auto-save races the upload below
+  writeSave({ collection: {}, coins: START_COINS, decks: [], favs: [], stats: {}, pbClaimed: [], onboard: { opened: 0 }, resetAt: new Date().toISOString() }); // straight to storage: no auto-save races the upload below
   if (cloud.user) {
     decks = [{ id: uid(), name: 'My Deck', captain: null, cards: {} }]; ui.deckId = decks[0].id; // the cloud copy takes its decks from memory
     await cloudSaveGame(true); // the reset wins over whatever the cloud held; if this fails, the next sign-in sync uploads it (or asks, naming the reset)

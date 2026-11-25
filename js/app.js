@@ -336,7 +336,7 @@ function render() {
   const scrolls = [...$app.querySelectorAll('.grid, .scroll, .sheet')].map(el => el.scrollTop);
   const appTop = $app.dataset.view === ui.view ? $app.scrollTop : 0; // collection / deck / add-cards scroll as a whole screen
   const focus = document.activeElement?.id;
-  const views = { home: viewHome, deck: viewDeck, build: viewBuild, lobby: viewLobby, rules: viewRules, game: viewGame, packs: () => viewPacks(), open: () => (ui.open ? viewOpen() : viewPacks()), collection: () => viewCollection(), shop: () => viewShop(), profile: () => viewProfile(), submit: () => viewSubmit(), review: () => viewReview(), welcome: () => viewWelcome(), social: () => viewSocial(), player: () => viewPlayer(), showcase: () => viewShowcase() };
+  const views = { home: viewHome, deck: viewDeck, build: viewBuild, lobby: viewLobby, rules: viewRules, game: viewGame, packs: () => viewPacks(), open: () => (ui.open ? viewOpen() : viewPacks()), collection: () => viewCollection(), shop: () => viewShop(), profile: () => viewProfile(), submit: () => viewSubmit(), review: () => viewReview(), welcome: () => viewWelcome(), social: () => viewSocial(), player: () => viewPlayer(), showcase: () => viewShowcase(), decks: () => viewDecks(), pb: () => viewPb() };
   if (ui.view === 'game' && !game) ui.view = 'home';
   $app.dataset.view = ui.view;
   $app.innerHTML = views[ui.view]() + (ui.toast && ui.view !== 'game' ? `<div class="toast neu">${esc(ui.toast)}</div>` : '');

@@ -1,7 +1,7 @@
 // Self-check for the rules engine. Run: node test/game.test.js
 const fs = require('fs'), vm = require('vm'), path = require('path');
 // syntax-check every browser script too, so a broken app.js can't ship (the rules tests don't load it)
-for (const f of ['js/app.js', 'js/packs.js', 'js/audio.js', 'js/assets.js', 'js/render.js', 'js/rainbow.js', 'js/cards.js', 'js/cards-data.js', 'js/game.js', 'js/cardfile.js', 'js/art-tools.js', 'js/cloud.js', 'js/profile.js', 'js/social.js', 'js/submit.js', 'js/community.js', 'js/review.js', 'js/onboard.js', 'js/tour.js']) new vm.Script(fs.readFileSync(path.join(__dirname, '..', f), 'utf8'), { filename: f });
+for (const f of ['js/app.js', 'js/packs.js', 'js/audio.js', 'js/assets.js', 'js/render.js', 'js/rainbow.js', 'js/cards.js', 'js/cards-data.js', 'js/game.js', 'js/cardfile.js', 'js/art-tools.js', 'js/cloud.js', 'js/profile.js', 'js/social.js', 'js/submit.js', 'js/community.js', 'js/review.js', 'js/onboard.js', 'js/prebuilt.js', 'js/tour.js']) new vm.Script(fs.readFileSync(path.join(__dirname, '..', f), 'utf8'), { filename: f });
 const load = files => files.map(f => fs.readFileSync(path.join(__dirname, '..', f), 'utf8')).join('\n');
 const src = load(['test/fixture-cards.js', 'js/cards.js', 'js/game.js']).replace('const BORE_MAX = 15;', 'const BORE_MAX = 99;').replace('const DECK_SIZE = 40;', 'const DECK_SIZE = 20;').replace('const HP_SCALE = 1.2;', 'const HP_SCALE = 2;');
 
@@ -217,7 +217,7 @@ throws(() => apply(m, 0, { type: 'end' }), 'no actions after game over');
 { const x = {}; require('vm').runInNewContext(fs.readFileSync(__dirname + '/../js/cards-data.js', 'utf8') + fs.readFileSync(__dirname + '/../js/card-overrides.js', 'utf8') + ';this.A=[...CAPTAINS,...CARDS]', x);
   for (const c of x.A) if (c.name.length > 22) throw new Error('FAIL: name too long (max 22): ' + c.name); }
 // The browser loads these as one shared scope: two files declaring the same name breaks everything after it.
-new Function(['cards-data', 'card-overrides', 'cards', 'assets', 'render', 'rainbow', 'game', 'app', 'pack-sets', 'packs', 'economy', 'audio', 'cardfile', 'art-tools', 'cloud', 'profile', 'social', 'submit', 'community', 'review', 'onboard', 'tour'].map(f => fs.readFileSync(__dirname + '/../js/' + f + '.js', 'utf8')).join('\n;\n'));
+new Function(['cards-data', 'card-overrides', 'cards', 'assets', 'render', 'rainbow', 'game', 'app', 'pack-sets', 'packs', 'economy', 'audio', 'cardfile', 'art-tools', 'cloud', 'profile', 'social', 'submit', 'community', 'review', 'onboard', 'prebuilt', 'tour'].map(f => fs.readFileSync(__dirname + '/../js/' + f + '.js', 'utf8')).join('\n;\n'));
 // New players (js/onboard.js): each starter dealt as 8 packs of 5 holding exactly its 40 cards, no pack with two of a card, strongest
 // card last in each pack, the deck those packs make is legal; and only the public site (github.io) or ?gate=1 forces the sign-in gate.
 { const x = { structuredClone }, ob = fs.readFileSync(__dirname + '/../js/onboard.js', 'utf8').split('// ---------------- browser only')[0];
@@ -321,6 +321,42 @@ new Function(['cards-data', 'card-overrides', 'cards', 'assets', 'render', 'rain
   cmRegister([pr('a6000000-0000-0000-0000-000000000006', 'Comm One', 'community')], CARDS, CARD); cmPacks(CARDS, ps, pk);
   ok(ps.community.join() === 'community_a6000000' && pk.at(-1) === CM_PACK && pk.length === 3 && ps.empirical.join() === 'e1', 'one card makes the Community Pack; a refresh drops cards no longer listed');
 `, x); }
+// Pre-built decks (js/prebuilt.js): all legal; completion counts copies of any finish; each reward is paid once; the copies a completed deck
+// uses can't be sold (keep() in js/economy.js); cleanSave (js/cloud.js) keeps only known pre-built ids.
+{ const x = { structuredClone }, pb = fs.readFileSync(__dirname + '/../js/prebuilt.js', 'utf8').split('// ---------------- browser only')[0];
+  const cs = fs.readFileSync(__dirname + '/../js/cloud.js', 'utf8').match(/function cleanSave\(d\) \{[\s\S]*?\n\}\n/)[0];
+  vm.runInNewContext(['cards-data', 'card-overrides', 'cards', 'game'].map(f => fs.readFileSync(__dirname + '/../js/' + f + '.js', 'utf8')).join('\n;\n') + '\n;\n' + pb + '\n;\n' + cs + `;
+  const ok = (c, m) => { if (!c) throw new Error('FAIL: prebuilt: ' + m); };
+  ok(PB_DECKS.length === STARTERS.length + 8 && PB_BY.size === PB_DECKS.length, '3 starters + 8 Captain decks, unique ids');
+  for (const d of PB_DECKS) ok(deckProblems(d).length === 0 && pbSize(d) === DECK_SIZE, d.name + ' is legal: ' + deckProblems(d));
+  ok(PB_DECKS.filter(d => d.kind === 'starter').every(d => d.reward === 1000) && PB_DECKS.filter(d => d.kind === 'captain').every(d => d.reward === 2500), 'rewards 1,000 / 2,500');
+  const sn = PB_BY.get('supernova'), full = Object.fromEntries(Object.entries(sn.cards).map(([id, n]) => [id, { n, f: { normal: n } }]));
+  ok(pbHave(sn, {}) === 0 && pbState(sn, {}) === 'lock' && pbState(sn, full) === 'done', 'empty = locked, every copy = complete');
+  const [a, na] = Object.entries(sn.cards)[0], mixed = { ...full, [a]: { n: na, f: { holo: 1, rainbow: na - 1 } } };
+  ok(pbState(sn, mixed) === 'done', 'any finish counts');
+  const short = { ...full, [a]: { n: na - 1, f: { normal: na - 1 } } };
+  ok(pbHave(sn, short) === 39 && pbState(sn, short) === 'near' && pbMissing(sn, short).length === 1 && pbMissing(sn, short)[0].need === 1, '39/40 = almost there, one missing');
+  const extra = { ...full, [a]: { n: 9, f: { normal: 9 } } }; ok(pbHave(sn, extra) === 40, 'spare copies do not count past what the deck uses');
+  let few = {}, k = 0; for (const [id, n] of Object.entries(sn.cards)) { const m = Math.min(n, 32 - k); if (m > 0) few[id] = { n: m, f: { normal: m } }; k += Math.max(0, m); }
+  ok(pbHave(sn, few) === 32 && pbState(sn, few) === 'near' && pbState(sn, { ...few, [Object.keys(few)[0]]: { n: few[Object.keys(few)[0]].n - 1, f: {} } }) === 'lock', 'almost there from 32/40, locked below');
+  ok(pbOwn({}, '__proto__') === 0 && pbOwn({}, 'constructor') === 0, 'prototype names own nothing');
+  // reward paid once
+  const r1 = pbSettle(full, []); ok(r1.done.some(d => d.id === 'supernova') && r1.pay === r1.done.reduce((s, d) => s + d.reward, 0) && r1.claimed.includes('supernova'), 'completing pays');
+  const r2 = pbSettle(full, r1.claimed); ok(r2.done.length === 0 && r2.pay === 0 && r2.claimed.length === r1.claimed.length, 'a claimed deck never pays again');
+  const legacy = {}; for (const s of STARTERS) for (const [id, n] of Object.entries(s.cards)) legacy[id] = { n: Math.max(n, legacy[id]?.n || 0), f: { normal: 3 } };
+  const l1 = pbSettle(legacy, []), l2 = pbSettle(legacy, l1.claimed); ok(l1.done.filter(d => d.kind === 'starter').length === 3 && l2.pay === 0, 'legacy starters: paid once, not on the next load');
+  // sell protection
+  ok(pbKeepOf(a, []) === 0 && pbKeepOf(a, ['supernova']) === na && pbKeepOf('nope', ['supernova']) === 0, 'a completed deck keeps the copies it uses');
+  const both = Object.keys(sn.cards).find(id => PB_BY.get('crunch-time').cards[id]); ok(pbKeepOf(both, ['supernova', 'crunch-time']) === Math.max(sn.cards[both], PB_BY.get('crunch-time').cards[both]), 'two decks: the larger count');
+  // cleanSave of the new keys
+  ok(JSON.stringify(cleanSave({ pbClaimed: ['supernova', 'supernova', 'gone-deck'] }).pbClaimed) === '["supernova"]', 'claimed: duplicates and unknown ids dropped');
+  let refused = 0; for (const bad of [{ pbClaimed: 'supernova' }, { pbClaimed: [1] }, { pbClaimed: {} }, { pbClaimed: Array(101).fill('supernova') }, { pbClaimed: ['x'.repeat(41)] }, { decks: [{ id: 'a', name: 'A', captain: null, cards: {}, pre: 5 }] }]) try { cleanSave(bad); } catch { refused++; }
+  ok(refused === 6, 'junk pbClaimed / pre refused: ' + refused);
+  const dk = cleanSave({ decks: [{ id: 'a', name: 'A', captain: null, cards: {}, pre: 'night-light' }, { id: 'b', name: 'B', captain: null, cards: {}, pre: '__proto__' }, { id: 'c', name: 'C', captain: null, cards: {} }] }).decks;
+  ok(dk[0].pre === 'night-light' && !('pre' in dk[1]) && !('pre' in dk[2]), 'deck pre: known kept, unknown dropped');
+  `, x);
+  if (!/const keep = id => Math\.max\(typeof pbKeep === 'function' \? pbKeep\(id\)/.test(fs.readFileSync(__dirname + '/../js/economy.js', 'utf8'))) throw new Error('FAIL: prebuilt: keep() must include pbKeep');
+  if (!fs.readFileSync(__dirname + '/../js/cloud.js', 'utf8').includes("'pbClaimed']")) throw new Error('FAIL: prebuilt: pbClaimed must be a SAVE_KEY'); }
 // Social (js/social.js): profile picture ids, display stands and Captain plays from saves or the server are validated; collection counts.
 { const x = {}, so = fs.readFileSync(__dirname + '/../js/social.js', 'utf8').split('// ---------------- browser only')[0];
   vm.runInNewContext(['cards-data', 'card-overrides', 'cards'].map(f => fs.readFileSync(__dirname + '/../js/' + f + '.js', 'utf8')).join('\n;\n') + '\n;\n' + so + `;

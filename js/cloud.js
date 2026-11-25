@@ -2,7 +2,7 @@
 // These two values are PUBLIC by design (the project URL and its publishable key; Row Level Security decides what anyone can read or write),
 // so they are safe to commit. Never put a secret / service_role key here. An empty url switches accounts off: every call returns CLOUD_OFF.
 const CLOUD = { url: 'https://ikmohktrubvpykvwyxuf.supabase.co', key: 'sb_publishable_GSno-kcVbX_vi5eQYQ8Vaw_jaSwsWST' };
-const SAVE_KEYS = ['name', 'collection', 'coins', 'decks', 'deck', 'favs', 'volume', 'stats', 'onboard', 'resetAt', 'pfp', 'showcase', 'capPlays']; // the last three: js/social.js
+const SAVE_KEYS = ['name', 'collection', 'coins', 'decks', 'deck', 'favs', 'volume', 'stats', 'onboard', 'resetAt', 'pfp', 'showcase', 'capPlays', 'pbClaimed']; // pfp, showcase, capPlays: js/social.js; pbClaimed: js/prebuilt.js
 const STAT_KEYS = ['botPlayed', 'botWon', 'pvpPlayed', 'pvpWon'];
 const CLOUD_OFF = { ok: false, why: 'Accounts are not connected yet.' }, NO_USER = { ok: false, why: 'Not signed in.' };
 // checked: we know whether someone is signed in. synced: the sign-in comparison is settled, so auto-save may run.
@@ -244,8 +244,8 @@ function cleanSave(d) {
       if (!Array.isArray(v) || v.length > 100) bad(k);
       out.decks = v.map(x => {
         if (!plain(x) || !str(x.id, 40) || !str(x.name, 30) || !(x.captain === null || str(x.captain, 64)) || !plain(x.cards) || Object.keys(x.cards).length > 200
-          || !Object.values(x.cards).every(n => Number.isInteger(n) && n >= 1 && n <= 3)) bad(k);
-        return { id: x.id, name: x.name, captain: x.captain, cards: swapDeck({ ...x.cards }) };
+          || !Object.values(x.cards).every(n => Number.isInteger(n) && n >= 1 && n <= 3) || !(x.pre === undefined || str(x.pre, 40))) bad(k);
+        return { id: x.id, name: x.name, captain: x.captain, cards: swapDeck({ ...x.cards }), ...(pbKnown(x.pre) ? { pre: x.pre } : {}) }; // pre: a pre-built deck (js/prebuilt.js); an unknown one becomes a normal deck
       });
     } else if (k === 'onboard') { // starter packs progress (js/onboard.js)
       const ok = { done: x => typeof x === 'boolean', legacy: x => typeof x === 'boolean', starter: x => str(x, 40), opened: x => int(x, 8) };
@@ -253,6 +253,7 @@ function cleanSave(d) {
     } else if (k === 'pfp') { if (v !== null && !pfpOk(v)) bad(k); out.pfp = v; } // profile picture: a Captain or Character id (js/social.js)
     else if (k === 'showcase') { const s = cleanStands(v); if (!s) bad(k); out.showcase = s; } // display stands
     else if (k === 'capPlays') { const c = cleanCapPlays(v); if (!c) bad(k); out.capPlays = c; } // battles per Captain
+    else if (k === 'pbClaimed') { const c = pbCleanClaimed(v); if (!c) bad(k); out.pbClaimed = c; } // completed pre-built decks, reward paid (js/prebuilt.js)
     else if (k === 'resetAt') { if (!str(v, 40) || isNaN(Date.parse(v))) bad(k); out.resetAt = v; }
     else bad(k);
   }
