@@ -48,9 +48,9 @@ const modOn = (s, pi, c) => { const w = c.mod.if, F = s.players[pi].field; retur
 // A Character's live numbers: DEF with modifiers, and `bonus` power added to each of its attacks.
 const statsOf = (s, pi, f) => ({ def: baseArmor(CARD[f.id]) + modSum(s, pi, 'def'), bonus: modSum(s, pi, 'atk') }); // def = armour
 // A move's power right now: printed power + passive bonuses + its own conditions
-// (mv.perAlly: +n for each of your other Characters; mv.late: +n while the opponent has LATE_BORE or more Boredom).
+// (mv.perAlly: +n for each of your other Characters, counting at most mv.allyMax of them; mv.late: +n while the opponent has LATE_BORE or more Boredom).
 const LATE_BORE = 10;
-const movePower = (s, pi, f, mv) => mv.power + statsOf(s, pi, f).bonus + (mv.perAlly || 0) * (s.players[pi].field.length - 1) + (mv.late && s.players[1 - pi].bore >= LATE_BORE ? mv.late : 0);
+const movePower = (s, pi, f, mv) => mv.power + statsOf(s, pi, f).bonus + (mv.perAlly || 0) * Math.min(mv.allyMax ?? 99, s.players[pi].field.length - 1) + (mv.late && s.players[1 - pi].bore >= LATE_BORE ? mv.late : 0);
 const moveCost = (s, pi, mv) => mv.cost + (mv.ability ? 0 : modSum(s, 1 - pi, 'oppAttackCost'));
 const playCost = (s, pi, c) => (c.cost ?? 1) + (c.type === 'evil' ? modSum(s, 1 - pi, 'oppEvilCost') : 0);
 // Played this turn and sick (or the opponent has mod.oppSick, e.g. Alek's House Rules): can't attack yet.

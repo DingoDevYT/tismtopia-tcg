@@ -1,0 +1,8 @@
+Xee           66%  (200 games, avg 32.2 turns)  Super, 6 Creativity: Supernova. Opponent +4 Boredom and -3 Creativity.
+RotGrease     62%  (200 games, avg 31.5 turns)  Super, 3 Creativity: Grind. Opponent +2 Boredom.
+Abby          53%  (200 games, avg 51.1 turns)  Super, 4 Creativity: Roll Out. +2 Actions and clear 2 of your Boredom.
+SnazzyRhyno   51%  (200 games, avg 35.9 turns)  Super, 5 Creativity: Combo Finisher. +2 Actions and opponent +2 Boredom.
+Hamish        49%  (200 games, avg 41.1 turns)  Super, 3 Creativity: Plot Twist. Opponent -3 Creativity and +1 Boredom.
+Wawa          44%  (200 games, avg 27.9 turns)  Super, 2 Creativity: Random Button. Flip a coin. Heads: opponent +3 Boredom. Tails: you +1 Boredom.
+Moth          41%  (200 games, avg 57.2 turns)  Super, 4 Creativity: Wing Dust. Opponent -4 Creativity, and clear 2 of your Boredom.
+Anonagon      31%  (200 games, avg 41.8 turns)  Super, 4 Creativity: Crunch Time. +3 Actions this turn.

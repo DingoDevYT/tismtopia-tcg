@@ -47,18 +47,18 @@ const DECK_SIZE = 40; // shortcut: the rules don't set a deck size yet, change o
 // Swapped in place, so card numbers stay put; art, crops and rarity carry over; OVERRIDES (js/card-overrides.js) apply to the new ids.
 const EVIL_SWAP = {
   item_evening_coil: { id: 'item_evening_coil_v2', type: 'bit', name: 'Evening Coil', cost: 1, uses: 2,
-    text: 'Vesper waits, coiled. 2 uses: when one of your Characters blocks an attack, the attacker takes 1 damage.', onDefend: [['hp', 'target', 1]] },
-  item_wont_let_rest: { id: 'item_wont_let_rest_v2', type: 'bit', name: "Won't Let You Rest", cost: 1, uses: 3,
+    text: 'Vesper waits, coiled. 2 uses: when one of your Characters blocks an attack, the attacker takes 2 damage.', onDefend: [['hp', 'target', 2]] },
+  item_wont_let_rest: { id: 'item_wont_let_rest_v2', type: 'bit', name: "Won't Let You Rest", cost: 0, uses: 3,
     text: 'Fenrik keeps everyone going. 3 uses: when one of your Characters attacks, draw a card.', onAttack: [['draw', 'me', 1]] },
-  item_deity_form: { id: 'item_deity_form_v2', type: 'bit', name: 'Deity Form', cost: 1, uses: 1, lastStand: true,
+  item_deity_form: { id: 'item_deity_form_v2', type: 'bit', name: 'Deity Form', cost: 0, uses: 1, lastStand: true,
     text: 'Atlas will not fall. 1 use: the next time an attack would defeat one of your Characters, it stays on 1 HP and the rest of the damage stops.' },
-  item_anxious_duo: { id: 'item_anxious_duo_v2', type: 'bit', name: 'Anxious Duo', cost: 1, dur: 2, mod: { oppAttackCost: 1 },
+  item_anxious_duo: { id: 'item_anxious_duo_v2', type: 'bit', name: 'Anxious Duo', cost: 0, dur: 2, mod: { oppAttackCost: 1 },
     text: 'Enoch and Son overthink everything. On your opponent’s next turn, their attacks cost 1 more Action.' },
-  item_pollen_season: { id: 'item_pollen_season_v2', type: 'bit', name: 'Pollen Season', cost: 1, dur: 2, mod: { oppNoSuper: 1 }, onPlay: [['goof', 'opp', -1]],
+  item_pollen_season: { id: 'item_pollen_season_v2', type: 'bit', name: 'Pollen Season', cost: 0, dur: 2, mod: { oppNoSuper: 1 }, onPlay: [['goof', 'opp', -1]],
     text: 'Wiffle can’t stop sneezing. Opponent -1 Creativity, and they can’t use their Super on their next turn.' },
-  item_nicer_mondays: { id: 'item_nicer_mondays_v2', type: 'bit', name: 'Nicer Mondays', cost: 1, uses: 3, boreGuard: 1,
-    text: 'The day we all hate, a little softer. 3 uses: when an attack would give you Boredom, you get 1 less.' },
-  item_entity_form: { id: 'item_entity_form_v2', type: 'bit', name: 'Entity Form', cost: 1, dur: 2, next: true, mod: { atk: 2 },
+  item_nicer_mondays: { id: 'item_nicer_mondays_v2', type: 'bit', name: 'Nicer Mondays', cost: 1, uses: 3, boreGuard: 2,
+    text: 'The day we all hate, a little softer. 3 uses: when an attack would give you Boredom, you get 2 less.' },
+  item_entity_form: { id: 'item_entity_form_v2', type: 'bit', name: 'Entity Form', cost: 0, dur: 2, next: true, mod: { atk: 2 },
     text: 'Orpheus drops the human form. Your next turn: your attacks get +2 power.' },
 };
 for (const [old, c] of Object.entries(EVIL_SWAP)) {

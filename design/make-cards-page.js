@@ -10,8 +10,8 @@ const WHY = {
   item_evening_coil: 'Evil retired. Was a tax on Evils, which no longer exist. Now a 2-use counter-attack for blockers: Vesper strikes back.',
   item_wont_let_rest: 'Evil retired. Was +1 Boredom every turn forever (Boredom not from damage). Now a 3-use draw engine for attackers.',
   item_deity_form: 'Evil retired. Was +1 armour at 0 Creativity, rarely on. Now a one-shot save: a Character survives a lethal hit on 1 HP.',
-  item_anxious_duo: 'Evil retired. Needed an Enoch on the field. Now one turn of attack tax on the opponent, no strings.',
-  item_pollen_season: 'Evil retired. Was -1 Creativity every turn forever. Now a Super block for one turn plus -1 Creativity: timing matters.',
+  item_anxious_duo: 'Evil retired. Needed an Enoch on the field. Now a free card: one turn of attack tax on the opponent, no strings.',
+  item_pollen_season: 'Evil retired. Was -1 Creativity every turn forever. Now a free Super block for one turn plus -1 Creativity: timing matters.',
   item_nicer_mondays: 'Evil retired. Was -1 Boredom every turn forever (best card in the old sim). Now 3 uses of softening attacks that reach your Boredom.',
   item_entity_form: 'Evil retired. Was an always-on engine plus attack tax. Now a delayed burst: set it up, swing hard next turn.',
   jangle_unnamed_ocs: 'Bland (+1 Creativity, Boredom rider). Now a FREE one-move soak: 4 HP that exists to take hits.',
@@ -42,10 +42,12 @@ const WHY = {
   jegg_abigaia_v2: 'Boredom rider removed: +1 power instead.',
   jangle_dizzy: 'Coin Boredom becomes coin damage.',
   scrunge_anna_lee: 'Text fix: it also gave +1 Creativity when played, which the text didn’t say.',
-  captain_moth: 'Owner: genuinely nerf. Super costs 5 (was 4) and drains 3 (was 4).',
-  captain_xee: 'Was the top Captain: +3 Boredom (was +4).',
-  captain_rotgrease: 'Second best: costs 4 (was 3), adds -1 Creativity.',
-  captain_anonagon: 'Weakest by far: costs 3 (was 4) and also draws 2 cards.',
+  captain_moth: 'Owner: genuinely nerf. Super costs 5 (was 4); clears 3 Boredom (was 2) so it still does something when it lands.',
+  captain_xee: 'Was the top Captain (73%): +3 Boredom (was +4).',
+  captain_rotgrease: 'Second best (62%): costs 4 (was 3).',
+  captain_anonagon: 'Weakest by far (28%): costs 3 (was 4); +2 Actions and draw 2 cards (was +3 Actions).',
+  captain_hamish: 'Fell behind once Boredom riders left the game: +2 Boredom (was +1).',
+  captain_wawa: 'Below 50%: tails no longer gives you Boredom, it just misses.',
 };
 const pairs = Object.keys(WHY).map(id => [id, now[id] ? id : Object.keys(now).find(k => k === id + '_v2'), WHY[id]]);
 for (const [o, n] of pairs) if (!old[o] || !now[n]) throw new Error('missing ' + o + ' / ' + n);

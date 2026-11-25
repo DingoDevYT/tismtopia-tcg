@@ -1,0 +1,10 @@
+Captain       all       s1   s2  turns  Super
+RotGrease     60.0%    56%  65%   42.8  Super, 4 Creativity: Grind. Opponent +2 Boredom and -1 Creativity.
+Xee           55.3%    49%  62%   44.3  Super, 6 Creativity: Supernova. Opponent +3 Boredom and -3 Creativity.
+SnazzyRhyno   51.3%    52%  51%   44.1  Super, 5 Creativity: Combo Finisher. +2 Actions and opponent +2 Boredom.
+Abby          49.8%    47%  53%   57.2  Super, 4 Creativity: Roll Out. +2 Actions and clear 2 of your Boredom.
+Moth          46.5%    49%  45%   60.0  Super, 5 Creativity: Wing Dust. Opponent -4 Creativity, and clear 3 of your Boredom.
+Wawa          46.0%    46%  46%   36.3  Super, 2 Creativity: Random Button. Flip a coin. Heads: opponent +3 Boredom. Tails: you +1 Boredom.
+Hamish        41.0%    42%  40%   44.6  Super, 3 Creativity: Plot Twist. Opponent -3 Creativity and +1 Boredom, and you draw a card.
+Anonagon      40.3%    39%  42%   40.7  Super, 3 Creativity: Crunch Time. +3 Actions and draw a card.
+(3200 games)

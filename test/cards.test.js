@@ -114,12 +114,14 @@ function mechanics() {
   g = hit(g, 1); g.players[0].field[0].acted = 0; g = hit(g, 0);
   ok(g.players[0].hand.length === 3 && g.players[0].effects.length === 0, "third attack: 3 cards drawn, Item used up");
   g = fresh(); g.players[1].effects = [{ id: 'item_evening_coil_v2', uses: 2 }]; g.players[0].field = [F('t_hit')]; g.players[1].field = [F('t_wall')];
-  g = hit(g); ok(g.players[0].field[0].hp === maxHp(CARD.t_hit) - 1 && g.players[1].effects[0].uses === 1, 'Evening Coil: blocking hurts the attacker 1, a use spent');
+  g = hit(g); ok(g.players[0].field[0].hp === maxHp(CARD.t_hit) - 2 && g.players[1].effects[0].uses === 1, 'Evening Coil: blocking hurts the attacker 2, a use spent');
   g = fresh(); g.players[1].effects = [{ id: 'item_deity_form_v2', uses: 1 }]; g.players[0].field = [F('t_hit')]; g.players[1].field = [F('t_pawn'), F('t_wall')];
   g = hit(g, 0, 1); // power 6 into a 2-HP pawn: would die and spill 4
   ok(g.players[1].field.length === 2 && g.players[1].field[0].hp === 1 && g.players[1].field[1].hp === maxHp(CARD.t_wall) && g.players[1].effects.length === 0, 'Deity Form: pawn stays on 1 HP, no spill, Item gone');
   g = fresh(); g.players[1].effects = [{ id: 'item_nicer_mondays_v2', uses: 3 }]; g.players[0].field = [F('t_hit')];
-  g = hit(g, 0, 1); ok(g.players[1].bore === 2 && g.players[1].effects[0].uses === 2, 'Nicer Mondays: direct 6 halves to 3, then 1 less = 2');
+  g = hit(g, 0, 1); ok(g.players[1].bore === 1 && g.players[1].effects[0].uses === 2, 'Nicer Mondays: direct 6 halves to 3, then 2 less = 1');
+  g = fresh(); g.players[0].field = [F('scrunge_calytrix_and_noli'), F('t_wall'), F('t_wall'), F('t_wall'), F('t_wall')];
+  ok(movePower(g, 0, g.players[0].field[0], CARD.scrunge_calytrix_and_noli.moves[1]) === 4, 'Calytrix: the ally bonus stops at +2');
   g = fresh(); g.players[0].hand = ['item_entity_form_v2']; g.players[0].field = [F('t_hit')]; g.players[1].field = [F('t_wall')];
   g = apply(g, 0, { type: 'play', i: 0 });
   ok(movePower(g, 0, g.players[0].field[0], CARD.t_hit.moves[0]) === 3, 'Entity Form: no bonus the turn it is played');

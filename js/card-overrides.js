@@ -635,7 +635,7 @@ const OVERRIDES = {
    },
    {
     "name": "Fire Breath",
-    "cost": 3,
+    "cost": 2,
     "power": 3,
     "text": "On a hit, 1 damage to each of their other Characters.",
     "onHit": [
@@ -809,8 +809,9 @@ const OVERRIDES = {
     "name": "Sillies Assemble",
     "cost": 2,
     "power": 2,
-    "text": "+1 power for each other Character you have.",
-    "perAlly": 1
+    "text": "+1 power for each other Character you have, up to +2.",
+    "perAlly": 1,
+    "allyMax": 2
    }
   ]
  },
@@ -1134,22 +1135,22 @@ const OVERRIDES = {
  },
  "captain_moth": {
   "goof": 5,
-  "text": "Super, 5 Creativity: Wing Dust. Opponent -3 Creativity, and clear 2 of your Boredom.",
+  "text": "Super, 5 Creativity: Wing Dust. Opponent -4 Creativity, and clear 3 of your Boredom.",
   "ability": [
    [
     "goof",
     "opp",
-    -3
+    -4
    ],
    [
     "bore",
     "me",
-    -2
+    -3
    ]
   ]
  },
  "captain_xee": {
-  "text": "Super, 6 Creativity: Supernova. Opponent +3 Boredom and -3 Creativity.",
+  "text": "Super, 6 Creativity: Supernova. Opponent +3 Boredom and -2 Creativity.",
   "ability": [
    [
     "bore",
@@ -1159,41 +1160,64 @@ const OVERRIDES = {
    [
     "goof",
     "opp",
-    -3
+    -2
    ]
   ]
  },
  "captain_rotgrease": {
   "goof": 4,
-  "text": "Super, 4 Creativity: Grind. Opponent +2 Boredom and -1 Creativity.",
+  "text": "Super, 4 Creativity: Grind. Opponent +2 Boredom.",
   "ability": [
    [
     "bore",
     "opp",
     2
-   ],
-   [
-    "goof",
-    "opp",
-    -1
    ]
   ]
  },
  "captain_anonagon": {
   "goof": 3,
-  "text": "Super, 3 Creativity: Crunch Time. +3 Actions and draw 2 cards.",
+  "text": "Super, 3 Creativity: Crunch Time. +4 Actions this turn.",
   "ability": [
    [
     "actions",
     "me",
-    3
-   ],
-   [
-    "draw",
-    "me",
-    2
+    4
    ]
   ]
+ },
+ "captain_hamish": {
+  "text": "Super, 5 Creativity: Plot Twist. Opponent -3 Creativity and +2 Boredom.",
+  "ability": [
+   [
+    "goof",
+    "opp",
+    -3
+   ],
+   [
+    "bore",
+    "opp",
+    2
+   ]
+  ],
+  "goof": 5
+ },
+ "captain_wawa": {
+  "text": "Super, 3 Creativity: Random Button. Flip a coin. Heads: opponent +3 Boredom. Tails: nothing happens.",
+  "ability": [
+   [
+    "flip",
+    [
+     [
+      "bore",
+      "opp",
+      3
+     ]
+    ],
+    []
+   ]
+  ],
+  "goof": 3
  }
 };
 for (const c of [...CAPTAINS, ...CARDS]) Object.assign(c, OVERRIDES[c.id] || {});

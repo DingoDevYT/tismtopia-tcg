@@ -1,0 +1,60 @@
+900 games, average 45.5 turns, first player wins  47%
+
+Captains:
+   60% Xee (Super 6)
+   60% RotGrease (Super 4)
+   56% SnazzyRhyno (Super 5)
+   52% Wawa (Super 2)
+   49% Moth (Super 5)
+   46% Abby (Super 4)
+   39% Anonagon (Super 3)
+   37% Hamish (Super 3)
+
+Edge = win rate when played minus win rate when in the deck but not played (how much the card itself helps).
+
+Strongest 15:
+   57% win when played, edge + 11  n=  624  life 16.3 turns, dmg/play 0.0, fully blocked  50%  June [character HP3 DEF10 Gremlin Pounce c1 p2, Cat Nap c1 abil]
+   57% win when played, edge +  8  n=  691  life 15.4 turns, dmg/play 0.1, fully blocked  61%  Anna-Lee [character HP3 DEF8 Tapioca Toss c1 p2, Brown Sugar Rush c2 p3]
+   49% win when played, edge +  1  n=  684  life 19.1 turns, dmg/play 0.7, fully blocked  23%  Abigaia [character HP3 DEF9 Stab c1 p3, Yummy Lore c2 p3]
+   54% win when played, edge +  0  n=  665  life 15.9 turns, dmg/play 0.8, fully blocked   8%  Chi Chi [character HP3 DEF9 Chi Chi Poke c1 p2, Favourite Flourish c2 p4]
+   51% win when played, edge  -0  n=  659  life 12.4 turns, dmg/play 1.1, fully blocked  29%  Dusk [character HP3 DEF13 Tail Slap c1 p3, I Shoot You c2 p4]
+   52% win when played, edge  -1  n=  645  life 15.1 turns, dmg/play 0.1, fully blocked  47%  Whippie [character HP3 DEF11 Whip Flick c1 p2, Whipped Up c2 p3]
+   52% win when played, edge  -2  n=  693  life 17.3 turns, dmg/play 0.9, fully blocked  32%  Alek [character HP6 DEF15 Grumble c1 p3, Cane Whack c2 p4]
+   47% win when played, edge  -2  n=  663  life 15.7 turns, dmg/play 0.2, fully blocked  14%  Acer [character HP3 DEF10 Dual Wield c1 p3, Ether Surge c2 abil]
+   55% win when played, edge  -2  n=  652  life 14.6 turns, dmg/play 7.6, fully blocked   0%  Brûlée [character HP3 DEF8 Honey Tail c1 p2, Fire Breath c2 p3]
+   48% win when played, edge  -2  n=  653  life 14.6 turns, dmg/play 2.2, fully blocked   4%  Dizzy [character HP2 DEF9 Dizzy Spin c1 p3, Gummy Breath c2 p4]
+   53% win when played, edge  -3  n=  578  life 12.4 turns, dmg/play 0.0, fully blocked   0%  Mare [character HP2 DEF11 Reasonable Take c1 abil]
+   47% win when played, edge  -3  n=  650  life 15.3 turns, dmg/play 5.1, fully blocked   7%  Sapphire [character HP4 DEF8 Ice Shard c1 p2, Frost Breath c2 p5]
+   48% win when played, edge  -3  n=  350  cost 0  Anxious Duo [bit]
+   52% win when played, edge  -3  n=  642  life 16.3 turns, dmg/play 0.7, fully blocked   7%  Wiffle [character HP3 DEF11 Pounce c1 p3, Star Shine c2 p4]
+   47% win when played, edge  -3  n=  689  life 16.1 turns, dmg/play 0.8, fully blocked  34%  Maxos [character HP6 DEF16 Shoulder Bonk c1 p2, Full Sprint c2 p4]
+
+Weakest 15:
+   48% win when played, edge -11  n=  682  life 12.0 turns, dmg/play 4.5, fully blocked   2%  Tictac [character HP4 DEF13 Leg Slider Stomp c1 p3, Meow Beep Beep c2 p4]
+   48% win when played, edge -12  n=  691  life 17.2 turns, dmg/play 5.6, fully blocked   6%  Drow Paladin [character HP6 DEF15 Sword Bonk c1 p3, Holy Smite c2 p4]
+   51% win when played, edge -13  n=  663  life 18.6 turns, dmg/play 0.9, fully blocked  19%  Abigaia [character HP3 DEF8 Stab c1 p3, Fire! c3 p5]
+   45% win when played, edge -13  n=  653  life 12.0 turns, dmg/play 1.9, fully blocked   0%  Caerus [character HP3 DEF12 Card Toss c1 p3, Ace Up Sleeve c1 abil]
+   47% win when played, edge -13  n=  652  life 14.3 turns, dmg/play 0.3, fully blocked  49%  Toru [character HP5 DEF11 Nudge c1 p2, Toru Tumble c2 p3]
+   48% win when played, edge -13  n=  699  life 18.7 turns, dmg/play 0.5, fully blocked  29%  Arhakoth [character HP6 DEF15 Squish c1 p3, Unkillable Slam c3 p5]
+   41% win when played, edge -15  n=  268  cost 1  Won't Let You Rest [bit]
+   46% win when played, edge -15  n=  268  cost 1  Nicer Mondays [bit]
+   45% win when played, edge -15  n=  650  life 13.2 turns, dmg/play 0.1, fully blocked  56%  Enoch [character HP3 DEF12 Grumble c1 p2, Hard Stare c3 p4]
+   44% win when played, edge -15  n=  638  life 15.7 turns, dmg/play 0.4, fully blocked  23%  Wiffle [character HP3 DEF8 Horn Bonk c1 p3, Ring Flourish c3 p5]
+   48% win when played, edge -15  n=  635  life 17.1 turns, dmg/play 0.5, fully blocked  21%  Maxi [character HP3 DEF10 Silly Face c1 p3, Scrung Stare c2 p4]
+   47% win when played, edge -15  n=  684  life 12.7 turns, dmg/play 0.2, fully blocked  13%  Vesper [character HP3 DEF12 Fang Flick c1 p3, Evening Coil c3 abil]
+   46% win when played, edge -15  n=  691  life 11.1 turns, dmg/play 0.0, fully blocked 100%  Enoch and Son [character HP3 DEF11 Nervous Fidget c1 p2, Spiral c3 abil]
+   46% win when played, edge -16  n=  365  cost 0  Entity Form [bit]
+   42% win when played, edge -20  n=  263  cost 1  Pollen Season [bit]
+
+All Items/Evils:
+   48% win when played, edge  -3  n=  350  cost 0  Anxious Duo [bit]
+   50% win when played, edge  -4  n=  375  cost 0  Deity Form [bit]
+   48% win when played, edge  -6  n=  279  cost 1  Evening Coil [bit]
+   50% win when played, edge  -6  n=  363  cost 0  Butter [bit]
+   46% win when played, edge  -9  n=  268  cost 1  Bee Swarm [bit]
+   41% win when played, edge -15  n=  268  cost 1  Won't Let You Rest [bit]
+   46% win when played, edge -15  n=  268  cost 1  Nicer Mondays [bit]
+   46% win when played, edge -16  n=  365  cost 0  Entity Form [bit]
+   42% win when played, edge -20  n=  263  cost 1  Pollen Season [bit]
+
+Characters live 15.1 turns on average once played.

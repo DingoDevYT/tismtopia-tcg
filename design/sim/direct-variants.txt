@@ -1,3 +1,4 @@
 DIRECT=0,0 {"games":400,"avgTurns":38,"firstWin":0.48,"directPerGame":0.43,"directShare":0.071,"boreByT4":1.18,"capped":0}
 DIRECT=2,0 {"games":400,"avgTurns":39,"firstWin":0.483,"directPerGame":0.32,"directShare":0.06,"boreByT4":0.89,"capped":0}
 DIRECT=0,1 {"games":400,"avgTurns":39.9,"firstWin":0.447,"directPerGame":0.43,"directShare":0.039,"boreByT4":0.93,"capped":0}
+DIRECT=2,1 {"games":400,"avgTurns":39.2,"firstWin":0.46,"directPerGame":0.43,"directShare":0.038,"boreByT4":0.92,"capped":0}

@@ -1,0 +1,1 @@
+{"games":400,"avgTurns":18.9,"firstWin":0.328,"directPerGame":2.02,"directShare":0.234,"boreByT4":3.3,"capped":0}
