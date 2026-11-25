@@ -3,7 +3,8 @@ const fs = require('fs'), vm = require('vm'), path = require('path');
 // syntax-check every browser script too, so a broken app.js can't ship (the rules tests don't load it)
 for (const f of ['js/app.js', 'js/packs.js', 'js/audio.js', 'js/assets.js', 'js/render.js', 'js/rainbow.js', 'js/cards.js', 'js/cards-data.js', 'js/game.js', 'js/cardfile.js', 'js/art-tools.js', 'js/cloud.js', 'js/profile.js', 'js/social.js', 'js/submit.js', 'js/community.js', 'js/review.js', 'js/onboard.js', 'js/prebuilt.js', 'js/tour.js']) new vm.Script(fs.readFileSync(path.join(__dirname, '..', f), 'utf8'), { filename: f });
 const load = files => files.map(f => fs.readFileSync(path.join(__dirname, '..', f), 'utf8')).join('\n');
-const src = load(['test/fixture-cards.js', 'js/cards.js', 'js/game.js']).replace('const BORE_MAX = 15;', 'const BORE_MAX = 99;').replace('const DECK_SIZE = 40;', 'const DECK_SIZE = 20;').replace('const HP_SCALE = 1.2;', 'const HP_SCALE = 2;');
+const src = load(['test/fixture-cards.js', 'js/cards.js', 'js/game.js']).replace('const BORE_MAX = 15;', 'const BORE_MAX = 99;').replace('const DECK_SIZE = 40;', 'const DECK_SIZE = 20;').replace('const HP_SCALE = 1.2;', 'const HP_SCALE = 2;')
+  .replace(/const NO_DIRECT_UNTIL = \d+/, 'const NO_DIRECT_UNTIL = 0'); // this scripted game attacks an empty field on turn 1; the first-turn rule is tested in test/cards.test.js
 
 // The real generated cards: both free starters must be legal and every Character usable.
 vm.runInNewContext(load(['js/cards-data.js', 'js/cards.js', 'js/game.js']) + `
@@ -306,7 +307,7 @@ new Function(['cards-data', 'card-overrides', 'cards', 'assets', 'render', 'rain
   g = apply(g, a, { type: 'play', i: 0 }); ok(g.actions === 4, 'onPlay: +1 Action');
   g = apply(g, a, { type: 'attack', i: 0, m: 1 }); g = apply(g, d, { type: 'defend', i: 0 });
   ok(g.roll.hit && g.players[a].bore === 2, 'onHit through a blocker');
-  g.players[d].field = []; g.players[a].field[0].acted = 0; g.actions = 2; const bd = g.players[d].bore;
+  g.players[d].field = []; g.players[a].field[0].acted = 0; g.actions = 2; g.turnNo = 3; const bd = g.players[d].bore; // turn 3: no direct hits on a player's first turn
   g = apply(g, a, { type: 'attack', i: 0, m: 1 }); ok(g.players[d].bore === bd + 4 && g.players[a].bore === 1, 'direct hit + onHit');
   g = apply(g, a, { type: 'end' }); g = apply(g, d, { type: 'end' }); ok(g.turn === a && g.players[a].field[0].id === j.id, 'turns go on');
   // packs: the reviewer's pick decides. null, an unknown id, a name like 'constructor' or an old cached row without pack = in no pack.

@@ -5,8 +5,9 @@ const { spawn } = require('child_process'), path = require('path');
 const [mode, games = '1600', seedList = '1,2', chunks = '4'] = process.argv.slice(2);
 const seeds = seedList.split(',').map(Number), K = +chunks, per = Math.ceil(+games / K);
 const run = seed => new Promise((ok, no) => {
-  const env = { ...process.env, [mode === 'caps' ? 'CAPS' : 'HEALTH']: '1' };
-  const p = spawn(process.execPath, [path.join(__dirname, 'sim.js'), String(per), String(seed)], { env });
+  const env = { ...process.env, ...(mode === 'caps' ? { CAPS: '1' } : { HEALTH: mode === 'starters' ? 'starters' : '1' }) }; // modes: caps, health, starters
+  const extra = process.env.HP ? [process.env.BORE || '', process.env.HP] : process.env.BORE ? [process.env.BORE] : []; // BORE=<knockout> HP=<HP scale> pass through to sim.js
+  const p = spawn(process.execPath, [path.join(__dirname, 'sim.js'), String(per), String(seed), ...extra], { env });
   let out = ''; p.stdout.on('data', d => (out += d)); p.stderr.on('data', d => process.stderr.write(d));
   p.on('close', c => (c ? no(new Error('sim exit ' + c)) : ok(out)));
 });

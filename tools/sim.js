@@ -173,7 +173,8 @@ if (process.env.HEALTH) {
   const h = { games: 0, turns: 0, firstWins: 0, direct: 0, boreDirect: 0, boreAll: 0, early: 0, capped: 0 };
   for (let g = 0; g < N; g++) {
     let early = 0;
-    const r = play([randomDeck(), randomDeck()], [POL.greedy, POL.greedy], 200, (s0, n) => {
+    const decks = process.env.HEALTH === 'starters' ? [pick(STARTERS), pick(STARTERS)] : [randomDeck(), randomDeck()]; // HEALTH=starters: the 3 starter decks
+    const r = play(decks, [POL.greedy, POL.greedy], 200, (s0, n) => {
       const bore = n.events.filter(e => e.k === 'meter' && e.key === 'bore' && e.n > 0).reduce((x, e) => x + e.n, 0);
       h.boreAll += bore; if (n.turnNo <= 4) early += bore;
       if (n.events.some(e => e.k === 'attack' && e.direct)) h.boreDirect += bore;

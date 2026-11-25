@@ -168,7 +168,7 @@ const TUT = [
   { text: 'At the start of each of your turns you draw a card, get 2 Actions and gain 1 Creativity. A banner tells you, and a +1 pops up on the meter.', sel: `${MY} .meter.goof`, next: true },
   { text: "Creativity is spent on your Captain's Super (once per turn, no Actions needed). The notch on the bar is its cost, and it lights up when you can afford it. Then a glowing SUPER button appears on your Captain: tap it to see what it does, then tap Use Super.", sel: `${MY} .hud .card.cap`, next: true },
   { text: 'Items come in two kinds. Instant Items (lightning tag) do their thing when played, then vanish. Timed Items (hourglass tag) stay and count down turns when you end your turn.', sel: '.hand', next: true },
-  { text: 'Evils (infinity tag) stay until they are cleansed. Tap an opponent’s Evil and pay 2 Actions to Cleanse it. Tap your meters any time for the log and tools.', next: true },
+  { text: 'Some Items stay in play: the tag shows the turns or uses left, and they leave when it runs out. Tap your meters any time for the log and tools.', next: true },
   { text: "That's the basics! Finish this battle against the bot, then build your own deck.", next: 'Got it' },
 ];
 

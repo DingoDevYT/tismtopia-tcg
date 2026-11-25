@@ -34,7 +34,7 @@ function deckProblems(d) {
 
 // Direct hits (attacking an empty field). NO_DIRECT_UNTIL: no direct attacks while turnNo <= this (2 = each player's first turn).
 // DIRECT_HALF: direct attacks deal half power, rounded down, at least 1. tools/sim.js can swap both (DIRECT=<until>,<half 0|1>).
-const NO_DIRECT_UNTIL = 0, DIRECT_HALF = false;
+const NO_DIRECT_UNTIL = 2, DIRECT_HALF = false; // design pass 2026-11: (a) won the sim, see design/proposal.md
 const directPower = n => (DIRECT_HALF ? Math.max(1, Math.floor(n / 2)) : n);
 // An Item in play is live unless it's a `next` Item (works from your next turn on) still in the turn it was played.
 const fxOn = (s, pi, e) => !CARD[e.id].next || (s.turn === pi && s.turnNo > (e.t ?? 0));
