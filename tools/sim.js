@@ -152,6 +152,18 @@ if (process.env.FOCUS) {
   process.stdout.write(JSON.stringify({ id, res })); process.exit(0);
 }
 
+// CAPS=1 node tools/sim.js <games> <seed> [Boredom]: each Captain's win rate on random decks vs random decks with a random Captain (greedy vs greedy).
+if (process.env.CAPS) {
+  const res = Object.fromEntries(CAPTAINS.map(c => [c.id, { g: 0, w: 0, turns: 0 }]));
+  for (let g = 0; g < N; g++) {
+    const cap = CAPTAINS[g % CAPTAINS.length].id, a = { ...randomDeck(), captain: cap }, b = randomDeck(), seat = (g >> 3) % 2;
+    const r = play(seat ? [b, a] : [a, b], [POL.greedy, POL.greedy]); if (r.winner < 0) continue;
+    res[cap].g++; res[cap].w += r.winner === seat; res[cap].turns += r.turns || 0;
+  }
+  for (const [id, x] of Object.entries(res).sort((p, q) => q[1].w / q[1].g - p[1].w / p[1].g)) console.log(`${CARD[id].name.padEnd(12)} ${(100 * x.w / x.g).toFixed(0).padStart(3)}%  (${x.g} games, avg ${(x.turns / x.g).toFixed(1)} turns)  ${CARD[id].text}`);
+  process.exit(0);
+}
+
 // ROUNDROBIN=<decks.json> node tools/sim.js <games per pairing> <seed>: every deck vs every deck, seats alternated.
 if (process.env.ROUNDROBIN) {
   const D = JSON.parse(fs.readFileSync(process.env.ROUNDROBIN, 'utf8')), n = D.length;
