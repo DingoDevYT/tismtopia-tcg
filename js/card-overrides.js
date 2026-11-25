@@ -315,9 +315,15 @@ const OVERRIDES = {
    }
   ],
   "cropFull": {
-   "x": 92,
-   "y": 0,
-   "zoom": 1.25
+   "x": 100,
+   "y": 100,
+   "zoom": 1.29
+  },
+  "art": "art/local/scrunge_corin-custom.png?v=1795574739888",
+  "crop": {
+   "x": 100,
+   "y": 61.82,
+   "zoom": 1.67
   }
  },
  "jangle_water_dog": {
