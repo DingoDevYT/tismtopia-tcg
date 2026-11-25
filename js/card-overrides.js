@@ -682,27 +682,27 @@ const OVERRIDES = {
  "lord_fey": {
   "art": "art/local/lord_fey.png?v=1795577074263",
   "crop": {
-   "x": 72,
-   "y": 18,
-   "zoom": 1.5
+   "x": 71.57,
+   "y": 13.75,
+   "zoom": 4
   },
   "cropFull": {
-   "x": 80,
-   "y": 50,
-   "zoom": 1
+   "x": 71.01,
+   "y": 0,
+   "zoom": 1.162
   }
  },
  "lord_fey_v2": {
   "art": "art/local/lord_fey_v2.png?v=1795577074263",
   "crop": {
-   "x": 50,
-   "y": 10,
-   "zoom": 1.6
+   "x": 27.78,
+   "y": 8.5,
+   "zoom": 1.859
   },
   "cropFull": {
-   "x": 45,
-   "y": 50,
-   "zoom": 1
+   "x": 49.67,
+   "y": 0,
+   "zoom": 1.822
   }
  }
 };
