@@ -80,6 +80,14 @@ function toneOf(img, src) {
   }
 }
 
+// A name's width in em at the card font (canvas, cached once fonts are in) so CSS can shrink long names to fit one line (--nem).
+const NAME_EM = {}; let nameCtx;
+const nameEm = s => {
+  if (NAME_EM[s]) return NAME_EM[s];
+  try { nameCtx ||= document.createElement('canvas').getContext('2d'); nameCtx.font = '900 100px "M PLUS Rounded 1c", system-ui, sans-serif'; const w = +(nameCtx.measureText(s).width / 100).toFixed(3); if (document.fonts?.status === 'loaded') NAME_EM[s] = w; return w; }
+  catch { return +(s.length * .55).toFixed(2); }
+};
+
 function renderCard(c, o = {}) {
   const cls = o.cls ? ' ' + o.cls : '', style = (o.style ? ` style="${o.style}"` : '') + (o.attrs ? ' ' + o.attrs : '');
   if (!c) return `<div class="card back${cls}"${style}><div class="frame"></div></div>`;
@@ -88,10 +96,11 @@ function renderCard(c, o = {}) {
   // Rainbow cards swap in the repainted art from js/rainbow.js: the cached result straight away, else processed on load (pages without it show the plain art).
   const rbw = /\bv-rainbow\b/.test(cls), rbOn = rbw && typeof RB !== 'undefined', rbUrl = rbOn && RB[c.art];
   const art = `<span class="ph">${ICON[c.type]}</span>${c.art ? `<img ${assetSrc(rbUrl || c.art)} alt="" onerror="this.remove()"${rbOn ? ` data-art="${c.art}"${rbUrl ? ' data-rb="1"' : ' onload="rainbowize(this)"'}` : c.type === 'character' && !c.main ? ' onload="tone(this)"' : ''}${cropStyle(/\bv-full\b/.test(cls) ? c.cropFull : c.crop)}>` : ''}`; // full art has its own crop (cropFull; none = cover)
-  // Characters read like Pokemon cards: HP top right, DEF as a shield on the art, moves on one panel.
+  // Core numbers sit in one-size chips down the top right: the cost chip ends the title bar, HP (heart) and DEF (shield) stack under it on the art.
   const isChar = c.type === 'character';
-  const hpTag = isChar ? `<span class="hp${hp < maxHp(c) ? ' hurt' : ''}"><i>HP</i>${hp}</span>` : '';
-  const defTag = isChar ? `<span class="defb${def > baseArmor(c) ? ' buff' : ''}" title="Armour: damage blocked per hit">${ICON.def}<b>${def}</b></span>` : '';
+  const hpTag = isChar ? `<span class="hp chip${hp < maxHp(c) ? ' hurt' : ''}" title="HP">${ICON.hp}${hp}</span>` : '';
+  const defTag = isChar ? `<span class="defb chip${def > baseArmor(c) ? ' buff' : ''}" title="Armour: damage blocked per hit">${ICON.def}<b>${def}</b></span>` : '';
+  const chips = isChar ? `<div class="chipstack">${hpTag}${defTag}</div>` : '';
   const body = isChar
     ? `${c.text ? `<div class="text passive">${c.text}</div>` : ''}<div class="moves">${c.moves.map(mv => renderMove(mv, o.bonus)).join('')}</div>`
     : `<div class="text">${c.text}</div><div class="tag">${c.type === 'bit' ? (isInstant(c) ? `${ICON.instant}Instant` : `${ICON.time}${turns} turn${turns > 1 ? 's' : ''}`) : c.type === 'evil' ? `${ICON.forever}Forever` : `${ICON.captain}${c.style}`}</div>`;
@@ -100,8 +109,8 @@ function renderCard(c, o = {}) {
   const fin = /\bv-full\b/.test(cls) ? ' data-rarity="rare ultra" data-supertype="pokémon"' : /\bv-rev\b/.test(cls) ? ' data-rarity="reverse holo"' : /\bv-holo\b/.test(cls) ? ' data-rarity="rare holo"' : '';
   const layers = fin ? '<div class="holo__shine"></div><div class="holo__glare"></div>' : '';
   return `<div class="card k-${kind}${cls}${fin ? (/rare ultra/.test(fin) ? ' holo masked' : ' holo') : ''}"${style}${fin} data-id="${c.id}"><div class="frame"${tv ? ` style="${tv}"` : ''}>
-    <div class="head">${c.type !== 'captain' ? `<span class="pc" title="Actions to play">${(c.cost ?? 1) ? `${ICON.action}<b>${c.cost ?? 1}</b>` : '<b class="free">FREE</b>'}</span>` : ''}<span class="name">${c.name}</span>${hpTag}<span class="type">${ICON[kind]}</span></div>
-    <div class="art">${art}${/rare holo"/.test(fin) ? layers : ''}${defTag}</div>
+    <div class="head"><span class="name" style="--nem:${nameEm(c.name)}">${c.name}</span>${c.type !== 'captain' ? `<span class="pc chip" title="Actions to play">${(c.cost ?? 1) ? `${ICON.action}<b>${c.cost ?? 1}</b>` : '<b class="free">FREE</b>'}</span>` : ''}<span class="type">${ICON[kind]}</span></div>
+    <div class="art">${art}${/rare holo"/.test(fin) ? layers : ''}${chips}</div>
     ${body}
     <div class="foot"><span>${c.artist ? `OC: ${c.artist}` : c.role || LABEL[kind]}</span><span>TISM ${c.no}</span></div>${/rare holo"/.test(fin) ? '' : layers}
   </div></div>`;
@@ -109,16 +118,18 @@ function renderCard(c, o = {}) {
 
 const renderAvatar = (c, cls = '') => `<span class="avatar${cls}">${ICON.captain}${c.art ? `<img ${assetSrc(c.art)} alt="" onerror="this.remove()">` : ''}</span>`;
 // Boredom is health (lose at BORE_MAX); Creativity is hype up to 10, with the Captain's Super cost marked on the bar.
-// The Super notch lights up once you can afford it; Boredom turns to warning colours from 7.
-const meter = (k, v, max, sup) => `<div class="meter ${k}${k === 'bore' && v >= 7 ? ' warn' : ''}"><span>${ICON[k]}${k === 'goof' ? 'Creativity' : 'Boredom'}</span><b>${v}/${max}</b>
+// The Super notch lights up once you can afford it; Boredom turns to warning colours 3 from the end.
+const meter = (k, v, max, sup) => `<div class="meter ${k}${k === 'bore' && v >= max - 3 ? ' warn' : ''}"><span>${ICON[k]}${k === 'goof' ? 'Creativity' : 'Boredom'}</span><b>${v}/${max}</b>
   <div class="mbar"><i style="width:${Math.min(100, 100 * v / max)}%"></i>${sup ? `<u${v >= sup ? ' class="lit"' : ''} style="left:${100 * sup / max}%" title="Super: ${sup}"></u>` : ''}</div></div>`;
 
 // Clickable bits carry data-act="card" + who/zone/i; the app reads them with one delegated click handler.
 const pick = (who, zone, i) => `data-act="card" data-who="${who}" data-zone="${zone}" data-i="${i}" tabindex="0" role="button"`;
 
 // Player area: their Captain card (tap: read it / use its ability) and a meter panel (tap: log and manual tools).
-function renderHud(p, who = 'me') {
-  return `<div class="hud">${renderCard(CARD[p.captain], { cls: 'cap', attrs: pick(who, 'cap', 0) })}
+// ready: your Super can be used right now, so a glowing SUPER button sits on the card (it opens the confirm popup).
+function renderHud(p, who = 'me', ready = false) {
+  const cap = renderCard(CARD[p.captain], { cls: 'cap' + (ready ? ' cap-ready' : ''), attrs: pick(who, 'cap', 0) });
+  return `<div class="hud">${ready ? `${cap.slice(0, -6)}<button class="super-btn" data-act="super" aria-label="Use ${esc(CARD[p.captain].name)}'s Super">${ICON.super}<span>SUPER</span></button></div>` : cap}
     <div class="meters neu" data-act="sheet" data-s="adjust" tabindex="0" role="button" aria-label="${esc(p.name)}: meters, log and manual tools">
       <div class="m-top"><b>${esc(p.name)}</b>${p.bank ? `<span class="bank" title="Actions saved for next turn">${ICON.action}${p.bank}</span>` : ''}${CARD[p.captain].goof <= p.goof ? '<span class="ready">Super ready</span>' : ''}</div>${meter('goof', p.goof, 10, CARD[p.captain].goof)}${meter('bore', p.bore, BORE_MAX)}</div></div>`;
 }
@@ -143,7 +154,7 @@ function renderHand(ids, sel, p) {
   })).join('')}</div>`;
 }
 
-// s = game state, me = my player index. o: { glow: [my field indexes], sel: hand index }
+// s = game state, me = my player index. o: { glow: [my field indexes], sel: hand index, superReady: show the SUPER button on your Captain }
 function renderBoard(s, me, o = {}) {
   const you = s.players[me], opp = s.players[1 - me], live = s.turn === me && s.phase === 'play';
   const stat = pi => (typeof statsOf === 'function' ? f => statsOf(s, pi, f) : undefined);
@@ -156,7 +167,7 @@ function renderBoard(s, me, o = {}) {
         <div class="pips">${Array.from({ length: Math.max(2, s.actions) }, (_, i) => `<i class="${i < s.actions ? 'on' : ''}">${ICON.action}</i>`).join('')}</div></div>
       <button class="btn end" data-act="end"${live ? '' : ' disabled'}>End Turn</button>
     </div>
-    <div class="side">${renderField(you, o.glow, 'me', stat(me))}${renderFx(you)}${renderHud(you, 'me')}</div>
+    <div class="side">${renderField(you, o.glow, 'me', stat(me))}${renderFx(you)}${renderHud(you, 'me', !!o.superReady)}</div>
     ${renderHand(you.hand, o.sel, you)}
   </div>`;
 }
