@@ -656,26 +656,52 @@ const OVERRIDES = {
  "scrunge_dusk": {
   "art": "art/local/scrunge_dusk.png?v=1795576433589",
   "crop": {
-   "x": 50,
-   "y": 12,
-   "zoom": 1.2
+   "x": 31.77,
+   "y": 14.31,
+   "zoom": 1.394
   },
   "cropFull": {
-   "x": 50,
+   "x": 19.52,
    "y": 0,
-   "zoom": 1
+   "zoom": 1.162
   }
  },
  "scrunge_june": {
   "art": "art/local/scrunge_june.png?v=1795576433589",
   "crop": {
-   "x": 50,
+   "x": 51.47,
    "y": 12,
    "zoom": 1.2
   },
   "cropFull": {
-   "x": 50,
+   "x": 54.35,
    "y": 0,
+   "zoom": 1.24
+  }
+ },
+ "lord_fey": {
+  "art": "art/local/lord_fey.png?v=1795577074263",
+  "crop": {
+   "x": 72,
+   "y": 18,
+   "zoom": 1.5
+  },
+  "cropFull": {
+   "x": 80,
+   "y": 50,
+   "zoom": 1
+  }
+ },
+ "lord_fey_v2": {
+  "art": "art/local/lord_fey_v2.png?v=1795577074263",
+  "crop": {
+   "x": 50,
+   "y": 10,
+   "zoom": 1.6
+  },
+  "cropFull": {
+   "x": 45,
+   "y": 50,
    "zoom": 1
   }
  }
