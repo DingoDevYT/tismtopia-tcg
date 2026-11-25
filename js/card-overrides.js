@@ -175,34 +175,6 @@ const OVERRIDES = {
  "jegg_abigaia_v2": {
   "name": "Abigaia"
  },
- "scrunge_sage": {
-  "moves": [
-   {
-    "name": "Cat Nap Swipe",
-    "cost": 1,
-    "power": 2
-   },
-   {
-    "name": "Cat Nap",
-    "cost": 1,
-    "ability": true,
-    "once": true,
-    "text": "Your Boredom -1 and +1 Creativity. Once per turn.",
-    "ops": [
-     [
-      "bore",
-      "me",
-      -1
-     ],
-     [
-      "goof",
-      "me",
-      1
-     ]
-    ]
-   }
-  ]
- },
  "jegg_poinsettia": {
   "moves": [
    {
@@ -555,10 +527,16 @@ const OVERRIDES = {
   }
  },
  "scrunge_acer": {
+  "art": "art/local/scrunge_acer-custom.png?v=1795576433589",
+  "crop": {
+   "x": 50,
+   "y": 12,
+   "zoom": 1.2
+  },
   "cropFull": {
-   "x": 0,
-   "y": 100,
-   "zoom": 2.06
+   "x": 50,
+   "y": 0,
+   "zoom": 1
   }
  },
  "scrunge_anna_lee": {
@@ -674,6 +652,32 @@ const OVERRIDES = {
    "zoom": 1
   },
   "art": "art/local/scrunge_wiffle_v3-custom.png?v=1795517767139"
+ },
+ "scrunge_dusk": {
+  "art": "art/local/scrunge_dusk.png?v=1795576433589",
+  "crop": {
+   "x": 50,
+   "y": 12,
+   "zoom": 1.2
+  },
+  "cropFull": {
+   "x": 50,
+   "y": 0,
+   "zoom": 1
+  }
+ },
+ "scrunge_june": {
+  "art": "art/local/scrunge_june.png?v=1795576433589",
+  "crop": {
+   "x": 50,
+   "y": 12,
+   "zoom": 1.2
+  },
+  "cropFull": {
+   "x": 50,
+   "y": 0,
+   "zoom": 1
+  }
  }
 };
 for (const c of [...CAPTAINS, ...CARDS]) Object.assign(c, OVERRIDES[c.id] || {});
