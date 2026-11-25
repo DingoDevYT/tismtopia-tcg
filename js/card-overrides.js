@@ -146,6 +146,18 @@ const OVERRIDES = {
    "zoom": 1
   }
  },
+ "jangle_bee_boy": {
+  "crop": {
+   "x": 8,
+   "y": 11.389838556784975,
+   "zoom": 2.3
+  },
+  "cropFull": {
+   "x": 5.2,
+   "y": 12.3,
+   "zoom": 1.93
+  }
+ },
  "jimmy_arhakoth": {
   "cost": 2,
   "cropFull": {
@@ -284,12 +296,12 @@ const OVERRIDES = {
  "scrunge_corin": {
   "moves": [
    {
-    "name": "Hair Flip",
+    "name": "Wing Dust",
     "cost": 1,
     "power": 3
    },
    {
-    "name": "Bby Glow",
+    "name": "Lamp Dive",
     "cost": 2,
     "power": 4,
     "text": "On a hit, opponent +1 Boredom.",
@@ -651,8 +663,8 @@ const OVERRIDES = {
    "zoom": 1.81
   },
   "cropFull": {
-   "x": 32.03,
-   "y": 36.67,
+   "x": 32.02,
+   "y": 45.18,
    "zoom": 1
   },
   "art": "art/local/scrunge_wiffle_v3-custom.png?v=1795517767139"
