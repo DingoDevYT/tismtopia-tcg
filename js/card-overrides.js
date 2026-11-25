@@ -1176,13 +1176,13 @@ const OVERRIDES = {
   ]
  },
  "captain_anonagon": {
-  "goof": 2,
-  "text": "Super, 2 Creativity: Crunch Time. +3 Actions this turn.",
+  "goof": 4,
+  "text": "Super, 4 Creativity: Crunch Time. +4 Actions this turn.",
   "ability": [
    [
     "actions",
     "me",
-    3
+    4
    ]
   ]
  },

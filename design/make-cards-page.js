@@ -45,7 +45,7 @@ const WHY = {
   captain_moth: 'Owner: genuinely nerf. Super costs 5 (was 4); clears 3 Boredom (was 2) so it still does something when it lands.',
   captain_xee: 'Was the top Captain (~70%): +3 Boredom and -2 Creativity (was +4 and -3).',
   captain_rotgrease: 'Second best (62%): costs 4 (was 3).',
-  captain_anonagon: 'Weakest by far (~30%): costs 2 (was 4), same +3 Actions. In the sim extra cards barely helped him; Actions and how often he gets them do.',
+  captain_anonagon: 'Weakest by far (~30%): +4 Actions (was +3), same cost 4. His win rate swings hugely with Actions per Creativity (+3 for 3: ~37%, +3 for 2: 70%); +4 for 4 lands at 52%.',
   captain_hamish: 'Swings hard on Boredom: +2 Boredom (was +1) but costs 5 (was 3). At cost 3 it won 78%.',
   captain_wawa: 'Tails no longer gives you Boredom, it just misses; costs 3 (was 2) to pay for that.',
 };
