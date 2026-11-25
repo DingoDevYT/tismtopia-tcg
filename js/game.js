@@ -4,7 +4,8 @@
 const MAX_COPIES = 3;
 const MAX_ACTIONS = 5; // unused Actions carry over; you start a turn with at most this many (card bonuses can go past it)
 const METERS = { goof: 'Creativity', bore: 'Boredom' };
-const GOOF_MAX = 10; // Creativity is a hype meter you spend; it stops filling here
+const GOOF_MAX = 10; // Creativity is a hype meter you spend; it stops filling at your Captain's Super cost (this is only the fallback for a Captain without one)
+const goofMax = pl => CARD[pl.captain]?.goof || GOOF_MAX;
 
 const expand = cards => Object.entries(cards).flatMap(([id, n]) => Array(n).fill(id));
 
@@ -88,7 +89,7 @@ function apply(s0, p, a, rng = Math.random) {
     const t = s.players[pi];
     if (key === 'goof' && n > 0) n += modSum(s, pi, 'goofBonus');
     const before = t[key];
-    t[key] = Math.min(key === 'goof' ? GOOF_MAX : Infinity, Math.max(0, t[key] + n));
+    t[key] = Math.min(key === 'goof' ? goofMax(t) : Infinity, Math.max(0, t[key] + n));
     const d = t[key] - before;
     if (d > 0 && key === 'goof') t.stats.goof += d;
     if (d > 0 && key === 'bore') s.players[1 - pi].stats.bore += d;
@@ -260,7 +261,7 @@ function apply(s0, p, a, rng = Math.random) {
       if (a.key === 'actions') { s.actions = Math.max(0, s.actions + d); say(`${me.name} set Actions to ${s.actions}.`); break; }
       if (!METERS[a.key]) throw new Error('Bad meter.');
       const before = t[a.key];
-      t[a.key] = Math.max(0, t[a.key] + d);
+      t[a.key] = Math.min(a.key === 'goof' ? goofMax(t) : Infinity, Math.max(0, t[a.key] + d));
       if (t[a.key] === before) break;
       if (d > 0 && a.key === 'goof') t.stats.goof++;
       if (d > 0 && a.key === 'bore') s.players[1 - a.who].stats.bore++;

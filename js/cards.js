@@ -52,7 +52,7 @@ const RULES = [
   ['Blocked', 'If armour is as big as the power, nothing gets through: the hit is fully blocked, and the move’s extra effect does not happen.', 'block', 'Power 2 against armour 2: Blocked!'],
   ['Overkill', 'A Character at 0 HP leaves the field. Leftover damage spills to their next Character (its armour counts too), and what is left after the whole field goes to Boredom.', 'spill', 'Power 5 hits a 2 HP Character with armour 1: it takes 2, and 2 more spills to the next one.'],
   ['Boredom', 'Boredom is your health. It rises from spill-over, direct hits and card effects. The meter turns to warning colours at 7.', 'bore', 'At 7 or more, be careful.'],
-  ['Creativity', 'You gain +1 every turn, up to 10. Cards can add or remove it. Landing hits does not change it.', 'goof', 'Start of your turn: 3 becomes 4.'],
+  ['Creativity', 'You gain +1 every turn, up to your Captain’s Super cost, so a full bar means the Super is ready. Cards can add or remove it. Landing hits does not change it.', 'goof', 'Start of your turn: 3 becomes 4.'],
   ['Super', 'Your Captain’s Super costs Creativity (shown on the card and as a notch on the meter). It needs no Actions and works once per turn.', 'super', 'Xee’s Supernova costs 6 Creativity.'],
   ['Instant Items', 'An Instant Item does its thing the moment you play it, then it is gone.', 'instant', 'U-2 Flyover: +1 Action, then it disappears.'],
   ['Timed Items', 'Other Items stay in play and show how many turns are left. The count goes down when you end your turn, and the Item leaves at 0.', 'time', 'Bee Swarm lasts 3 turns.'],

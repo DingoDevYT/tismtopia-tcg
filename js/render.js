@@ -44,6 +44,8 @@ const ICON = Object.fromEntries(Object.entries({
   moon: G('<path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.8 6.8 0 0 0 10.5 10.5z"/>'),
   sun: G('<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M18.7 5.3l-1.4 1.4M6.7 17.3l-1.4 1.4"/>'),
 }).map(([k, d]) => [k, `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`]));
+// Social tab: Game Icon Pack "user-group" (from review/icons, see its README), inlined with its own viewBox.
+ICON.people = '<svg class="i" viewBox="1.10 1.17 7.76 7.76" aria-hidden="true"><path d="M6.206 5.593c.092.017.145.06.25.144.566.455.603 1.118.603 1.227 0 .166-.167.83-2.08.83-1.912 0-2.079-.664-2.079-.83 0-.109.036-.772.602-1.227.105-.084.158-.127.25-.144l.04-.005c.093-.007.205.04.427.138a1.9 1.9 0 0 0 1.52 0c.222-.097.334-.145.427-.138zm-4.214-.505c.093-.007.204.041.426.138l.078.034c.136.063.165.165.083.29l-.045.066a2.5 2.5 0 0 0-.433 1.348c0 .114-.099.214-.208.182-.71-.205-.792-.566-.792-.682 0-.109.035-.772.601-1.227.105-.084.158-.127.25-.144zm6.014.005c.092.017.145.06.25.144.566.455.602 1.118.602 1.227 0 .117-.083.477-.794.682-.109.032-.206-.068-.206-.182l-.004-.106a2.53 2.53 0 0 0-.431-1.242l-.044-.065c-.083-.126-.054-.228.083-.291l.077-.034c.222-.097.334-.145.427-.138zM4.979 2.8c.623 0 1.129.488 1.16 1.102q.003-.02.005-.039-.002.026-.003.05.002.026.003.05A1.164 1.164 0 1 1 4.979 2.8m-1.8-.5c.122 0 .183 0 .239.048.035.03.064.082.07.128.008.073-.044.152-.15.31a1.95 1.95 0 0 0-.313 1.282c.029.27.043.404-.039.472a.2.2 0 0 1-.036.024c-.095.05-.174.005-.333-.083A1.161 1.161 0 0 1 3.18 2.3m3.6 0a1.164 1.164 0 0 1 .562 2.182c-.159.088-.239.131-.333.082a.2.2 0 0 1-.036-.024c-.082-.068-.068-.203-.04-.472q.012-.101.011-.205c0-.398-.119-.768-.323-1.077-.105-.158-.157-.237-.148-.31a.22.22 0 0 1 .068-.128c.056-.048.117-.048.24-.048"/></svg>';
 
 // Art crop is a focus point (x, y in %) plus zoom (>= 1), applied with CSS so the original image stays untouched.
 const cropStyle = cr => {
@@ -117,7 +119,7 @@ function renderCard(c, o = {}) {
 }
 
 const renderAvatar = (c, cls = '') => `<span class="avatar${cls}">${ICON.captain}${c.art ? `<img ${assetSrc(c.art)} alt="" onerror="this.remove()">` : ''}</span>`;
-// Boredom is health (lose at BORE_MAX); Creativity is hype up to 10, with the Captain's Super cost marked on the bar.
+// Boredom is health (lose at BORE_MAX); Creativity fills up to the Captain's Super cost, so a full bar means the Super is ready.
 // The Super notch lights up once you can afford it; Boredom turns to warning colours 3 from the end.
 const meter = (k, v, max, sup) => `<div class="meter ${k}${k === 'bore' && v >= max - 3 ? ' warn' : ''}"><span>${ICON[k]}${k === 'goof' ? 'Creativity' : 'Boredom'}</span><b>${v}/${max}</b>
   <div class="mbar"><i style="width:${Math.min(100, 100 * v / max)}%"></i>${sup ? `<u${v >= sup ? ' class="lit"' : ''} style="left:${100 * sup / max}%" title="Super: ${sup}"></u>` : ''}</div></div>`;
@@ -131,7 +133,7 @@ function renderHud(p, who = 'me', ready = false) {
   const cap = renderCard(CARD[p.captain], { cls: 'cap' + (ready ? ' cap-ready' : ''), attrs: pick(who, 'cap', 0) });
   return `<div class="hud">${ready ? `${cap.slice(0, -6)}<button class="super-btn" data-act="super" aria-label="Use ${esc(CARD[p.captain].name)}'s Super">${ICON.super}<span>SUPER</span></button></div>` : cap}
     <div class="meters neu" data-act="sheet" data-s="adjust" tabindex="0" role="button" aria-label="${esc(p.name)}: meters, log and manual tools">
-      <div class="m-top"><b>${esc(p.name)}</b>${p.bank ? `<span class="bank" title="Actions saved for next turn">${ICON.action}${p.bank}</span>` : ''}${CARD[p.captain].goof <= p.goof ? '<span class="ready">Super ready</span>' : ''}</div>${meter('goof', p.goof, 10, CARD[p.captain].goof)}${meter('bore', p.bore, BORE_MAX)}</div></div>`;
+      <div class="m-top">${p.pfp && typeof pfpAvatar === 'function' ? `<span class="tagav">${pfpAvatar(p.pfp, ' tag')}</span>` : ''}<b>${esc(p.name)}</b>${p.bank ? `<span class="bank" title="Actions saved for next turn">${ICON.action}${p.bank}</span>` : ''}${CARD[p.captain].goof <= p.goof ? '<span class="ready">Super ready</span>' : ''}</div>${meter('goof', p.goof, CARD[p.captain].goof || 10)}${meter('bore', p.bore, BORE_MAX)}</div></div>`;
 }
 
 // stat(f) -> { def, bonus } with modifiers applied (game.js statsOf); omitted in the mockups.
