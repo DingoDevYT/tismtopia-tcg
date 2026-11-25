@@ -60,7 +60,7 @@ const soCard = (id, f, cls = '', attrs = '') => { const c = CARD[id], fin = SO_F
 
 const mySummary = () => {
   const st = store.get('stats', {});
-  return { name: myName, w: (st.botWon || 0) + (st.pvpWon || 0), g: (st.botPlayed || 0) + (st.pvpPlayed || 0), cap: cleanCapPlays(store.get('capPlays', {})) || {}, ...collStats(coll) };
+  return { name: myName, w: (st.botWon || 0) + (st.pvpWon || 0), g: (st.botPlayed || 0) + (st.pvpPlayed || 0), cap: cleanCapPlays(store.get('capPlays', {})) || {}, ...collStats(coll), ...(typeof rkMine === 'function' ? rkMine() : {}) }; // r, rg: ranked rating and games (js/ranked.js)
 };
 // What visitors see: cards you no longer own drop out, each slot carries your best finish of it.
 const myShowcase = () => soStands.map(s => { const cards = s.cards.map(id => (id && owned(id) ? id : null)); return { id: s.id, kind: s.kind, cards, fins: cards.map(id => (id ? bestFinish(id) : null)) }; });
@@ -70,7 +70,7 @@ function soRow(r) {
   const sm = r.summary && typeof r.summary === 'object' && !Array.isArray(r.summary) ? r.summary : {}, n = v => (Number.isInteger(v) && v >= 0 ? Math.min(v, 1e7) : 0);
   return { id: r.id, mine: !!cloud.user && r.id === cloud.user.id, name: String(sm.name || r.name || 'Player').replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 22) || 'Player',
     pfp: pfpOk(r.pfp) && CARD[r.pfp] ? r.pfp : null, showcase: cleanStands(r.showcase) || [],
-    summary: { w: n(sm.w), g: n(sm.g), cap: cleanCapPlays(sm.cap) || {}, own: n(sm.own), total: n(sm.total) || CARDS.length, full: n(sm.full), rb: n(sm.rb), holo: n(sm.holo) } };
+    summary: { w: n(sm.w), g: n(sm.g), cap: cleanCapPlays(sm.cap) || {}, own: n(sm.own), total: n(sm.total) || CARDS.length, full: n(sm.full), rb: n(sm.rb), holo: n(sm.holo), ...(Number.isInteger(sm.r) && sm.r >= 0 && sm.r <= 5000 ? { r: sm.r, rg: n(sm.rg) } : { r: 0, rg: 0 }) } }; // r, rg: ranked rating and games (no badge without a valid rating)
 }
 const soAv = r => r.pfp || favCap(r.summary.cap)?.[0] || CAPTAINS[0].id;
 
@@ -139,8 +139,8 @@ const soSignedOut = () => {
 };
 const soPRow = r => { const fav = favCap(r.summary.cap);
   return `<button class="prow neu${r.mine ? ' me' : ''}" data-act="so-open" data-id="${r.mine ? 'me' : esc(r.id)}">${pfpAvatar(soAv(r), ' md')}
-    <span class="who"><b>${esc(r.name)}${r.mine ? ' <small>(you)</small>' : ''}</b><span class="rk-slot"></span><small>${r.summary.w} wins · ${r.summary.own} cards</small></span>
-    ${fav ? `<span class="favc">${pfpAvatar(fav[0], ' sm')}<small>${esc(CARD[fav[0]].name)}</small></span>` : ''}</button>`; }; // rk-slot: the rank badge goes here once Ranked exists
+    <span class="who"><b>${esc(r.name)}${r.mine ? ' <small>(you)</small>' : ''}</b><span class="rk-slot">${r.summary.rg && typeof rkChip === 'function' ? rkChip(r.summary.r) : ''}</span><small>${r.summary.w} wins · ${r.summary.own} cards</small></span>
+    ${fav ? `<span class="favc">${pfpAvatar(fav[0], ' sm')}<small>${esc(CARD[fav[0]].name)}</small></span>` : ''}</button>`; }; // rk-slot: the rank badge (js/ranked.js), once they have played ranked
 
 function viewSocial() {
   let body;
@@ -176,7 +176,7 @@ function viewPlayer() {
   return `${header(r.mine ? 'Your profile' : 'Player')}<div class="so-wrap">
     <div class="so-nav"><button class="btn sm" data-act="so-back">‹ ${ui.soBack === 'profile' ? 'Profile' : 'Social'}</button>${r.mine ? `<button class="btn sm" data-act="so-edit">${soIc('cards_collection')}Edit showcase</button>` : ''}</div>
     <section class="neu pp-head"><div class="pp-top">${r.mine ? `<button class="pf-pfp" data-act="pfp-open" aria-label="Change your profile picture">${av}<span class="pf-pfp-tag">Change</span></button>` : av}
-      <div class="nm"><b>${esc(r.name)}</b><span class="rk-slot"></span></div></div>
+      <div class="nm"><b>${esc(r.name)}</b><span class="rk-slot">${r.summary.rg && typeof rkProfile === 'function' ? rkProfile(r.summary.r, r.summary.rg) : ''}</span></div></div>
       <div class="statrow"><div><b>${soIc('trophy')}${s.w}</b><small>Wins</small></div><div><b>${s.g}</b><small>Games</small></div><div><b>${pct}%</b><small>Win rate</small></div></div></section>
     <section class="panel neu"><small class="lbl">Favourite Captain</small>${fav ? `<div class="favcap">${pfpAvatar(fav[0], ' md')}<div><b>${esc(CARD[fav[0]].name)}</b><small>${esc(CARD[fav[0]].style || 'Captain')} · ${fav[1]} of ${s.g} game${s.g === 1 ? '' : 's'}</small></div><span class="pin">Most played</span></div>` : '<p class="muted">No battles yet.</p>'}</section>
     <section class="panel neu so-coll"><small class="lbl">Collection</small>

@@ -133,7 +133,7 @@ function renderHud(p, who = 'me', ready = false) {
   const cap = renderCard(CARD[p.captain], { cls: 'cap' + (ready ? ' cap-ready' : ''), attrs: pick(who, 'cap', 0) });
   return `<div class="hud">${ready ? `${cap.slice(0, -6)}<button class="super-btn" data-act="super" aria-label="Use ${esc(CARD[p.captain].name)}'s Super">${ICON.super}<span>SUPER</span></button></div>` : cap}
     <div class="meters neu" data-act="sheet" data-s="adjust" tabindex="0" role="button" aria-label="${esc(p.name)}: meters, log and manual tools">
-      <div class="m-top">${p.pfp && typeof pfpAvatar === 'function' ? `<span class="tagav">${pfpAvatar(p.pfp, ' tag')}</span>` : ''}<b>${esc(p.name)}</b>${p.bank ? `<span class="bank" title="Actions saved for next turn">${ICON.action}${p.bank}</span>` : ''}${CARD[p.captain].goof <= p.goof ? '<span class="ready">Super ready</span>' : ''}</div>${meter('goof', p.goof, CARD[p.captain].goof || 10)}${meter('bore', p.bore, BORE_MAX)}</div></div>`;
+      <div class="m-top">${p.pfp && typeof pfpAvatar === 'function' ? `<span class="tagav">${pfpAvatar(p.pfp, ' tag')}${Number.isInteger(p.rating) && typeof rkBadge === 'function' ? rkBadge(p.rating) : ''}</span>` : ''}<b>${esc(p.name)}</b>${p.bank ? `<span class="bank" title="Actions saved for next turn">${ICON.action}${p.bank}</span>` : ''}${CARD[p.captain].goof <= p.goof ? '<span class="ready">Super ready</span>' : ''}</div>${meter('goof', p.goof, CARD[p.captain].goof || 10)}${meter('bore', p.bore, BORE_MAX)}</div></div>`;
 }
 
 // stat(f) -> { def, bonus } with modifiers applied (game.js statsOf); omitted in the mockups.

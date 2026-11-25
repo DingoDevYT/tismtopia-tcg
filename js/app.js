@@ -336,7 +336,7 @@ function render() {
   const scrolls = [...$app.querySelectorAll('.grid, .scroll, .sheet')].map(el => el.scrollTop);
   const appTop = $app.dataset.view === ui.view ? $app.scrollTop : 0; // collection / deck / add-cards scroll as a whole screen
   const focus = document.activeElement?.id;
-  const views = { home: viewHome, deck: viewDeck, build: viewBuild, lobby: viewLobby, rules: viewRules, game: viewGame, packs: () => viewPacks(), open: () => (ui.open ? viewOpen() : viewPacks()), collection: () => viewCollection(), shop: () => viewShop(), profile: () => viewProfile(), submit: () => viewSubmit(), review: () => viewReview(), welcome: () => viewWelcome(), social: () => viewSocial(), player: () => viewPlayer(), showcase: () => viewShowcase(), decks: () => viewDecks(), pb: () => viewPb() };
+  const views = { home: viewHome, deck: viewDeck, build: viewBuild, lobby: viewLobby, rules: viewRules, game: viewGame, packs: () => viewPacks(), open: () => (ui.open ? viewOpen() : viewPacks()), collection: () => viewCollection(), shop: () => viewShop(), profile: () => viewProfile(), submit: () => viewSubmit(), review: () => viewReview(), welcome: () => viewWelcome(), social: () => viewSocial(), player: () => viewPlayer(), showcase: () => viewShowcase(), decks: () => viewDecks(), pb: () => viewPb(), ranked: () => viewRanked() };
   if (ui.view === 'game' && !game) ui.view = 'home';
   $app.dataset.view = ui.view;
   $app.innerHTML = views[ui.view]() + (ui.toast && ui.view !== 'game' ? `<div class="toast neu">${esc(ui.toast)}</div>` : '');
@@ -617,14 +617,14 @@ function peerError(err) {
 function wire(c) {
   conn = c;
   c.on('open', () => {
-    if (!isHost) c.send({ t: 'hello', name: myName, pfp: myPfp(), deck: { captain: deck().captain, cards: deck().cards, finishes: finishesFor(deck()) } });
+    if (!isHost) c.send({ t: 'hello', name: myName, pfp: myPfp(), deck: { captain: deck().captain, cards: deck().cards, finishes: finishesFor(deck()) }, ...(typeof rkHello === 'function' ? rkHello() : {}) }); // rkHello: ranked flag + rating (js/ranked.js)
     ui.status = 'Connected, dealing…'; render();
   });
   c.on('data', onMsg);
   c.on('close', () => {
     if (conn !== c) return;
     conn = null;
-    if (state && state.phase !== 'over') { state = game = null; ui.view = 'home'; peer?.destroy(); peer = null; ui.code = ''; toast('Your opponent left the battle.'); }
+    if (state && state.phase !== 'over') { const rkMsg = typeof rkForfeit === 'function' ? rkForfeit(true) : ''; state = game = null; ui.view = 'home'; peer?.destroy(); peer = null; ui.code = ''; toast('Your opponent left the battle.' + rkMsg); }
     else if (!state && isHost && ui.code) { ui.status = 'Waiting for a friend to join'; render(); }
     else render();
   });
@@ -636,6 +636,7 @@ function onMsg(m) {
     if (m.t === 'hello' && !state) {
       const probs = deckProblems(m.deck);
       if (probs.length) { conn.send({ t: 'error', msg: `Your deck isn't legal: ${probs[0]}` }); return; }
+      if (typeof rkCheckHello === 'function' && !rkCheckHello(m)) return; // ranked and casual never mix (js/ranked.js)
       guest = { name: String(m.name || 'Guest').slice(0, 20), pfp: pfpOk(m.pfp) && CARD[m.pfp] ? m.pfp : m.deck.captain, deck: { captain: m.deck.captain, cards: m.deck.cards, finishes: cleanFin(m.deck.finishes) } };
       startGame();
     } else if (m.t === 'act' && state && m.a && typeof m.a === 'object') act(1, m.a);
@@ -648,6 +649,7 @@ function startGame() {
   const d = deck();
   const g = newGame([{ captain: d.captain, cards: d.cards, finishes: finishesFor(d) }, guest.deck], [myName, guest.name]);
   g.players[0].pfp = myPfp(); g.players[1].pfp = guest.pfp; // profile pictures travel with the state, so the guest sees both
+  if (typeof rkGame === 'function') rkGame(g); // a ranked match: both ratings ride along (js/ranked.js)
   setGame(g);
   conn?.send({ t: 'state', s: state });
 }

@@ -295,3 +295,42 @@ create policy "reactions: delete own or on my stands" on public.reactions for de
   using ((select auth.uid()) = reactor or (select auth.uid()) = owner);
 create policy "members only" on public.reactions as restrictive for all to authenticated
   using ((select public.is_member()) or (select public.is_admin())) with check ((select public.is_member()) or (select public.is_admin()));
+
+-- ---------- Ranked matchmaking (live migration: ranked_matchmaking) ----------
+-- One row per waiting player: their PeerJS id and rating (js/ranked.js). The client refreshes its row every 30 s; rows older than
+-- 2 minutes are hidden from everyone (and cleared out on the next insert). Members read every fresh row and write only their own.
+-- The rating on profiles lives in summary (r, rg), written by js/social.js like the rest of the summary.
+-- shortcut: ratings are self-reported by the clients (friends' server).
+create table if not exists public.matchmaking (
+  user_id uuid primary key default auth.uid() references auth.users on delete cascade,
+  peer text not null check (peer ~ '^tismtopia-tcg-rk-[a-z0-9]{8,32}$'),
+  rating integer not null check (rating between 0 and 5000),
+  seen_at timestamptz not null default now()
+);
+alter table public.matchmaking enable row level security;
+revoke all on public.matchmaking from anon, authenticated;
+grant select, insert, update, delete on public.matchmaking to authenticated;
+
+drop policy if exists "matchmaking: read fresh" on public.matchmaking;
+drop policy if exists "matchmaking: insert own" on public.matchmaking;
+drop policy if exists "matchmaking: update own" on public.matchmaking;
+drop policy if exists "matchmaking: delete own" on public.matchmaking;
+drop policy if exists "members only" on public.matchmaking;
+create policy "matchmaking: read fresh" on public.matchmaking for select to authenticated
+  using (seen_at > now() - interval '2 minutes' or (select auth.uid()) = user_id);
+create policy "matchmaking: insert own" on public.matchmaking for insert to authenticated with check ((select auth.uid()) = user_id);
+create policy "matchmaking: update own" on public.matchmaking for update to authenticated using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+create policy "matchmaking: delete own" on public.matchmaking for delete to authenticated using ((select auth.uid()) = user_id);
+create policy "members only" on public.matchmaking as restrictive for all to authenticated
+  using ((select public.is_member()) or (select public.is_admin())) with check ((select public.is_member()) or (select public.is_admin()));
+
+-- The server stamps seen_at (so a phone clock can't keep a row alive) and sweeps rows nobody has refreshed for 2 minutes.
+create or replace function public.matchmaking_touch() returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  new.seen_at := now();
+  delete from public.matchmaking m where m.seen_at < now() - interval '2 minutes' and m.user_id <> new.user_id;
+  return new;
+end $$;
+revoke execute on function public.matchmaking_touch() from public, anon, authenticated;
+drop trigger if exists matchmaking_touch on public.matchmaking;
+create trigger matchmaking_touch before insert or update on public.matchmaking for each row execute function public.matchmaking_touch();
