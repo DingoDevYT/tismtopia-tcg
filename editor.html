@@ -351,7 +351,13 @@ async function save() {
     if (!r.ok) throw new Error(`server said ${r.status} ${r.statusText}`);
     const newArt = Object.keys({ ...ov, ...saved }).some(k => ov[k]?.art !== saved[k]?.art);
     saved = structuredClone(ov); entries.forEach(updRow); paint();
-    say('Saved ' + new Date().toLocaleTimeString() + (newArt ? '. Run node tools/encrypt-assets.js and commit assets/ to publish new art.' : ''));
+    // Every save goes live: the local server encrypts new art, runs the tests, commits the overrides + assets/ and pushes (tools/serve.py).
+    say(`Saved. Publishing to the live site${newArt ? ' (encrypting new art)' : ''}…`);
+    try {
+      const p = await fetch('publish', { method: 'POST' }), log = (await p.text()).trim();
+      if (!p.ok) throw new Error(log.split('\n').pop() || `server said ${p.status}`);
+      say('Saved and published ' + new Date().toLocaleTimeString() + ' (live in a minute or two)');
+    } catch (err) { say('Saved on this PC, but NOT published: ' + err.message, true); }
   } catch (err) { say('Save failed: ' + err.message + ' (run py tools/serve.py and open this page on localhost:8123)', true); }
   finally { saving = false; }
 }
