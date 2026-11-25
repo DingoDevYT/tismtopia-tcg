@@ -13,7 +13,7 @@ merged code). Nothing here is live. See every changed card old next to new in
 |---|---|---|
 | Remove Evils, replace with Items that last N turns or N uses | 7 new Items, same card numbers, owners keep copies via `REPLACED` | `js/cards.js` (`EVIL_SWAP`, `REPLACED`), engine in `js/game.js` |
 | Rework ~15 bland Characters | 15 reworked (incl. 2 free "soak" cards) | `js/card-overrides.js` (written by `design/patch-overrides.js`) |
-| No "opponent +1 Boredom on a hit" riders | All 22 removed (incl. coin-flip ones) | same |
+| No "opponent +1 Boredom on a hit" riders | All 24 removed (23 cards, incl. 5 coin-flip ones) | same |
 | Weaker early direct hits | Variant (a): no direct attacks on each player's first turn | `NO_DIRECT_UNTIL` in `js/game.js` |
 | Defender picks spill-over order | Built on main by another agent (`order` on defend); merged in unchanged | `js/game.js` |
 | Moth Super ≥ 5, Super balance | Moth costs 5; Xee, RotGrease, Anonagon, Hamish, Wawa retuned over 5 CAPS rounds | section 6, 8.1 |
