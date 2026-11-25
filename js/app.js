@@ -209,7 +209,7 @@ function botMove() {
   let a = null;
   if (g.phase === 'defend' && g.turn === 0) {
     const mv = CARD[g.players[0].field[g.pending.i].id].moves[g.pending.m], pw = mv.power + statsOf(g, 0, g.players[0].field[g.pending.i]).bonus;
-    a = { type: 'defend', i: best(all, i => { const d = Math.max(0, pw - statsOf(g, 1, B.field[i]).def); return (d < B.field[i].hp ? 100 : 0) - d * 10 + B.field[i].hp; }) };
+    a = { type: 'defend', i: best(all.filter(i => canBlock(g, 1, i)), i => { const d = Math.max(0, pw - statsOf(g, 1, B.field[i]).def); return (d < B.field[i].hp ? 100 : 0) - d * 10 + B.field[i].hp; }) };
   } else if (g.turn === 1 && g.phase === 'play') {
     const hc = B.hand.findIndex(id => CARD[id].type === 'character'), canPlay = hc >= 0 && B.field.length < 3;
     // Every move it can afford right now; attacks score by power per Action, abilities are a fallback.

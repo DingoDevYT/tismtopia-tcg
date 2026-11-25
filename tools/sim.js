@@ -8,8 +8,10 @@ const ctx = vm.createContext({ structuredClone, console });
 const VARIANT = process.env.VARIANT ? fs.readFileSync(process.env.VARIANT, 'utf8') : '{}';
 vm.runInContext(['js/cards-data.js', 'js/card-overrides.js', 'js/cards.js', 'js/game.js'].map(f => fs.readFileSync(path.join(root, f), 'utf8')).join('\n')
   .replace('// CAPTAINS, CARDS and STARTERS come from', `for (const [id, v] of Object.entries(${VARIANT})) Object.assign([...CAPTAINS, ...CARDS].find(c => c.id === id), v);\n// CAPTAINS, CARDS and STARTERS come from`).replace(/const BORE_MAX = \d+;/, m => (process.argv[4] ? `const BORE_MAX = ${+process.argv[4]};` : m)).replace(/const HP_SCALE = [\d.]+;/, m => (process.argv[5] ? `const HP_SCALE = ${+process.argv[5]};` : m)).replace(/const DECK_SIZE = \d+;/, m => (process.env.DECK ? `const DECK_SIZE = ${+process.env.DECK};` : m))
-  + '\nthis.E = { CARDS, CAPTAINS, STARTERS, CARD, newGame, apply, deckProblems, statsOf, DECK_SIZE, maxHp, baseArmor };', ctx);
-const { CARDS, CAPTAINS, STARTERS, CARD, newGame, apply, deckProblems, statsOf, DECK_SIZE, maxHp, baseArmor } = ctx.E;
+  // DIRECT=<no direct attacks while turnNo <= this>,<half power 0|1>, e.g. DIRECT=2,0 (js/game.js NO_DIRECT_UNTIL, DIRECT_HALF)
+  .replace(/const NO_DIRECT_UNTIL = \d+, DIRECT_HALF = \w+;/, m => { if (!process.env.DIRECT) return m; const [u, h] = process.env.DIRECT.split(','); return `const NO_DIRECT_UNTIL = ${+u}, DIRECT_HALF = ${h === '1'};`; })
+  + '\nthis.E = { CARDS, CAPTAINS, STARTERS, CARD, newGame, apply, deckProblems, statsOf, DECK_SIZE, maxHp, baseArmor, canBlock: typeof canBlock === "function" ? canBlock : () => true };', ctx);
+const { CARDS, CAPTAINS, STARTERS, CARD, newGame, apply, deckProblems, statsOf, DECK_SIZE, maxHp, baseArmor, canBlock } = ctx.E;
 
 const N = +(process.argv[2] || 200);
 let seed = +(process.argv[3] || 1);
@@ -47,7 +49,8 @@ const odds = (s, a) => {
 };
 const block = (s, p) => {
   const af = s.players[1 - p].field[s.pending.i], pw = CARD[af.id].moves[s.pending.m].power + statsOf(s, 1 - p, af).bonus;
-  return s.players[p].field.reduce((b, f, i, F) => { const sc = x => { const d = Math.max(0, pw - statsOf(s, p, F[x]).def); return (d < F[x].hp ? 100 : 0) - d * 10 + F[x].hp; }; return sc(i) > sc(b) ? i : b; }, 0);
+  const ok = s.players[p].field.map((_, i) => i).filter(i => canBlock(s, p, i));
+  return ok.reduce((b, i) => { const F = s.players[p].field, sc = x => { const d = Math.max(0, pw - statsOf(s, p, F[x]).def); return (d < F[x].hp ? 100 : 0) - d * 10 + F[x].hp; }; return sc(i) > sc(b) ? i : b; }, ok[0]);
 };
 const byOrder = order => (s, p) => {
   const o = options(s);
@@ -161,6 +164,25 @@ if (process.env.CAPS) {
     res[cap].g++; res[cap].w += r.winner === seat; res[cap].turns += r.turns || 0;
   }
   for (const [id, x] of Object.entries(res).sort((p, q) => q[1].w / q[1].g - p[1].w / p[1].g)) console.log(`${CARD[id].name.padEnd(12)} ${(100 * x.w / x.g).toFixed(0).padStart(3)}%  (${x.g} games, avg ${(x.turns / x.g).toFixed(1)} turns)  ${CARD[id].text}`);
+  process.exit(0);
+}
+
+// HEALTH=1 node tools/sim.js <games> <seed>: whole-game health on random decks (greedy vs greedy) as one JSON line:
+// avg turns, first-player win rate, direct attacks per game, share of Boredom that came from direct hits, Boredom dealt by the end of turn 4.
+if (process.env.HEALTH) {
+  const h = { games: 0, turns: 0, firstWins: 0, direct: 0, boreDirect: 0, boreAll: 0, early: 0, capped: 0 };
+  for (let g = 0; g < N; g++) {
+    let early = 0;
+    const r = play([randomDeck(), randomDeck()], [POL.greedy, POL.greedy], 200, (s0, n) => {
+      const bore = n.events.filter(e => e.k === 'meter' && e.key === 'bore' && e.n > 0).reduce((x, e) => x + e.n, 0);
+      h.boreAll += bore; if (n.turnNo <= 4) early += bore;
+      if (n.events.some(e => e.k === 'attack' && e.direct)) h.boreDirect += bore;
+    });
+    if (r.winner < 0) { h.capped++; continue; }
+    h.games++; h.turns += r.turns; h.firstWins += r.winner === r.first; h.direct += r.direct; h.early += early;
+  }
+  process.stdout.write(JSON.stringify({ games: h.games, avgTurns: +(h.turns / h.games).toFixed(1), firstWin: +(h.firstWins / h.games).toFixed(3), directPerGame: +(h.direct / h.games).toFixed(2),
+    directShare: +(h.boreDirect / h.boreAll).toFixed(3), boreByT4: +(h.early / h.games).toFixed(2), capped: h.capped }) + '\n');
   process.exit(0);
 }
 

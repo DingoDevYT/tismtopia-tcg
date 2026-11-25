@@ -394,3 +394,5 @@ new Function(['cards-data', 'card-overrides', 'cards', 'assets', 'render', 'rain
   const tracked = require('child_process').execSync('git ls-files art/local audio/local review', { cwd: __dirname + '/..' }).toString().trim();
   ok(!tracked, 'no plaintext art/audio and no review/ in git: ' + tracked.slice(0, 200));
 })().then(() => console.log('game.test.js: all checks passed'), e => { console.error(e.message); process.exit(1); });
+// Real-card audit (every draw / Boredom / Creativity text is played and measured) and the Item and Character mechanics.
+require('./cards.test.js');

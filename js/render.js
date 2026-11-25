@@ -22,6 +22,7 @@ const ICON = Object.fromEntries(Object.entries({
   point: '<path fill-rule="evenodd" d="M12 2a10 10 0 1 0 0 20 10 10 0 1 0 0-20zm0 4.5l1.7 3.5 3.8.5-2.8 2.7.7 3.8L12 15.2 8.6 17l.7-3.8-2.8-2.7 3.8-.5z"/>',
   action: '<path d="M13.5 2L4.5 13.5h6.2L9.5 22l9-11.5h-6.2z"/>',
   time: '<path d="M6 2h12v2.2c0 3-2.4 5.1-4.4 7.8 2 2.7 4.4 4.8 4.4 7.8V22H6v-2.2c0-3 2.4-5.1 4.4-7.8C8.4 9.3 6 7.2 6 4.2z"/>',
+  uses: '<circle cx="5" cy="12" r="3"/><circle cx="12" cy="12" r="3"/><circle cx="19" cy="12" r="3"/>', // Items with uses: three pips
   forever: G('<path stroke-width="2.6" d="M12 12c-2-2.6-3.6-4-5.6-4a4 4 0 0 0 0 8c2 0 3.6-1.4 5.6-4s3.6-4 5.6-4a4 4 0 0 1 0 8c-2 0-3.6-1.4-5.6-4z"/>'),
   // rules and battle feedback
   super: '<path fill-rule="evenodd" d="M12 2a10 10 0 1 0 0 20 10 10 0 1 0 0-20zM13.5 5.5l-5 8H12l-1 5 5-8h-3.5z"/>',
@@ -93,7 +94,7 @@ const nameEm = s => {
 function renderCard(c, o = {}) {
   const cls = o.cls ? ' ' + o.cls : '', style = (o.style ? ` style="${o.style}"` : '') + (o.attrs ? ' ' + o.attrs : '');
   if (!c) return `<div class="card back${cls}"${style}><div class="frame"></div></div>`;
-  const kind = kindOf(c), isCh = c.type === 'character', hp = o.hp ?? (isCh ? maxHp(c) : c.hp), turns = o.turns ?? c.dur, def = o.def ?? (isCh ? baseArmor(c) : c.def);
+  const kind = kindOf(c), isCh = c.type === 'character', hp = o.hp ?? (isCh ? maxHp(c) : c.hp), turns = o.turns ?? c.dur, uses = o.uses ?? c.uses, def = o.def ?? (isCh ? baseArmor(c) : c.def);
   // Art: art/local/ on the owner's PC, decrypted from assets/ for members elsewhere (js/assets.js); until it's there the placeholder underneath shows.
   // Rainbow cards swap in the repainted art from js/rainbow.js: the cached result straight away, else processed on load (pages without it show the plain art).
   const rbw = /\bv-rainbow\b/.test(cls), rbOn = rbw && typeof RB !== 'undefined', rbUrl = rbOn && RB[c.art];
@@ -105,7 +106,7 @@ function renderCard(c, o = {}) {
   const chips = isChar ? `<div class="chipstack">${hpTag}${defTag}</div>` : '';
   const body = isChar
     ? `${c.text ? `<div class="text passive">${c.text}</div>` : ''}<div class="moves">${c.moves.map(mv => renderMove(mv, o.bonus)).join('')}</div>`
-    : `<div class="text">${c.text}</div><div class="tag">${c.type === 'bit' ? (isInstant(c) ? `${ICON.instant}Instant` : `${ICON.time}${turns} turn${turns > 1 ? 's' : ''}`) : c.type === 'evil' ? `${ICON.forever}Forever` : `${ICON.captain}${c.style}`}</div>`;
+    : `<div class="text">${c.text}</div><div class="tag">${c.type === 'bit' ? (isInstant(c) ? `${ICON.instant}Instant` : uses ? `${ICON.uses}${uses} use${uses > 1 ? 's' : ''}` : `${ICON.time}${turns} turn${turns > 1 ? 's' : ''}`) : c.type === 'evil' ? `${ICON.forever}Forever` : `${ICON.captain}${c.style}`}</div>`;
   const tv = c.type === 'character' && !c.main && TONE[assetUrl(c.art)]; // tone() keys by the src it loaded from
   // Foil finishes use the holo effect layers (vendor/holo/holo.css): v-holo = rare holo, v-rev = reverse holo, v-full = full-art ultra rare.
   const fin = /\bv-full\b/.test(cls) ? ' data-rarity="rare ultra" data-supertype="pokémon"' : /\bv-rev\b/.test(cls) ? ' data-rarity="reverse holo"' : /\bv-holo\b/.test(cls) ? ' data-rarity="rare holo"' : '';
@@ -147,7 +148,7 @@ function renderField(p, glow = [], who = 'me', stat) {
 
 // Active Items/Evils: a pool of small readable cards (desktop); on phones an "Effects" button opens them in a sheet.
 const renderFx = (p, who = 'me') => `<div class="effects">${p.effects.length ? `<button class="fx-open" data-act="sheet" data-s="fx:${who}">${ICON.bit}Effects<b>${p.effects.length}</b></button>` : ''}
-  <div class="fx-pool">${p.effects.map((e, i) => renderCard(CARD[e.id], { cls: 'mini fxc', turns: e.turns, attrs: pick(who, 'fx', i) })).join('')}</div></div>`;
+  <div class="fx-pool">${p.effects.map((e, i) => renderCard(CARD[e.id], { cls: 'mini fxc', turns: e.turns, uses: e.uses, attrs: pick(who, 'fx', i) })).join('')}</div></div>`;
 
 function renderHand(ids, sel, p) {
   const mid = (ids.length - 1) / 2;
