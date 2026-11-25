@@ -1586,3 +1586,6 @@ body:has(#app[data-view="game"]) :is(.vol-btn, .vol-slider, .theme-btn) { displa
 /* bigger names that shrink to fit one line: --nem is the name's width in em (js/render.js nameEm) */
 .card:is(.k-character, .k-main, .k-bit, .k-evil) .name { font-size: min(7cqw, calc(70cqw / var(--nem, 5))); font-weight: 900; }
 .card.mini:is(.k-character, .k-main, .k-bit, .k-evil) .name { font-size: min(8.5cqw, calc(64cqw / var(--nem, 5))); }
+
+/* version number on the title screens (APP_VERSION in js/audio.js) */
+.title-screen .ver { position: absolute; left: 0; right: 0; bottom: calc(14px + env(safe-area-inset-bottom)); text-align: center; font-size: 12px; font-weight: 700; letter-spacing: .04em; color: var(--ink); opacity: .45; pointer-events: none; }

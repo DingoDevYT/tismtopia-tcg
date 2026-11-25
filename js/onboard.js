@@ -55,7 +55,7 @@ function gatePaint() {
     : s === 'in' ? '<p class="gate-tap">Tap anywhere to start</p>'
     : s === 'block' ? (([t, p, b, a]) => `${t ? `<p class="gate-line"><b>${t}</b></p>` : ''}<p class="${t ? 'muted' : 'gate-line'}">${p}</p><button class="btn primary gate-btn" data-gate="${a}">${b}</button>`)(MEMBER_BLOCK[cloud.block])
     : `<p class="gate-line">Sign in to play — your cards and progress are saved to your account</p><button class="btn primary gate-btn" data-gate="in"${s === 'busy' ? ' disabled' : ''}>${s === 'busy' ? 'Opening Discord…' : 'Sign in with Discord'}</button>`}
-    <p class="gate-msg" role="status">${esc(gate.msg)}</p>`;
+    <p class="gate-msg" role="status">${esc(gate.msg)}</p><small class="ver">v${APP_VERSION}</small>`;
   (gate.el.querySelector('button:not([disabled])') || gate.el).focus({ preventScroll: true });
 }
 // Is there a session, and can we reach the account server? 8 s at most; any failure = "Can't reach the server" with Retry.

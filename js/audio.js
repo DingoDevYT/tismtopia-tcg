@@ -125,9 +125,11 @@ document.addEventListener('visibilitychange', () => {
   else if (musicOn && unlocked) { if (fanfaring) { fanfaring = false; } curKey = ''; syncMusic(); }
 });
 
+// Version shown small on the title screens, so a refresh shows whether the new code arrived. Bump the last number with every push; 1.0.0 = public, balanced release.
+const APP_VERSION = '0.1.0';
 // Title screen: browsers block sound until the first tap, so the game opens on the logo and that tap starts the music.
 const title = Object.assign(document.createElement('div'), { className: 'title-screen',
-  innerHTML: '<img src="art/logo.png" alt="Tismtopia TCG"><p>Tap anywhere to start</p>' });
+  innerHTML: `<img src="art/logo.png" alt="Tismtopia TCG"><p>Tap anywhere to start</p><small class="ver">v${APP_VERSION}</small>` });
 title.addEventListener('pointerdown', () => { title.classList.add('gone'); setTimeout(() => title.remove(), 400); });
 document.body.append(title);
 
