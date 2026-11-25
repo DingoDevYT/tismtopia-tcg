@@ -58,10 +58,10 @@ function syncMusic() {
   } else lastPhase = null;
   const o = ui.open;
   if (ui.view === 'open' && o?.stage === 'reveal') {
-    const c = o.cards[o.i], bigPull = c.finish === 'full' || c.finish === 'rainbow', tag = o.pack + o.cards.map(x => x.id).join() + o.i + (bigPull && !c.cine ? 'cine' : '');
+    const c = o.cards[o.i], look = pullLook(c), bigPull = !!look.cine, tag = o.pack + o.cards.map(x => x.id).join() + o.i + (bigPull && !c.cine ? 'cine' : '');
     if (tag !== lastReveal) {
       lastReveal = tag;
-      const name = c.finish === 'rainbow' ? 'fanfare-rainbow' : c.finish === 'full' ? (c.rarity === 'UR' ? 'fanfare-crown' : 'fanfare-2star') : c.rarity === 'UR' ? 'fanfare-1star' : c.rarity === 'R' || c.finish !== 'normal' ? 'fanfare-4diamond' : '';
+      const name = look.fan; // by stars (pullLook, js/odds.js), never the rarity letter
       stopRoll();
       if (bigPull && !c.cine) drumAudio = sfx('packopen_10_drumroll', true); // build-up during the aura; the fanfare waits for the reveal
       else if (o.god && o.i === 0) fanfare('fanfare-crown'); // god pack: the biggest fanfare as the first card lands
@@ -97,7 +97,7 @@ function syncSfx() {
   const o = ui.open, tag = ui.view === 'open' && o ? o.stage + o.i : '';
   if (tag && tag !== prevOpen) {
     if (o.stage === 'deck') sfx('packopen_4_ripopen');
-    else if (o.stage === 'reveal') sfx(o.cards[o.i].rarity === 'UR' || o.cards[o.i].finish !== 'normal' ? 'packopen_11_rarereveal' : 'packopen_6_A_cardflip');
+    else if (o.stage === 'reveal') sfx(pullLook(o.cards[o.i]).flip);
     else if (o.stage === 'summary') sfx('packopen_2_handreveal');
   }
   prevOpen = tag;
@@ -126,7 +126,7 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // Version shown small on the title screens, so a refresh shows whether the new code arrived. Bump the last number with every push; 1.0.0 = public, balanced release.
-const APP_VERSION = '0.1.6';
+const APP_VERSION = '0.1.8';
 // Title screen: browsers block sound until the first tap, so the game opens on the logo and that tap starts the music.
 const title = Object.assign(document.createElement('div'), { className: 'title-screen',
   innerHTML: `<img src="art/logo.png" alt="Tismtopia TCG"><p>Tap anywhere to start</p><small class="ver">v${APP_VERSION}</small>` });

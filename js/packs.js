@@ -7,9 +7,7 @@ const PACKS = [
   { id: 'foreseen', name: 'Foreseen Knowledge', colour: '#5b1fd6' },
 ];
 const RARITY_NAME = { C: 'Common', U: 'Uncommon', R: 'Rare', UR: 'Ultra Rare' };
-// Stars: 0 plain common, 1 rarer card, 2 holo, 3 reverse holo, 4 full art, 5 rainbow.
-const starN = (id, f = 'normal') => ({ holo: 2, rev: 3, full: 4, rainbow: 5 }[f] ?? (CARD[id]?.type !== 'character' || (CARD[id]?.rarity || 'C') === 'C' ? 0 : 1)); // Items and Evils are always 0 stars
-const starsOf = (id, f) => { const n = starN(id, f); return n ? '★'.repeat(n) : '☆'; };
+// Stars (starN / starsOf), finishes per card, pull weights and card values: js/odds.js.
 const FINISH_NAME = { normal: '', rev: 'Reverse Holo', holo: 'Holo', full: 'Full Art', rainbow: 'Rainbow' };
 const FINISH_CLS = { normal: '', rev: 'v-rev', holo: 'v-holo', full: 'v-full v-holo', rainbow: 'v-full v-holo v-rainbow' };
 
@@ -28,33 +26,26 @@ if (onb.legacy) {
 const owned = id => coll[id]?.n || 0;
 const ownedCount = () => CARDS.filter(c => owned(c.id)).length;
 
-// Slot odds (5 cards, like TCG Pocket): three commons-ish, a 30% shot at a rare in slot 4, slot 5 always rare or better. Finishes roll per card.
+// Normal packs: each of the 5 slots picks one (card, finish) by star level only (SLOTS / pullSlot in js/odds.js; slot 5 is always 1★+).
+// God packs (1 in 1,000) keep their own rules: every card Rare or Ultra Rare, Characters foil, plus a 4★ and a 5★.
 const pool = (r, pk) => CARDS.filter(c => c.type !== 'captain' && (c.rarity || 'C') === r && (!pk || typeof PACK_SET === 'undefined' || !PACK_SET[pk] || PACK_SET[pk].includes(c.id)));
-const BOOST = { heehn: 1, empirical: 1.25, foreseen: 1.6 }; // pricier packs: better odds of special finishes
-const boosted = (table, pk) => { const k = BOOST[pk] || 1, sp = table.filter(([, f]) => f !== 'normal').map(([p, f]) => [p * k, f]), rest = 1 - sp.reduce((a, [p]) => a + p, 0);
-  return rest > 0 ? [...sp, [rest, 'normal']] : sp.map(([p, f]) => [p / (1 - rest), f]); };
 const roll = table => { let x = Math.random(); for (const [p, v] of table) { if ((x -= p) < 0) return v; } return table[table.length - 1][1]; };
-const COMMONISH = [[0.85, 'C'], [0.13, 'U'], [0.02, 'R']];
-const SLOTS = [COMMONISH, COMMONISH, COMMONISH, [[0.7, 'U'], [0.25, 'R'], [0.05, 'UR']], [[0.75, 'R'], [0.25, 'UR']]];
 const GOD_ODDS = 1 / 1000, GOD_SLOT = [[0.6, 'R'], [0.4, 'UR']]; // god pack: twice TCG Pocket's 1 in 2,000, every card rare+ and foil
-// Normal is always the most likely; holo beats reverse holo beats full art at every rarity.
-const FINISH = { C: [[0.06, 'holo'], [0.03, 'rev'], [0.91, 'normal']], U: [[0.08, 'holo'], [0.04, 'rev'], [0.005, 'full'], [0.875, 'normal']],
-  R: [[0.15, 'holo'], [0.07, 'rev'], [0.02, 'full'], [0.76, 'normal']], UR: [[0.25, 'holo'], [0.12, 'rev'], [0.06, 'full'], [0.01, 'rainbow'], [0.56, 'normal']] }; // 5★ rainbow: Ultra Rare Characters only
-// A card can limit its finishes (community cards carry `finishes`); a finish it doesn't allow drops to the best allowed lower one. Built-in cards have no list.
-const allowFin = (c, f) => { const ok = c?.finishes, o = ['normal', 'holo', 'rev', 'full', 'rainbow']; if (!Array.isArray(ok)) return f; for (let i = o.indexOf(f); i > 0; i--) if (ok.includes(o[i])) return o[i]; return 'normal'; };
 function openPack(packId) {
   const force = window.FORCE_PULL; window.FORCE_PULL = null; // set by the ?dev test panel
   const god = force === 'god' || Math.random() < GOD_ODDS;
-  const cards = (god ? Array(5).fill(GOD_SLOT) : SLOTS).map(t => {
-    let r = roll(t); for (let k = 0; !pool(r, packId).length && k < 4; k++) r = { UR: 'R', R: 'U', U: 'C', C: 'UR' }[r]; // missing rarity: next lower, wrapping round (a pack with no Commons)
+  const entries = packEntries(packId);
+  const cards = god ? Array.from({ length: 5 }, () => {
+    let r = roll(GOD_SLOT); for (let k = 0; !pool(r, packId).length && k < 4; k++) r = { UR: 'R', R: 'U', U: 'C', C: 'UR' }[r]; // missing rarity: next lower, wrapping round
     const list = pool(r, packId), c = list[Math.floor(Math.random() * list.length)];
-    return { id: c.id, rarity: r, finish: c.type === 'character' ? (god ? roll([[0.45, 'holo'], [0.3, 'rev'], [0.2, 'full'], [0.05, 'rainbow']]) : roll(boosted(FINISH[r], packId))) : 'normal', isNew: false }; // only Characters come in special finishes for now
-  });
-  if (god) { // a god pack always holds a 4-star full art and a 5-star rainbow (from this pack's Ultra Rares when it has any)
-    const ur = CARDS.filter(c => c.type === 'character' && c.rarity === 'UR'), own = ur.filter(c => pool('UR', packId).includes(c)), list = own.length ? own : ur, pick = () => list[Math.floor(Math.random() * list.length)];
-    cards[3] = { id: pick().id, rarity: 'UR', finish: 'full', isNew: false }; cards[4] = { id: pick().id, rarity: 'UR', finish: 'rainbow', isNew: false };
-  }
-  if (force === 'rainbow' || force === 'full') { const ur = CARDS.filter(c => c.type === 'character' && c.rarity === 'UR'), c = ur[Math.floor(Math.random() * ur.length)]; cards[4] = { id: c.id, rarity: 'UR', finish: force, isNew: false }; }
+    return { id: c.id, rarity: r, finish: c.type === 'character' ? roll([[0.45, 'holo'], [0.3, 'rev'], [0.2, 'full'], [0.05, 'rainbow']]) : 'normal', isNew: false };
+  }) : SLOTS.map(w => { const e = pullSlot(w, entries); return { id: e.c.id, rarity: e.c.rarity || 'C', finish: e.f, isNew: false }; });
+  // a god pack always holds a 4-star full art and a 5-star rainbow (from this pack's Ultra Rares when it has any); test pulls likewise use cards that can have that finish
+  const canHave = f => { const ur = CARDS.filter(c => c.type === 'character' && c.rarity === 'UR' && cardFins(c).includes(f)), own = ur.filter(c => pool('UR', packId).includes(c)), any = CARDS.filter(c => c.type === 'character' && cardFins(c).includes(f));
+    const list = own.length ? own : ur.length ? ur : any; return list[Math.floor(Math.random() * list.length)]; };
+  const big = f => { const c = canHave(f); return c && { id: c.id, rarity: c.rarity || 'C', finish: f, isNew: false }; };
+  if (god) { cards[3] = big('full') || cards[3]; cards[4] = big('rainbow') || cards[4]; }
+  if (force === 'rainbow' || force === 'full') cards[4] = big(force) || cards[4];
   cards.forEach(p => { p.finish = allowFin(CARD[p.id], p.finish); p.isNew = !(coll[p.id]?.f?.[p.finish] > 0); const e = (coll[p.id] ||= { n: 0, f: {} }); e.n++; e.f[p.finish] = (e.f[p.finish] || 0) + 1; });
   store.set('collection', coll);
   return { pack: packId, cards, stage: 'tear', i: 0, god };
@@ -76,8 +67,8 @@ function viewPacks() {
   </div>${tabbar('packs')}`;
 }
 
-// Edge colour of a card in the stack: foil and rares glint so you can peek before revealing.
-const edgeOf = c => (c.finish === 'full' || c.finish === 'rainbow') ? 'edge-full' : c.finish === 'holo' ? 'edge-holo' : c.finish === 'rev' ? 'edge-rev' : c.rarity === 'UR' || c.rarity === 'R' ? 'edge-gold' : '';
+// Edge colour of a card in the stack, by its stars (pullLook, js/odds.js): 1★+ glint so you can peek before revealing.
+const edgeOf = c => pullLook(c).edge;
 let cineTimer = null;
 function viewOpen() {
   const o = ui.open, P = PACKS.find(p => p.id === o.pack);
@@ -90,9 +81,9 @@ function viewOpen() {
     <div class="stack-wrap">${fresh ? `<div class="tear-zone torn pack-leave" style="--tear:1"><div class="rays"></div><div class="pack3d"><div class="pack-back"></div><div class="inner-cards">${[4, 3, 2, 1, 0].map(k => `<i style="--k:${k}"></i>`).join('')}</div>${packArt(P, 'big body')}${packArt(P, 'big strip')}<div class="pack-shade"></div></div></div>` : ''}<div class="deck3d" data-act="noop"><div class="deck-rot">${o.cards.map((c, k) => `<div class="dc ${edgeOf(c)}" style="--z:${(o.cards.length - k) * 7}px"></div>`).join('')}</div></div></div>
     <button class="btn primary" data-act="start-reveal">Reveal cards</button></div>`; }
   if (o.stage === 'reveal') {
-    const cur = o.cards[o.i], c = CARD[cur.id], rare = cur.rarity === 'R' || cur.rarity === 'UR' || cur.finish !== 'normal';
+    const cur = o.cards[o.i], c = CARD[cur.id], look = pullLook(cur), rare = !!look.bg; // background, burst and cutscene follow the stars, never the rarity letter
     const behind = o.cards.slice(o.i + 1).map((n, k) => `<div class="stack-back ${edgeOf(n)}" style="--k:${k + 1}"></div>`).join('');
-    const big = cur.finish === 'rainbow' ? ' pull-5' : cur.finish === 'full' ? ' pull-4' : '';
+    const big = look.cine ? ' ' + look.cine : '';
     // 4 and 5 star: a charging aura cutscene on the face-down card before the reveal (tap to skip)
     if (big && !cur.cine && !calm) {
       clearTimeout(cineTimer); cineTimer = setTimeout(() => { if (ui.open?.cards[ui.open.i] === cur) { cur.cine = true; render(); } }, big === ' pull-5' ? 3200 : 2300);
@@ -100,14 +91,14 @@ function viewOpen() {
         <div class="cine-card"></div></div>`;
     }
     const fresh = o.flipFirst; o.flipFirst = false; // the first card flips over from its back
-    return `<div class="open-stage reveal${rare ? ' rare r-' + cur.rarity : ''}${big}${o.god ? ' god' : ''}${fresh ? ' first-flip' : ''}" data-act="next-card">
-      ${rare ? '<div class="burst"></div>' : ''}${big ? `<div class="big-rays"></div><p class="big-tag">${cur.finish === 'rainbow' ? '★★★★★ RAINBOW' : '★★★★ FULL ART'}</p>` : ''}${o.god ? '<p class="god-tag">GOD PACK</p>' : ''}
+    return `<div class="open-stage reveal${rare ? ' ' + look.bg : ''}${big}${o.god ? ' god' : ''}${fresh ? ' first-flip' : ''}" data-act="next-card">
+      ${starN(cur.id, cur.finish) >= 2 ? '<div class="burst"></div>' : ''}${big ? `<div class="big-rays"></div><p class="big-tag">${big === ' pull-5' ? '★★★★★ RAINBOW' : '★★★★ FULL ART'}</p>` : ''}${o.god ? '<p class="god-tag">GOD PACK</p>' : ''}
       <div class="stack-wrap"><div class="stack" data-act="noop">${behind}${renderCard((cur.finish === 'full' || cur.finish === 'rainbow') ? { ...c, crop: null } : c, { cls: `zoom flick enter ${FINISH_CLS[cur.finish]}` })}${fresh ? '<div class="flip-back"></div>' : ''}</div></div>
       <p class="pull-tag">${cur.isNew ? '<span class="new">NEW</span>' : ''}${starsOf(cur.id, cur.finish)}${cur.finish !== 'normal' ? ` · ${FINISH_NAME[cur.finish]}` : ''}</p>
       <p class="open-hint">Flick for the next card (${o.i + 1}/${o.cards.length})</p></div>`;
   }
   return `${header('Your pulls')}
-    <div class="pull-grid">${o.cards.map(p => `<div class="pull">${renderCard((p.finish === 'full' || p.finish === 'rainbow') ? { ...CARD[p.id], crop: null } : CARD[p.id], { cls: FINISH_CLS[p.finish], attrs: tappable('view-card', `data-id="${p.id}" data-f="${p.finish}"`) })}${p.isNew ? '<span class="new">NEW</span>' : ''}<small>${starsOf(p.id, p.finish)}${p.finish !== 'normal' ? ` · ${FINISH_NAME[p.finish]}` : ''}</small></div>`).join('')}</div>
+    <div class="pull-grid">${o.cards.map(p => `<div class="pull s-${starN(p.id, p.finish)}">${renderCard((p.finish === 'full' || p.finish === 'rainbow') ? { ...CARD[p.id], crop: null } : CARD[p.id], { cls: FINISH_CLS[p.finish], attrs: tappable('view-card', `data-id="${p.id}" data-f="${p.finish}"`) })}${p.isNew ? '<span class="new">NEW</span>' : ''}<small>${starsOf(p.id, p.finish)}${p.finish !== 'normal' ? ` · ${FINISH_NAME[p.finish]}` : ''}</small></div>`).join('')}</div>
     <div class="row2" style="width:auto;margin:16px"><button class="btn primary" data-act="pick-pack" data-p="${o.pack}">Open another</button><button class="btn" data-act="go" data-to="packs">Done</button></div>
     ${overlay()}${viewer()}`;
 }

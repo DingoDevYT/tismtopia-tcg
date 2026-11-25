@@ -1,7 +1,7 @@
 // Self-check for the rules engine. Run: node test/game.test.js
 const fs = require('fs'), vm = require('vm'), path = require('path');
 // syntax-check every browser script too, so a broken app.js can't ship (the rules tests don't load it)
-for (const f of ['js/app.js', 'js/packs.js', 'js/audio.js', 'js/assets.js', 'js/render.js', 'js/rainbow.js', 'js/cards.js', 'js/cards-data.js', 'js/game.js', 'js/cardfile.js', 'js/art-tools.js', 'js/cloud.js', 'js/profile.js', 'js/social.js', 'js/submit.js', 'js/community.js', 'js/review.js', 'js/onboard.js', 'js/prebuilt.js', 'js/tour.js']) new vm.Script(fs.readFileSync(path.join(__dirname, '..', f), 'utf8'), { filename: f });
+for (const f of ['js/app.js', 'js/odds.js', 'js/packs.js', 'js/economy.js','js/audio.js', 'js/assets.js', 'js/render.js', 'js/rainbow.js', 'js/cards.js', 'js/cards-data.js', 'js/game.js', 'js/cardfile.js', 'js/art-tools.js', 'js/cloud.js', 'js/profile.js', 'js/social.js', 'js/submit.js', 'js/community.js', 'js/review.js', 'js/onboard.js', 'js/prebuilt.js', 'js/ranked.js', 'js/tour.js']) new vm.Script(fs.readFileSync(path.join(__dirname, '..', f), 'utf8'), { filename: f });
 const load = files => files.map(f => fs.readFileSync(path.join(__dirname, '..', f), 'utf8')).join('\n');
 const src = load(['test/fixture-cards.js', 'js/cards.js', 'js/game.js']).replace('const BORE_MAX = 15;', 'const BORE_MAX = 99;').replace('const DECK_SIZE = 40;', 'const DECK_SIZE = 20;').replace('const HP_SCALE = 1.2;', 'const HP_SCALE = 2;');
 
@@ -217,7 +217,7 @@ throws(() => apply(m, 0, { type: 'end' }), 'no actions after game over');
 { const x = {}; require('vm').runInNewContext(fs.readFileSync(__dirname + '/../js/cards-data.js', 'utf8') + fs.readFileSync(__dirname + '/../js/card-overrides.js', 'utf8') + ';this.A=[...CAPTAINS,...CARDS]', x);
   for (const c of x.A) if (c.name.length > 22) throw new Error('FAIL: name too long (max 22): ' + c.name); }
 // The browser loads these as one shared scope: two files declaring the same name breaks everything after it.
-new Function(['cards-data', 'card-overrides', 'cards', 'assets', 'render', 'rainbow', 'game', 'app', 'pack-sets', 'packs', 'economy', 'audio', 'cardfile', 'art-tools', 'cloud', 'profile', 'social', 'submit', 'community', 'review', 'onboard', 'prebuilt', 'tour'].map(f => fs.readFileSync(__dirname + '/../js/' + f + '.js', 'utf8')).join('\n;\n'));
+new Function(['cards-data', 'card-overrides', 'cards', 'assets', 'render', 'rainbow', 'game', 'app', 'pack-sets', 'odds', 'packs', 'economy', 'audio', 'cardfile', 'art-tools', 'cloud', 'profile', 'social', 'submit', 'community', 'review', 'onboard', 'prebuilt', 'ranked', 'tour'].map(f => fs.readFileSync(__dirname + '/../js/' + f + '.js', 'utf8')).join('\n;\n'));
 // New players (js/onboard.js): each starter dealt as 8 packs of 5 holding exactly its 40 cards, no pack with two of a card, strongest
 // card last in each pack, the deck those packs make is legal; and only the public site (github.io) or ?gate=1 forces the sign-in gate.
 { const x = { structuredClone }, ob = fs.readFileSync(__dirname + '/../js/onboard.js', 'utf8').split('// ---------------- browser only')[0];
@@ -356,7 +356,7 @@ new Function(['cards-data', 'card-overrides', 'cards', 'assets', 'render', 'rain
   ok(dk[0].pre === 'night-light' && !('pre' in dk[1]) && !('pre' in dk[2]), 'deck pre: known kept, unknown dropped');
   `, x);
   if (!/const keep = id => Math\.max\(typeof pbKeep === 'function' \? pbKeep\(id\)/.test(fs.readFileSync(__dirname + '/../js/economy.js', 'utf8'))) throw new Error('FAIL: prebuilt: keep() must include pbKeep');
-  if (!fs.readFileSync(__dirname + '/../js/cloud.js', 'utf8').includes("'pbClaimed']")) throw new Error('FAIL: prebuilt: pbClaimed must be a SAVE_KEY'); }
+  if (!fs.readFileSync(__dirname + '/../js/cloud.js', 'utf8').match(/const SAVE_KEYS = \[[^\]]*'pbClaimed'/)) throw new Error('FAIL: prebuilt: pbClaimed must be a SAVE_KEY'); }
 // Social (js/social.js): profile picture ids, display stands and Captain plays from saves or the server are validated; collection counts.
 { const x = {}, so = fs.readFileSync(__dirname + '/../js/social.js', 'utf8').split('// ---------------- browser only')[0];
   vm.runInNewContext(['cards-data', 'card-overrides', 'cards'].map(f => fs.readFileSync(__dirname + '/../js/' + f + '.js', 'utf8')).join('\n;\n') + '\n;\n' + so + `;
@@ -375,6 +375,78 @@ new Function(['cards-data', 'card-overrides', 'cards', 'assets', 'render', 'rain
   ok(favCap({ [CAPTAINS[1].id]: 2, [CAPTAINS[2].id]: 5 })[0] === CAPTAINS[2].id && favCap({}) === null, 'favourite Captain = most played');
   const cs = collStats({ [ch]: { n: 3, f: { normal: 1, full: 1, rainbow: 1 } }, [item]: { n: 1, f: { holo: 1 } }, x_unknown: { n: 9, f: { full: 9 } }, [CARDS[2].id]: { n: 0, f: {} } });
   ok(cs.own === 2 && cs.total === CARDS.length && cs.full === 1 && cs.rb === 1 && cs.holo === 1, 'collection counts: ' + JSON.stringify(cs));
+  `, x); }
+// Ranked (js/ranked.js): Elo maths, tier boundaries, the save key, unranked games leave the rating alone, every bot tier plays legally.
+{ const x = { structuredClone }, part = f => fs.readFileSync(__dirname + '/../js/' + f + '.js', 'utf8').split('// ---------------- browser only')[0];
+  const cs = fs.readFileSync(__dirname + '/../js/cloud.js', 'utf8').match(/function cleanSave\(d\) \{[\s\S]*?\n\}\n/)[0];
+  vm.runInNewContext(['cards-data', 'card-overrides', 'cards', 'game'].map(f => fs.readFileSync(__dirname + '/../js/' + f + '.js', 'utf8')).join('\n;\n') + '\n;\n' + part('prebuilt') + '\n;\n' + part('ranked') + '\n;\n' + cs + `;
+  const ok = (c, m) => { if (!c) throw new Error('FAIL: ranked: ' + m); };
+  ok(rkExpect(1000, 1000) === 0.5 && Math.abs(rkExpect(1200, 1000) - 0.7597) < 1e-3 && Math.abs(rkExpect(1000, 1200) + rkExpect(1200, 1000) - 1) < 1e-12, 'expected score');
+  ok(rkDelta(1000, 1000, true, 32) === 16 && rkDelta(1000, 1000, false, 32) === -16 && rkDelta(1000, 1000, true, 16) === 8, 'K=32 for players, K=16 (half) for bots');
+  ok(rkDelta(1342, 1300, true, 16) === 7 && rkDelta(1342, 1300, false, 16) === -9, 'bot games: the numbers the mockup shows');
+  for (const [a, b] of [[1000, 1000], [1342, 1612], [900, 1900], [1555, 1201], [1000, 1025]]) for (const w of [true, false])
+    ok(rkDelta(a, b, w, 32) === -rkDelta(b, a, !w, 32) && rkDelta(a, b, w, 16) === -rkDelta(b, a, !w, 16), 'symmetric: one side gains what the other loses ' + a + ' ' + b);
+  ok([[0, 'bronze'], [999, 'bronze'], [1000, 'silver'], [1199, 'silver'], [1200, 'gold'], [1399, 'gold'], [1400, 'platinum'], [1600, 'diamond'], [1799, 'diamond'], [1800, 'master'], [5000, 'master']].every(([r, k]) => RK_TIERS[rkTierIx(r)][0] === k), 'tier boundaries');
+  ok(RK_BOTS.map(b => b.r).join() === '900,1100,1300,1500,1700,1900' && RK_TIERS.length === RK_BOTS.length, 'one bot per tier at 900..1900');
+  const s0 = rkNew(), w = rkSettle(s0, { kind: 'pvp', opp: 1000, won: true }), l = rkSettle(w, { kind: 'bot', opp: 1300, won: false });
+  ok(s0.r === 1000 && w.r === 1016 && w.g === 1 && w.w === 1 && w.pk === 1016 && l.r === 1016 + rkDelta(1016, 1300, false, 16) && l.g === 2 && l.w === 1 && l.pk === 1016, 'settle: rating, games, wins, peak');
+  for (const res of [undefined, null, {}, { kind: 'practice', opp: 1000, won: true }, { kind: 'casual', opp: 1000, won: false }, { kind: 'pvp', won: true }, { kind: '__proto__', opp: 1, won: true }])
+    ok(rkSettle(s0, res) === s0, 'unranked games never change the rating: ' + JSON.stringify(res));
+  ok(rkSettle({ r: 5, g: 0, w: 0, pk: 5 }, { kind: 'pvp', opp: 3000, won: false }).r === 5 && rkSettle({ r: 4999, g: 0, w: 0, pk: 4999 }, { kind: 'pvp', opp: 0, won: true }).r === 4999, 'rating stays within 0..5000');
+  // the save key
+  ok(JSON.stringify(cleanSave({ rank: { r: 1234, g: 10, w: 6, pk: 1200 } }).rank) === JSON.stringify({ r: 1234, g: 10, w: 6, pk: 1234 }), 'rank kept; peak never below the rating');
+  let refused = 0; for (const bad of [{ rank: 1000 }, { rank: [] }, { rank: { r: 1000, g: 1, w: 2, pk: 1000 } }, { rank: { r: -1, g: 0, w: 0, pk: 0 } }, { rank: { r: 5001, g: 0, w: 0, pk: 5001 } }, { rank: { r: 1000.5, g: 0, w: 0, pk: 1000 } }, { rank: { r: 1000, g: 0, w: 0, pk: 1000, x: 1 } }, { rank: { r: 1000, g: 0, w: 0 } }, { rank: { r: '1000', g: 0, w: 0, pk: 1000 } }]) try { cleanSave(bad); } catch { refused++; }
+  ok(refused === 9, 'junk rank refused: ' + refused);
+  // every tier, both seats: a full game of legal actions against the Gold bot, on its own deck pool
+  for (let t = 0; t < RK_BOTS.length; t++) {
+    ok(rkBotPool(t).length && rkBotPool(t).every(d => !deckProblems(d).length), 'tier ' + t + ' decks are legal');
+    let g = newGame([rkBotDeck(t), rkBotDeck(2)], ['T', 'G']), steps = 0;
+    while (g.phase !== 'over' && g.turnNo < 60 && steps++ < 3000) { const p = g.phase === 'defend' ? 1 - g.turn : g.turn, a = rkPick(g, p, p ? 2 : t); g = apply(g, p, a); g.log = []; }
+    ok(steps < 3000, 'tier ' + t + ' bot keeps playing legal actions');
+  }
+  `, x);
+  if (!fs.readFileSync(__dirname + '/../js/cloud.js', 'utf8').match(/const SAVE_KEYS = \[[^\]]*'rank'/)) throw new Error('FAIL: ranked: rank must be a SAVE_KEY'); }
+// Pull odds and card values (js/odds.js), on the real cards and packs. Recomputed here from the slot weights: in every pack each star level is
+// strictly less likely than the one below, per card (so a card or pack change that breaks it fails); averages add to 5 cards; finishes per card;
+// values are deterministic, rise with stars and stay within ±15% of the star's base; the pack-opening look follows stars only.
+{ const x = {}; vm.runInNewContext(['cards-data', 'card-overrides', 'cards', 'pack-sets', 'odds'].map(f => fs.readFileSync(__dirname + '/../js/' + f + '.js', 'utf8')).join('\n;\n') + `;
+  const ok = (c, m) => { if (!c) throw new Error('FAIL: odds: ' + m); };
+  ok(SLOTS.length === 5 && SLOTS.slice(0, 4).every(w => w === STAR_W) && SLOTS[4] === LAST_W && LAST_W[0] === 0, 'slots 1-4 STAR_W, slot 5 LAST_W with no 0★');
+  for (const pk of Object.keys(PACK_SET)) {
+    const cards = CARDS.filter(c => c.type !== 'captain' && PACK_SET[pk].includes(c.id)), entries = cards.flatMap(c => cardFins(c).map(f => [c, starN(c.id, f)]));
+    const slotP = SLOTS.map(w => { const tot = entries.reduce((a, [, s]) => a + w[s], 0); return s => w[s] / tot; });
+    const perPack = s => 1 - slotP.reduce((m, p) => m * (1 - p(s)), 1), o = packOdds(pk);
+    for (const c of cards) {
+      const ch = cardFins(c).map(f => [starN(c.id, f), perPack(starN(c.id, f))]).sort((a, b) => a[0] - b[0]);
+      for (let i = 1; i < ch.length; i++) ok(ch[i][0] > ch[i - 1][0] && ch[i][1] < ch[i - 1][1], pk + ': ' + c.name + ' ' + ch[i][0] + '★ (' + ch[i][1] + ') should be rarer than ' + ch[i - 1][0] + '★ (' + ch[i - 1][1] + ')');
+    }
+    const lv = [0, 1, 2, 3, 4, 5].filter(s => o.n[s]);
+    for (let i = 1; i < lv.length; i++) ok(o.each[lv[i]] < o.each[lv[i - 1]], pk + ': every ' + lv[i] + '★ card rarer than every ' + lv[i - 1] + '★ card');
+    ok(lv.every(s => Math.abs(o.each[s] - perPack(s)) < 1e-12), pk + ': packOdds matches the recomputed chances');
+    ok(Math.abs(o.expect.reduce((a, b) => a + b, 0) - 5) < 1e-9 && o.expect[0] < 4 + 1e-9, pk + ': averages add up to 5 cards, at most 4 of them 0★');
+    ok(o.value > 0 && Math.abs(cardChance(cards[0].id, pk) - (1 - o.per.reduce((m, p) => m * (1 - cardFins(cards[0]).reduce((a, f) => a + p[starN(cards[0].id, f)], 0)), 1))) < 1e-12, pk + ': card chance per pack');
+  }
+  for (let r = 0; r < 1; r += 0.001) ok(pullSlot(LAST_W, packEntries('heehn'), () => r).s >= 1, 'the last card is always 1★ or better');
+  // finishes: Items/Evils normal only; built-ins: full art + rainbow only with a full-art crop or a finishes list; a list is honoured
+  ok(CARDS.filter(c => c.type !== 'character' && c.type !== 'captain').every(c => cardFins(c).join() === 'normal'), 'Items and Evils: normal only');
+  const ch = CARDS.filter(c => c.type === 'character');
+  ok(ch.every(c => ['normal', 'holo', 'rev'].every(f => cardFins(c).includes(f)) && cardFins(c).includes('full') === (Array.isArray(c.finishes) ? c.finishes.includes('full') : !!c.cropFull)), 'Characters: normal/holo/rev always, full art when enabled');
+  const nf = ch.find(c => !c.cropFull && !c.finishes); ok(!nf || (!cardFins(nf).includes('rainbow') && allowFin(nf, 'rainbow') === 'rev'), 'no full-art crop: no 4★/5★, a rainbow drops to reverse');
+  ok(cardFins({ ...ch[0], type: 'character', finishes: ['normal', 'holo', 'full'] }).join() === 'normal,holo,full', 'a finishes list is used as is');
+  // values
+  ok(JSON.stringify(ch.map(c => FINS.map(f => cardValue(c.id, f)))) === JSON.stringify(ch.map(c => FINS.map(f => cardValue(c.id, f)))), 'values are deterministic');
+  for (const c of CARDS.filter(c => c.type !== 'captain')) {
+    const fins = c.type === 'character' ? FINS : ['normal'], v = fins.map(f => cardValue(c.id, f)), s = fins.map(f => starN(c.id, f));
+    fins.forEach((f, i) => ok(Math.abs(v[i] / VAL_BASE[s[i]] - 1) <= VAL_SWING + 1e-9, c.name + ' ' + f + ' = ' + v[i] + ' is outside ±15% of ' + VAL_BASE[s[i]]));
+    for (let i = 1; i < v.length; i++) ok(v[i] > v[i - 1], c.name + ': value must rise with stars ' + v);
+  }
+  const vals = ch.map(c => cardValue(c.id, 'holo')); ok(Math.min(...vals) === 85 && Math.max(...vals) === 115, 'weakest and strongest Character span the full ±15%: ' + Math.min(...vals) + '-' + Math.max(...vals));
+  // pack-opening look: stars only (an Ultra Rare Evil is a plain 0★ card), finishes give the foil looks, 4★/5★ the cutscene
+  const ev = CARDS.find(c => c.type !== 'character' && c.type !== 'captain' && (c.rarity === 'UR' || c.rarity === 'R'));
+  ok(ev && pullLook({ id: ev.id, finish: 'normal' }).edge === '' && !pullLook({ id: ev.id, finish: 'normal' }).fan && !pullLook({ id: ev.id, finish: 'normal' }).bg, 'a Rare/UR Item looks and sounds 0★');
+  const cc = ch.find(c => c.rarity === 'C'), uc = ch.find(c => c.rarity && c.rarity !== 'C'), L = (c, f) => pullLook({ id: c.id, finish: f });
+  ok(L(cc, 'normal') === PULL_LOOK[0] && L(uc, 'normal') === PULL_LOOK[1] && L(cc, 'holo').edge === 'edge-holo' && L(uc, 'rev').edge === 'edge-rev' && L(cc, 'full').cine === 'pull-4' && L(uc, 'rainbow').cine === 'pull-5', 'look by stars and finish');
+  ok(PULL_LOOK.every((l, s) => !!l.cine === s >= 4 && !!l.fan === s >= 2 && !!l.edge === s >= 1), 'only 1★+ glint, 2★+ fanfare, 4★+ cutscene');
   `, x); }
 // Encrypted art and audio: tools/encrypt-assets.js writes what js/assets.js decrypts with WebCrypto (same names, same format); a changed byte
 // or a file moved to another path is refused. The plaintext and the key are never tracked.
