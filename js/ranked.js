@@ -62,6 +62,13 @@ function rkBlock(s, p) {
   const af = s.players[1 - p].field[s.pending.i], pw = CARD[af.id].moves[s.pending.m].power + statsOf(s, 1 - p, af).bonus, F = s.players[p].field;
   return rkBest(F.map((_, i) => i), i => { const d = Math.max(0, pw - statsOf(s, p, F[i]).def); return (d < F[i].hp ? 100 : 0) - d * 10 + F[i].hp; });
 }
+// Defender p's spill order once blocker b is picked: every order of its other Characters is played out on a copy (same coin each time)
+// and the one that leaves p's board best (least lost) wins; ties keep field order.
+function rkOrder(s, p, b) {
+  const perms = a => (a.length < 2 ? [a] : a.flatMap((x, k) => perms([...a.slice(0, k), ...a.slice(k + 1)]).map(r => [x, ...r])));
+  const rest = s.players[p].field.flatMap((f, i) => (i !== b && f.hp > 0 ? [i] : []));
+  return rkBest(perms(rest.slice(0, 5)), o => { try { return rkVal(apply(s, p, { type: 'defend', i: b, order: o }, () => 0.5), p); } catch { return -Infinity; } });
+}
 // Resolve a declared attack with the defender's best block, for lookahead.
 const rkResolve = (n, p) => (n && n.phase === 'defend' ? rkTry(n, 1 - p, { type: 'defend', i: rkBlock(n, 1 - p) }) || n : n);
 
@@ -128,7 +135,8 @@ function rkDeep(g, p, depth, width) {
 function rkPick(g, p, tier, rnd = Math.random) {
   if (g.phase === 'defend') {
     const smart = tier >= 2 || (tier === 1 && rnd() < 0.5);
-    return { type: 'defend', i: smart ? rkBlock(g, p) : tier === 1 ? Math.floor(rnd() * g.players[p].field.length) : 0 };
+    const i = smart ? rkBlock(g, p) : tier === 1 ? Math.floor(rnd() * g.players[p].field.length) : 0;
+    return { type: 'defend', i, order: rkOrder(g, p, i) };
   }
   const first = () => rkOptions(g, p).find(a => a.type === 'play' || a.type === 'attack') || RK_END; // the first legal thing, never the Super
   if (tier === 0) return first();

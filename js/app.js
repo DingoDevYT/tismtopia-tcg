@@ -17,7 +17,7 @@ decks = (Array.isArray(decks) ? decks : []).map(d => ({ ...d, captain: CARD[d.ca
 if (onb.legacy) decks.unshift(...STARTERS.filter(s => !decks.some(d => d.name === s.name)).map(s => ({ id: uid(), ...structuredClone(s) })));
 if (!decks.length) decks.push({ id: uid(), name: 'My Deck', captain: null, cards: {} }); // a new player's stand-in until the starter packs make the real one
 let myName = store.get('name', 'Player');
-const ui = { view: 'home', deckId: store.get('deck', decks[0].id), filter: 'all', zoom: null, sheet: null, defPick: null, toast: '', code: '', status: '', joinCode: '', tut: null };
+const ui = { view: 'home', deckId: store.get('deck', decks[0].id), filter: 'all', zoom: null, sheet: null, defPick: null, defOrder: [], toast: '', code: '', status: '', joinCode: '', tut: null };
 // `state` is the authoritative game (rules run on it); `game` is what's on screen, which trails it while animations play.
 let peer = null, conn = null, isHost = false, me = 0, state = null, game = null, guest = null, toastTimer, bot = false, botTimer;
 
@@ -210,6 +210,7 @@ function botMove() {
   if (g.phase === 'defend' && g.turn === 0) {
     const mv = CARD[g.players[0].field[g.pending.i].id].moves[g.pending.m], pw = mv.power + statsOf(g, 0, g.players[0].field[g.pending.i]).bonus;
     a = { type: 'defend', i: best(all, i => { const d = Math.max(0, pw - statsOf(g, 1, B.field[i]).def); return (d < B.field[i].hp ? 100 : 0) - d * 10 + B.field[i].hp; }) };
+    if (typeof rkOrder === 'function') a.order = rkOrder(g, 1, a.i); // least-loss spill order (js/ranked.js)
   } else if (g.turn === 1 && g.phase === 'play') {
     const hc = B.hand.findIndex(id => CARD[id].type === 'character'), canPlay = hc >= 0 && B.field.length < 3;
     // Every move it can afford right now; attacks score by power per Action, abilities are a fallback.
@@ -322,14 +323,42 @@ function adjustSheet() {
     <div class="row2" style="margin-top:14px"><button class="btn" data-act="leave-battle">Leave battle</button><button class="btn primary" data-act="close">Done</button></div>`);
 }
 
+// The defend picker's maths, straight from the engine (apply on a copy): who takes how much if `b` blocks and the spill follows `order`.
+// multi: some other Character would take damage, so the defender picks the order by hand. shown: the blocker and the ordered ones.
+// left: damage still unplaced after them; done: nobody unordered would be hit (the rest stops at armour or becomes Boredom).
+function defView(g = game, b = ui.defPick, order = ui.defOrder || []) {
+  const run = o => { try { return apply(g, me, { type: 'defend', i: b, order: o }, () => 0.5).events.find(e => e.k === 'attack').roll; } catch { return null; } };
+  const r = b == null ? null : run(order), r0 = r && run([]);
+  if (!r) return null;
+  const af = g.players[g.turn].field[g.pending.i], power = CARD[af.id].moves[g.pending.m].power + statsOf(g, g.turn, af).bonus, shown = r.hits.slice(0, order.length + 1);
+  let left = power; for (const h of shown) { const through = Math.max(0, left - h.def); left = through ? through - h.taken : 0; }
+  return { multi: r0.hits.length > 1, shown, left, done: r.hits.length <= shown.length, bore: r.bore };
+}
+const NTH = n => ['1st', '2nd', '3rd', '4th', '5th'][n] || `${n + 1}th`;
+
 function defendSheet() {
-  const g = game, af = g.players[g.turn].field[g.pending.i], ac = CARD[af.id], A = statsOf(g, g.turn, af), mine = g.players[me].field, pickI = ui.defPick;
+  const g = game, af = g.players[g.turn].field[g.pending.i], ac = CARD[af.id], A = statsOf(g, g.turn, af), mine = g.players[me].field, pickI = ui.defPick, order = ui.defOrder || [];
   const mv = ac.moves[g.pending.m], power = mv.power + A.bonus, dmg = f => Math.max(0, power - statsOf(g, me, f).def), pick = mine[pickI];
+  const v = pick ? defView() : null, ordering = !!v?.multi, nth = NTH(order.length + 1); // the blocker is 1st
+  const marks = i => { // badge + damage chip on each Character already placed in the order
+    const k = ordering ? v.shown.findIndex(h => h.i === i) : -1, h = v?.shown[k];
+    return k < 0 ? '' : `<span class="ord${k ? '' : ' blk'}">${k + 1}</span><span class="dmgc${h.taken ? '' : ' safe'}">−${h.taken}${h.ko ? '<em>KO</em>' : ''}</span>`;
+  };
+  const cls = i => (i === pickI && !ordering ? ' picked' : '') + (ordering && v.shown.some(h => h.i === i && h.ko) ? ' ko-will' : '')
+    + (ordering && !v.done && i !== pickI && !order.includes(i) && mine[i].hp > 0 ? ' next-pick' : '');
+  const cards = mine.map((f, i) => renderCard(finCard(g.players[me], f.id), { cls: 'mini' + finCls(g.players[me], f.id) + cls(i), hp: f.hp, ...statsOf(g, me, f),
+    attrs: tappable('defpick', `data-i="${i}" data-nth="${nth}"`) }).replace(/<\/div>$/, `${marks(i)}</div>`)).join('');
+  const head = ordering ? `<div class="order-head"><h2>${v.done ? 'Damage order' : 'Who takes the rest?'}</h2><button data-act="defreset">Reset</button></div>` : '<h2>Pick a blocker</h2>';
+  const body = ordering ? `<div class="spill neu-in">${v.shown.map((h, k) => { const f = mine[h.i], arm = statsOf(g, me, f).def;
+      return `<div><i class="${k ? '' : 'blk'}">${k ? k + 1 : ICON.def}</i><span>${esc(CARD[f.id].name)}${k ? '' : ' <small>blocks</small>'}${arm ? ` <small>· armour ${arm}</small>` : ''}</span><b class="${h.taken ? '' : 'safe'}">${h.taken ? `−${h.taken}${h.ko ? ' · KO' : ''}` : 'Blocked'}</b></div>`; }).join('')}${v.done
+      ? `<div><i class="bo">${ICON.bore}</i><span>Your Boredom</span><b class="bo">+${v.bore}</b></div>`
+      : `<div class="left"><i class="bo">?</i><span>${v.left} damage left over: tap who takes it ${nth}</span></div>`}</div>`
+    : `<p class="muted center" style="margin:10px 0 12px">${pick ? (dmg(pick) > pick.hp ? `${CARD[pick.id].name} is defeated and ${dmg(pick) - pick.hp} damage goes to your Boredom.` : dmg(pick) === pick.hp ? `${CARD[pick.id].name} takes ${dmg(pick)} and is defeated.` : `${CARD[pick.id].name} takes ${dmg(pick)} damage after armour.`) : 'Armour (the shield) blocks that much of each hit. Damage past a blocker’s HP spills to your other Characters (you pick the order), then to your Boredom.'}</p>`;
+  const go = !pick ? '<button class="btn wide" disabled>Tap a Character</button>'
+    : !ordering ? btn({ type: 'defend', i: pickI }, `Block with ${CARD[pick.id].name}`, 'primary wide')
+    : v.done ? btn({ type: 'defend', i: pickI, order }, 'Confirm order', 'primary wide') : `<button class="btn wide" disabled>Tap a Character for the ${nth} spot</button>`;
   return sheet(`<div class="attacker neu">${renderCard(ac, { cls: 'mini', hp: af.hp, ...A })}<div><small>Incoming attack</small><br><b>${ac.name}</b> uses <b>${mv.name}</b>: ${power} damage${mv.text ? `<br><small>${mv.text}</small>` : ''}</div></div>
-    <h2>Pick a blocker</h2>
-    <div class="field">${mine.map((f, i) => renderCard(finCard(g.players[me], f.id), { cls: 'mini' + finCls(g.players[me], f.id) + (i === pickI ? ' picked' : ''), hp: f.hp, ...statsOf(g, me, f), attrs: tappable('defpick', `data-i="${i}"`) })).join('')}</div>
-    <p class="muted center" style="margin:10px 0 12px">${pick ? (dmg(pick) > pick.hp ? `${CARD[pick.id].name} is defeated and ${dmg(pick) - pick.hp} damage spills to your next Character (then your Boredom).` : dmg(pick) === pick.hp ? `${CARD[pick.id].name} takes ${dmg(pick)} and is defeated.` : `${CARD[pick.id].name} takes ${dmg(pick)} damage after armour.`) : 'Armour (the shield) blocks that much of each hit. Damage past a blocker’s HP spills to your next Character, then to your Boredom.'}</p>
-    ${pick ? btn({ type: 'defend', i: pickI }, `Block with ${CARD[pick.id].name}`, 'primary wide') : '<button class="btn wide" disabled>Tap a Character</button>'}`, false);
+    ${head}<div class="field">${cards}</div>${body}${go}`, false);
 }
 
 function render() {
@@ -519,11 +548,128 @@ function superCutIn(e, s) {
 }
 const superCast = ev => ev.find(e => e.k === 'cast' && CARD[e.id]?.type === 'captain');
 
+// ---------------- draws and cause -> effect ----------------
+const fxCtr = el => { const r = el.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; };
+// Cards entering your hand fly out of the deck counter face down, flip edge-on and land face up (staggered); the opponent's hop into their row face down.
+function flyDraw(cards, mine) {
+  const deckEl = $app.querySelector('.mid .deckn'), [x0, y0] = deckEl ? fxCtr(deckEl) : [0, 0];
+  cards.forEach((c, j) => {
+    c.classList.remove('pend'); c.style.setProperty('--dd', `${j * 0.18}s`);
+    if (calm) return c.classList.add(mine ? 'dfade' : 'odraw');
+    if (!mine || !deckEl) return c.classList.add(mine ? 'dfade' : 'odraw');
+    const [x1, y1] = fxCtr(c);
+    c.style.setProperty('--dx', `${x0 - x1}px`); c.style.setProperty('--dy', `${y0 - y1}px`);
+    c.insertAdjacentHTML('beforeend', renderCard(null, { cls: 'cb' }));
+    c.classList.add('drawing');
+    setTimeout(() => { c.classList.remove('drawing'); c.querySelector(':scope > .cb')?.remove(); }, (j * 0.18 + 0.95) * 1000 + 40);
+  });
+}
+// Effect events carry src (the card) and when (the trigger) from the engine; they group into steps: one per card, trigger and kind of change.
+function causeSteps(ev) {
+  const out = [];
+  for (const e of ev) {
+    if (!e.src || !['meter', 'draw', 'actions', 'purge'].includes(e.k)) continue;
+    const kind = e.k === 'meter' ? e.key : e.k === 'actions' ? 'act' : e.k, key = JSON.stringify([e.src, e.when, kind, e.p]), last = out[out.length - 1];
+    if (last?.key === key && kind !== 'purge') { last.n += e.k === 'draw' ? 1 : e.n; continue; }
+    out.push({ key, kind, src: e.src, when: e.when, p: e.p, n: e.k === 'draw' ? 1 : e.n || 0, id: e.id });
+  }
+  return out;
+}
+const CAUSE_ICON = { goof: 'goof', bore: 'bore', act: 'action', draw: 'cards', purge: 'evil' };
+function causeWhen(st, s) { // the trigger in words, from the viewer's side
+  const start = pi => (pi === me ? 'Start of your turn' : `Start of ${s.players[pi].name}'s turn`);
+  return { play: 'When played', hit: 'On hit', turn: start(st.src.p), oppTurn: start(1 - st.src.p), move: CARD[st.src.id]?.moves?.[st.src.m]?.name || 'Ability' }[st.when] || 'Effect';
+}
+const causeText = st => { const n = Math.abs(st.n), sg = st.n < 0 ? '−' : '+';
+  return st.kind === 'draw' ? `+${n} card${n === 1 ? '' : 's'}` : st.kind === 'act' ? `${sg}${n} Action${n === 1 ? '' : 's'}` : st.kind === 'purge' ? `${CARD[st.id]?.name || 'Evil'} removed` : `${sg}${n} ${METERS[st.kind]}`; };
+const sideSel = pi => `.side:nth-child(${pi === me ? 4 : 2})`;
+// The card that caused it, on screen; if it isn't (phone Effects behind their button, an Instant, a Character defeated meanwhile), a small copy pops up.
+function causeSrc(st) {
+  const { src } = st, who = whoOf(src.p), q = sel => $app.querySelector(sel);
+  let el = st.when === 'play' ? fxLayer.querySelector(`.splash .card[data-id="${src.id}"]`) : null; // a card just played is still big in the middle
+  if (!el && src.zone === 'field') { el = fieldEl(src.p, src.i); if (el?.dataset.id !== src.id) el = q(`.card[data-who="${who}"][data-zone="field"][data-id="${src.id}"]`); }
+  if (!el && src.zone === 'effects') { el = q(`.fxc[data-who="${who}"][data-i="${src.i}"]`); if (el?.dataset.id !== src.id) el = q(`.fxc[data-who="${who}"][data-id="${src.id}"]`); }
+  if (!el && src.zone === 'cap') el = hudEl(src.p)?.querySelector('.cap');
+  if (el?.offsetWidth) return el;
+  const btn = q(`${sideSel(src.p)} .fx-open`), ref = (src.zone === 'effects' && btn?.offsetWidth ? btn : null) || q(`${sideSel(src.p)} .field`);
+  if (!ref || !CARD[src.id]) return null;
+  const r = ref.getBoundingClientRect(), d = document.createElement('div');
+  d.className = 'fx-peek'; d.innerHTML = renderCard(CARD[src.id], { cls: 'mini' });
+  d.style.left = `${Math.max(56, Math.min(innerWidth - 56, r.left + r.width / 2))}px`;
+  d.style.top = `${Math.max(70, Math.min(innerHeight - 70, ref === btn ? r.top - 70 : r.top + r.height / 2))}px`;
+  fxLayer.append(d); setTimeout(() => d.remove(), 1350);
+  return d.querySelector('.card');
+}
+const causeTarget = st => (st.kind === 'goof' || st.kind === 'bore' ? hudEl(st.p)?.querySelector(`.meter.${st.kind}`) : st.kind === 'act' ? $app.querySelector('.mid .pips')
+  : st.kind === 'draw' ? $app.querySelector(st.p === me ? '.mid .deckn' : '.opp-hand') : $app.querySelector(`${sideSel(st.p)} .effects`));
+// A meter's number and bar, set by hand while effects are still flying to it (the state already holds the final value).
+function setMeter(pi, key, v) {
+  const m = hudEl(pi)?.querySelector(`.meter.${key}`); if (!m) return null;
+  const max = key === 'goof' ? CARD[game.players[pi].captain].goof || 10 : BORE_MAX;
+  m.querySelector('b').textContent = `${v}/${max}`; m.querySelector('.mbar > i').style.width = `${Math.min(100, (100 * v) / max)}%`;
+  if (key === 'bore') m.classList.toggle('warn', v >= max - 3);
+  return m;
+}
+// One step: the card pulses gold with a tag (trigger + effect), then an orb that is just the meter's icon flies to what changed, which then updates.
+async function causeStep(st, s, fx) {
+  const card = causeSrc(st), icon = ICON[CAUSE_ICON[st.kind]], to = causeTarget(st);
+  if (card) {
+    flash(card, 'cause', 1150);
+    const r = card.getBoundingClientRect(), tag = document.createElement('div');
+    tag.className = `cause-tag ${st.kind}`; tag.innerHTML = `<small>${esc(causeWhen(st, s))}</small><b>${icon}${esc(causeText(st))}</b>`;
+    tag.style.left = `${Math.max(90, Math.min(innerWidth - 90, r.left + r.width / 2))}px`; tag.style.top = `${Math.max(30, Math.min(innerHeight - 34, card.closest('.splash') ? r.top - 22 : r.bottom - 4))}px`; // above a splash, clear of its own label
+    setTimeout(() => fxLayer.append(tag), 50); setTimeout(() => tag.remove(), 1400);
+  }
+  if (calm) { await sleep(500); fx.land(st); await sleep(700); return; } // reduced motion: the glow and tag fade, no flight
+  await sleep(450);
+  if (card && to) {
+    const [cx, cy] = fxCtr(card), [mx, my] = fxCtr(to);
+    [0, 50, 100, 150].forEach((lag, k) => setTimeout(() => { // the orb and a short fading trail
+      const o = document.createElement('div');
+      o.className = `orb ${st.kind}${k ? ' ghost' : ''}`; o.innerHTML = icon;
+      Object.assign(o.style, { left: `${cx}px`, top: `${cy}px` }); o.style.setProperty('--dx', `${mx - cx}px`); o.style.setProperty('--dy', `${my - cy}px`);
+      if (k) { o.style.setProperty('--s', 1 - k * 0.2); o.style.setProperty('--o', 0.55 - k * 0.14); }
+      fxLayer.prepend(o); setTimeout(() => o.remove(), 520);
+    }, lag));
+    await sleep(500);
+  }
+  fx.land(st);
+  await sleep(250);
+}
+// What arriving does: the meter ticks to its new number, the Action pips bump, the drawn cards fly out of the deck, the Evil goes.
+function causeLander(ev) {
+  const shown = new Map(), mk = (p, key) => `${p}:${key}`;
+  for (const e of ev) if (e.k === 'meter' && e.src) shown.set(mk(e.p, e.key), (shown.get(mk(e.p, e.key)) ?? game.players[e.p][e.key]) - e.n);
+  if (!calm) for (const [k, v] of shown) { const [p, key] = k.split(':'); setMeter(+p, key, v); } // rewind: effects still to come
+  const drawn = pi => { const n = ev.filter(e => e.k === 'draw' && e.p === pi).length, els = [...$app.querySelectorAll(pi === me ? '.board > .hand > .card' : '.opp-hand > .card')];
+    return n ? els.slice(-n).map((el, j) => ({ el, tagged: !!ev.filter(e => e.k === 'draw' && e.p === pi)[j].src })) : []; };
+  const pend = [me, 1 - me].map(pi => { const d = drawn(pi); d.forEach(x => x.tagged && x.el.classList.add('pend')); return { pi, now: d.filter(x => !x.tagged).map(x => x.el), later: d.filter(x => x.tagged).map(x => x.el) }; });
+  return {
+    pend,
+    land(st) {
+      if (st.kind === 'goof' || st.kind === 'bore') {
+        const k = mk(st.p, st.kind), v = (shown.get(k) ?? game.players[st.p][st.kind] - st.n) + st.n; shown.set(k, v);
+        const m = calm ? hudEl(st.p)?.querySelector(`.meter.${st.kind}`) : setMeter(st.p, st.kind, v);
+        flash(m?.querySelector('b'), 'tick', 520); flash(m, 'hl', 1400);
+      }
+      if (st.kind === 'act') flash($app.querySelector('.mid .pips'), 'bump', 600);
+      if (st.kind === 'draw') { const P = pend.find(x => x.pi === st.p); flyDraw(P.later.splice(0, st.n), st.p === me); }
+      if (st.kind === 'purge') floatText($app.querySelector(sideSel(st.p)), causeText(st), 'blocked', 0, ICON.forever);
+    },
+  };
+}
+
 async function postAnimate(ev, prev, s) {
+  const fx = causeLander(ev), steps = causeSteps(ev); // set the board back to before the card effects, before anything shows
   const sup = superCast(ev);
   if (sup) await superCutIn(sup, s); // the effect lands on the meters once the cut-in is gone
   const nudges = new Map(), stack = el => { const n = nudges.get(el) || 0; nudges.set(el, n + 24); return n; }; // labels on one element stack upwards
   const pips = $app.querySelector('.mid .pips');
+  for (const P of fx.pend) if (P.now.length) { // plain draws (start of turn, the Draw button): straight away, then one "+N cards" label
+    flyDraw(P.now, P.pi === me);
+    const n = P.now.length, el = P.pi === me ? $app.querySelector('.hand') : hudEl(P.pi)?.querySelector('.meters');
+    setTimeout(() => floatText(el, `+${n} card${n > 1 ? 's' : ''}`, 'draw', 0, ICON.draw), P.pi === me && !calm ? (0.8 + (n - 1) * 0.18) * 1000 : 0);
+  }
   for (const e of ev) {
     if (e.k === 'play') {
       flash(e.zone === 'field' ? fieldEl(e.p, e.i) : $app.querySelector(`.fxc[data-who="${whoOf(e.p)}"][data-i="${e.i}"]`), e.zone === 'field' ? 'slam' : 'pop', 700);
@@ -541,6 +687,7 @@ async function postAnimate(ev, prev, s) {
     if (e.k === 'coin') coinToss(e.heads);
     if (e.k === 'declare') floatText(fieldEl(e.p, e.i), `${e.move} ${e.power}`, 'atk', 0, ICON.atk);
     if (e.k === 'move' && e.i != null) floatText(fieldEl(e.p, e.i), e.name, 'atk', 0, ICON.atk);
+    if (e.src && ['meter', 'actions', 'purge'].includes(e.k)) continue; // a card effect: its cause -> effect step below shows it
     if (e.k === 'purge') floatText($app.querySelector(`.side:nth-child(${e.p === me ? 4 : 2})`), `${CARD[e.id].name} removed`, 'blocked', 0, ICON.forever);
     if (e.k === 'actions') { flash(pips, 'bump', 600); floatText(pips, `${e.n > 0 ? '+' : '−'}${Math.abs(e.n)} Action${Math.abs(e.n) > 1 ? 's' : ''}`, 'act', stack(pips), ICON.action); }
     if (e.k === 'meter') {
@@ -549,17 +696,18 @@ async function postAnimate(ev, prev, s) {
       floatText(h?.querySelector('.meters'), `${e.n > 0 ? '+' : '−'}${Math.abs(e.n)} ${e.key === 'goof' ? 'Creativity' : 'Boredom'}`, e.key, stack(h), ICON[e.key]);
     }
     if (e.k === 'fatigue') { const h = hudEl(e.p); floatText(h?.querySelector('.meters'), 'Deck empty!', 'bore', stack(h), ICON.draw); }
-    if (e.k === 'draw') {
-      if (e.p === me) { const hand = $app.querySelector('.hand'); flash($app.querySelector('.hand .card:last-child'), 'drawn', 650); floatText(hand, '+1 card', 'draw', stack(hand), ICON.draw); }
-      else { const h = hudEl(e.p); floatText(h?.querySelector('.meters'), '+1 card', 'draw', stack(h), ICON.draw); }
-    }
     if (e.k === 'turn') {
-      const gain = ev.find(x => x.k === 'meter' && x.p === e.p && x.key === 'goof' && x.n > 0)?.n || 0, drew = ev.some(x => x.k === 'draw' && x.p === e.p);
+      const gain = ev.find(x => x.k === 'meter' && x.p === e.p && x.key === 'goof' && x.n > 0 && !x.src)?.n || 0, drew = ev.some(x => x.k === 'draw' && x.p === e.p && !x.src); // the turn's own, not card effects
       flash(pips, 'bump', 600);
       banner(`${e.p === me ? 'Your turn' : `${esc(s.players[e.p].name)}'s turn`}<small>${e.actions} ${ICON.action}Action${e.actions === 1 ? '' : 's'}${gain ? ` · +${gain} ${ICON.goof}Creativity` : ''}${drew ? ` · ${ICON.draw}+1 card` : ''}</small>`, 'turn');
     }
   }
   if (s.phase === 'over' && prev.phase !== 'over') flash($app.querySelector('.big'), 'enter', 1000);
+  if (!steps.length || ui.view !== 'game' || s.phase === 'over') return;
+  // card effects play one after another, once a just-played card has landed and the turn banner / coin flip has had its moment
+  await Promise.race([bannerQ, sleep(1200)]);
+  if (ev.some(e => e.k === 'play' || e.k === 'cast')) await sleep(350);
+  for (const st of steps) { if (game !== s) break; await causeStep(st, s, fx); }
 }
 
 // Inspecting a card tilts it toward the pointer with a moving shine.
@@ -666,9 +814,16 @@ async function present(prev, s) {
   const ev = prev && s.seq > prev.seq ? s.events || [] : [];
   if (!prev) ui.zoom = ui.sheet = null; // a fresh deal
   if (!calm && ui.view === 'game' && game && ev.some(e => e.k === 'attack' || e.k === 'hit')) await preAnimate(ev);
-  game = s; ui.view = 'game'; ui.code = ''; ui.status = ''; ui.defPick = null; ui.atk = null;
+  game = s; ui.view = 'game'; ui.code = ''; ui.status = ''; ui.defPick = null; ui.defOrder = []; ui.atk = null;
   toast(s.log[s.log.length - 1]);
-  if (calm) { if (prev && superCast(ev)) await superCutIn(superCast(ev), s); return; } // reduced motion: just the plain name fade
+  if (calm) { // reduced motion: the plain Super name fade, drawn cards fade in, card effects show their glow and tag without flights
+    if (!prev) return;
+    const fx = causeLander(ev);
+    if (superCast(ev)) await superCutIn(superCast(ev), s);
+    for (const P of fx.pend) flyDraw(P.now, P.pi === me);
+    for (const st of causeSteps(ev)) await causeStep(st, s, fx);
+    return;
+  }
   if (!prev) coinFlip(s); else await postAnimate(ev, prev, s);
 }
 
@@ -701,7 +856,7 @@ const ACTS = {
   super() { ui.sheet = 'super'; ui.zoom = null; },
   sheet(d) { ui.sheet = d.s; ui.zoom = null; },
   close() { ui.zoom = ui.sheet = ui.atk = null; },
-  aim(d) { ui.atk = { i: Number(d.i), m: Number(d.m) }; ui.defPick = null; ui.zoom = null; },
+  aim(d) { ui.atk = { i: Number(d.i), m: Number(d.m) }; ui.defPick = null; ui.defOrder = []; ui.zoom = null; },
   step(d) {
     const dk = deck(), c = CARD[d.id], n = (dk.cards[d.id] || 0) + Number(d.d);
     if (n > (c.main ? 1 : MAX_COPIES)) return toast(c.main ? 'Main Characters are 1 per deck.' : `Max ${MAX_COPIES} copies.`);
@@ -741,7 +896,15 @@ const ACTS = {
     doAction(a);
   },
   end() { ui.zoom = ui.sheet = null; doAction({ type: 'end' }); },
-  defpick(d) { ui.defPick = Number(d.i); },
+  defpick(d) { // first tap: the blocker; if damage would spill, the next taps put the other Characters in order (tap a placed one to take it and those after it back)
+    const i = Number(d.i), v = defView();
+    if (i === ui.defPick) { ui.defPick = null; ui.defOrder = []; return; }
+    const k = ui.defOrder.indexOf(i);
+    if (k >= 0) ui.defOrder = ui.defOrder.slice(0, k);
+    else if (!v?.multi) { ui.defPick = i; ui.defOrder = []; }
+    else if (!v.done && game.players[me].field[i]?.hp > 0) ui.defOrder = [...ui.defOrder, i];
+  },
+  defreset() { if (ui.defOrder.length) ui.defOrder = []; else ui.defPick = null; },
   rematch() { if (bot) startBot(false); else if (isHost) startGame(); else conn?.send({ t: 'rematch' }); },
   leave() { leave(); },
   'leave-battle'() { if (confirm('Leave this battle?')) leave(); },

@@ -324,8 +324,10 @@ img[data-asset] { visibility: hidden; } /* still being decrypted (js/assets.js):
 .pips .i { width: 14px; height: 14px; }
 .pips i.on { color: #fff; background: linear-gradient(160deg, #ffd34e, #f2a21a); box-shadow: 0 0 10px rgba(255, 196, 40, .8); }
 .btn.end { box-shadow: var(--raise-sm), 0 0 0 2px var(--glow); }
-.hand { display: flex; justify-content: center; align-items: flex-end; height: 132px; padding-bottom: 12px; flex: none; }
-.hand .card { --cw: 80px; margin: 0 calc(-12px - max(0px, (var(--n, 5) - 5) * 7px)); /* bigger hands overlap more */ transform: translateY(var(--y, 0)) rotate(var(--r, 0)); transform-origin: 50% 110%; transition: transform .15s; }
+/* The hand measures its own width: cards sit --gap apart when they fit, and overlap just enough when they don't. */
+.hand { display: flex; justify-content: center; align-items: flex-end; height: 132px; padding-bottom: 12px; flex: none; container-type: inline-size; --gap: 6px; --pad: 10px; }
+.hand .card { --cw: 80px; margin: 0 0 0 min(var(--gap), (100cqw - 2 * var(--pad) - var(--n, 5) * var(--cw)) / max(1, var(--n, 5) - 1)); transform: translateY(var(--y, 0)) rotate(var(--r, 0)); transform-origin: 50% 110%; transition: transform .15s; }
+.hand .card:first-child { margin-left: 0; }
 .hand .card.sel { transform: translateY(-26px) scale(1.06); z-index: 2; }
 .toast { position: absolute; top: 32%; left: 50%; transform: translateX(-50%); z-index: 5; padding: 8px 16px; border-radius: 999px; font-size: 12px; font-weight: 500; white-space: nowrap; }
 .toast b { font-weight: 800; }
@@ -557,8 +559,8 @@ img[data-asset] { visibility: hidden; } /* still being decrypted (js/assets.js):
   .card.zoom.k-captain { --cw: 440px; }
   .captain-slot .card, .captain-slot .slot { --cw: 260px; width: 260px; }
   .mid { grid-area: mid; justify-self: center; width: min(640px, 100%); margin: 6px 0; }
-  .hand { grid-area: hand; height: auto; padding: 10px 0 24px; }
-  .hand .card { --cw: clamp(100px, 16vh, 160px); margin: 0 calc(-6px - max(0px, (var(--n, 5) - 5) * 14px)); }
+  .hand { grid-area: hand; height: auto; padding: 10px 0 24px; --gap: 12px; --pad: 24px; }
+  .hand .card { --cw: clamp(100px, 16vh, 160px); }
   .toast { top: 86px; font-size: 13px; }
 
   /* overlays become centered dialogs */
@@ -1312,6 +1314,7 @@ body:has(#app[data-view="game"]) :is(.vol-btn, .vol-slider, .theme-btn) { displa
 .deckn b { font-weight: 800; }
 @container app (max-width: 899.98px) {
   .hand { height: 148px; padding-bottom: 28px; }
+  .hand.h8 .card { --cw: 72px; } .hand.h10 .card { --cw: 66px; } /* big hands: a bit smaller, so more of each card shows */
   .hud .cap .frame { display: block; padding: 0; }
   .hud .cap .art { position: absolute; inset: 2.2cqw; height: auto; border-radius: 3cqw; box-shadow: none; }
   .hud .cap .head { position: absolute; z-index: 2; left: 2.2cqw; right: 2.2cqw; bottom: 2.2cqw; min-height: 0; padding: 7cqw 3cqw 2.4cqw; border-radius: 0 0 3cqw 3cqw; background: linear-gradient(transparent, rgba(10, 12, 25, .78)); }
@@ -1939,3 +1942,97 @@ body:has(#app[data-view="game"]) :is(.vol-btn, .vol-slider, .theme-btn) { displa
 .rating-box .progress u { display: block; height: 100%; margin-top: -9px; border-radius: 0 4px 4px 0; }
 .rating-box .progress u.up { background: color-mix(in srgb, var(--good) 75%, white); } .rating-box .progress u.dn { background: color-mix(in srgb, var(--accent) 55%, white); }
 .rating-box .pl { display: flex; justify-content: space-between; font-size: 11.5px; font-weight: 700; color: var(--muted); }
+
+/* ===== battle: draws, cause -> effect, spill order (approved in review/battle-mock2.html) ===== */
+/* DRAW: the card flies in face down from the deck counter, flips edge-on and lands face up. app.js sets --dx/--dy (deck centre minus
+   slot centre) and --dd (stagger). pend = drawn but not shown yet (it waits for the card effect that draws it). */
+.hand .card.pend, .opp-hand .card.pend { opacity: 0; }
+.hand .card.drawing { z-index: 6; animation: drawIn .95s cubic-bezier(.3, .7, .3, 1) var(--dd, 0s) both; }
+.hand .card.drawing > .cb { position: absolute; inset: 0; z-index: 9; --cw: 100%; animation: cbOff .95s var(--dd, 0s) both; }
+@keyframes drawIn {
+  0%     { transform: translate(var(--dx), var(--dy)) rotate(-12deg) perspective(600px) rotateY(0) scale(.4); opacity: 0; }
+  6%     { opacity: 1; }
+  28%    { transform: translate(calc(var(--dx) * .45), calc(var(--dy) * .45 - 46px)) rotate(-5deg) perspective(600px) rotateY(0) scale(.85); }
+  52%    { transform: translate(0, calc(var(--y) - 14px)) rotate(var(--r)) perspective(600px) rotateY(0) scale(1.1); }
+  76%    { transform: translate(0, calc(var(--y) - 14px)) rotate(var(--r)) perspective(600px) rotateY(90deg) scale(1.1); }
+  76.01% { transform: translate(0, calc(var(--y) - 14px)) rotate(var(--r)) perspective(600px) rotateY(-90deg) scale(1.1); }
+  100%   { transform: translate(0, var(--y)) rotate(var(--r)) perspective(600px) rotateY(0) scale(1); opacity: 1; }
+}
+.hand .card.drawing > .frame { animation: faceOn .95s var(--dd, 0s) both; } /* face hidden while the back shows, so no edge peeks out */
+@keyframes faceOn { 0%, 76% { opacity: 0; } 76.01%, 100% { opacity: 1; } }
+@keyframes cbOff { 0%, 76% { opacity: 1; } 76.01%, 100% { opacity: 0; } }
+.opp-hand .card.odraw { animation: odraw .5s cubic-bezier(.2, .9, .3, 1) var(--dd, 0s) both; } /* the opponent's draws stay face down: a short hop into their row */
+@keyframes odraw { from { translate: 0 46px; scale: .6; opacity: 0; } }
+
+/* CAUSE -> EFFECT: the card that caused it pulses gold, its rule text lights up, a tag names the trigger and the effect,
+   then an orb (just the meter's icon) carries it to what changed. */
+.card.cause { z-index: 6; animation: cause 1.1s cubic-bezier(.2, 1.4, .4, 1) both; }
+@keyframes cause { 0% { scale: 1; } 22% { scale: 1.14; } 50% { scale: 1.08; } 100% { scale: 1; } }
+.card.cause .frame { animation: causeGlow 1.1s ease-out both; }
+@keyframes causeGlow { 0% { box-shadow: inset 0 0 0 2.4cqw #f4f6fa, 0 0 0 0 #ffd34e; }
+  18%, 62% { box-shadow: inset 0 0 0 2.4cqw #f4f6fa, 0 0 0 4px #ffd34e, 0 0 30px 8px rgba(255, 190, 40, .9); filter: brightness(1.12); }
+  100% { box-shadow: inset 0 0 0 2.4cqw #f4f6fa, 0 0 0 0 transparent; } }
+.card.cause .text.passive, .card.cause > .frame > .text:not(.passive) { animation: causeText 1.1s both; }
+@keyframes causeText { 12%, 72% { background: #ffe27a; box-shadow: 0 0 0 1.2cqw #ffc93a; color: #3a2a00; } }
+.cause-tag { position: fixed; z-index: 7; translate: -50% -50%; display: inline-flex; flex-direction: column; align-items: center; padding: 3px 12px 4px; border-radius: 14px;
+  background: var(--paper); border: 2px solid #f0a01c; box-shadow: 0 6px 18px rgba(0, 0, 0, .3); white-space: nowrap; animation: causeTag 1.3s both; }
+.cause-tag small { font-size: 9px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
+.cause-tag b { display: inline-flex; align-items: center; gap: 4px; font-size: 15px; font-weight: 800; color: #f0941c; }
+.cause-tag .i { width: 15px; height: 15px; }
+.cause-tag.bore { border-color: var(--bore); } .cause-tag.bore b { color: var(--bore); }
+.cause-tag.draw { border-color: #3b7ddc; } .cause-tag.draw b { color: #3b7ddc; }
+.cause-tag.act { border-color: #f2a21a; } .cause-tag.act b { color: #c98a00; }
+.cause-tag.purge { border-color: #7348c9; } .cause-tag.purge b { color: #7348c9; }
+:root[data-theme="dark"] .cause-tag.draw b { color: #74a8f2; } :root[data-theme="dark"] .cause-tag.act b { color: #e0a21a; } :root[data-theme="dark"] .cause-tag.purge b { color: #ab8cf2; }
+@keyframes causeTag { 0% { opacity: 0; transform: translateY(10px) scale(.5); } 14% { opacity: 1; transform: scale(1.1); } 24% { transform: none; } 82% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateY(-12px); } }
+.orb { position: fixed; z-index: 8; width: 30px; height: 30px; margin: -15px 0 0 -15px; border-radius: 50%; display: grid; place-items: center; color: #fff;
+  background: radial-gradient(circle at 40% 35%, #fff7d8, #ffb347 55%, #f0841c); box-shadow: 0 0 16px 5px rgba(255, 170, 40, .85); animation: orb .5s cubic-bezier(.45, 0, .55, 1) both; }
+.orb .i { width: 17px; height: 17px; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .35)); }
+.orb.bore { background: radial-gradient(circle at 40% 35%, #ffffff, #a9b4cc 55%, #6d7a94); box-shadow: 0 0 16px 5px rgba(150, 165, 200, .8); }
+.orb.draw { background: radial-gradient(circle at 40% 35%, #e6f0ff, #6ea4f0 55%, #3b7ddc); box-shadow: 0 0 16px 5px rgba(80, 140, 230, .8); }
+.orb.act { background: radial-gradient(circle at 40% 35%, #fff7d8, #ffd34e 55%, #f2a21a); box-shadow: 0 0 16px 5px rgba(255, 196, 40, .85); }
+.orb.purge { background: radial-gradient(circle at 40% 35%, #efe6ff, #a07ee6 55%, #7348c9); box-shadow: 0 0 16px 5px rgba(130, 90, 220, .8); }
+.orb.ghost { scale: var(--s); opacity: var(--o); }
+.orb.ghost .i { display: none; }
+@keyframes orb { 0% { transform: translate(0, 0) scale(.3); opacity: 0; } 15% { opacity: 1; transform: translate(calc(var(--dx) * .06), calc(var(--dy) * .06 - 24px)) scale(1.2); } 100% { transform: translate(var(--dx), var(--dy)) scale(.75); opacity: 1; } }
+.meter b.tick { display: inline-block; animation: pop .5s cubic-bezier(.2, 1.6, .4, 1) both; }
+.fx-peek { position: fixed; z-index: 7; translate: -50% -50%; animation: peek 1.3s both; } /* phones: an Item from behind the Effects button */
+.fx-peek .card { --cw: 78px; }
+@keyframes peek { 0% { opacity: 0; transform: translateY(16px) scale(.6); } 14% { opacity: 1; transform: none; } 84% { opacity: 1; transform: none; } 100% { opacity: 0; transform: scale(.85); } }
+
+/* SPILL ORDER: numbered badges and damage chips on the defend sheet's Characters, and the damage rows under them. */
+.sheet .field { gap: 14px; padding: 10px 0 14px; }
+.sheet .field .card { position: relative; }
+.ord { position: absolute; top: -10px; left: -10px; z-index: 3; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 16px; font-weight: 800; color: #fff;
+  background: var(--accent); box-shadow: 0 0 0 3px var(--bg), 0 3px 8px rgba(0, 0, 0, .35); }
+.ord.blk { background: #3b7ddc; }
+.dmgc { position: absolute; left: 50%; bottom: -11px; translate: -50% 0; z-index: 3; display: inline-flex; align-items: center; gap: 3px; padding: 2px 9px; border-radius: 999px; background: var(--paper); border: 2px solid var(--accent); color: var(--accent); font-size: 12px; font-weight: 800; white-space: nowrap; }
+.dmgc em { font-style: normal; padding: 0 5px; margin-left: 2px; border-radius: 99px; background: var(--accent); color: #fff; font-size: 10px; }
+.dmgc.safe { border-color: var(--good, #24a065); color: var(--good, #24a065); }
+.sheet .field .card.ko-will .frame { filter: saturate(.55) brightness(.9); }
+.sheet .field .card.next-pick { outline: 3px dashed var(--glow); outline-offset: 5px; border-radius: 10px; animation: coach 1.1s ease-in-out infinite; }
+.sheet .field .card.next-pick::after { content: 'Tap: ' attr(data-nth); position: absolute; left: 50%; bottom: -11px; translate: -50% 0; z-index: 3; padding: 2px 9px; border-radius: 999px; background: var(--glow); color: #06222a; font-size: 12px; font-weight: 800; white-space: nowrap; }
+.spill { display: grid; gap: 0; margin: 4px 0 12px; padding: 4px 14px; border-radius: 16px; }
+.spill > div { display: flex; align-items: center; gap: 10px; padding: 7px 0; font-size: 14px; font-weight: 600; }
+.spill > div + div { border-top: 1px solid var(--line); }
+.spill i { flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 12px; font-weight: 800; color: #fff; background: var(--accent); }
+.spill i.blk { background: #3b7ddc; } .spill i.bo { background: var(--bore); } .spill i .i { width: 13px; height: 13px; }
+.spill span { flex: 1; } .spill b { color: var(--accent); } .spill b.bo { color: var(--bore); } .spill b.safe { color: var(--good, #24a065); }
+.spill small { color: var(--muted); font-weight: 600; }
+.spill .left { color: var(--muted); font-style: italic; }
+.order-head { display: flex; justify-content: space-between; align-items: baseline; }
+.order-head button { background: none; border: 0; color: var(--accent); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+@container app (min-width: 900px) { /* the centred dialog: smaller cards and tighter rows so a 3-Character order fits without scrolling */
+  .sheet .field { padding: 8px 0 12px; }
+  .sheet .field .card { --cw: clamp(92px, 13vh, 126px); }
+  .sheet .attacker { margin-bottom: 8px; padding: 8px; }
+  .spill { margin: 2px 0 10px; } .spill > div { padding: 5px 0; }
+}
+
+@media (prefers-reduced-motion: reduce) { /* short fades instead of flights */
+  .cause-tag, .fx-peek { animation: calmFade 1.2s both !important; }
+  .card.cause, .card.cause .frame, .card.cause .text { animation: none !important; }
+  .card.cause .frame { box-shadow: inset 0 0 0 2.4cqw #f4f6fa, 0 0 0 4px #ffd34e, 0 0 18px 4px rgba(255, 190, 40, .8); }
+  .hand .card.dfade, .opp-hand .card.odraw { animation: fadeIn .3s both !important; }
+}
+@keyframes calmFade { 0% { opacity: 0; } 15%, 80% { opacity: 1; } 100% { opacity: 0; } }

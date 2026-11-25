@@ -149,11 +149,13 @@ function renderField(p, glow = [], who = 'me', stat) {
 const renderFx = (p, who = 'me') => `<div class="effects">${p.effects.length ? `<button class="fx-open" data-act="sheet" data-s="fx:${who}">${ICON.bit}Effects<b>${p.effects.length}</b></button>` : ''}
   <div class="fx-pool">${p.effects.map((e, i) => renderCard(CARD[e.id], { cls: 'mini fxc', turns: e.turns, attrs: pick(who, 'fx', i) })).join('')}</div></div>`;
 
+// A light fan (at most ±3° and a 5px arc at the ends); CSS splays the cards across the hand's width and overlaps them only when they don't fit.
+// h8 / h10: big hands get smaller cards on phones, so more of each shows.
 function renderHand(ids, sel, p) {
-  const mid = (ids.length - 1) / 2;
-  return `<div class="hand" style="--n:${ids.length}">${ids.map((id, i) => renderCard(finCard(p, id), {
-    cls: 'mini' + finCls(p, id) + (i === sel ? ' sel' : ''), style: `--r:${(i - mid) * 5}deg;--y:${Math.abs(i - mid) * 5}px`, attrs: pick('me', 'hand', i),
-  })).join('')}</div>`;
+  const n = ids.length, mid = (n - 1) / 2;
+  return `<div class="hand${n >= 10 ? ' h10' : n >= 8 ? ' h8' : ''}" style="--n:${n}">${ids.map((id, i) => { const k = mid ? (i - mid) / mid : 0; return renderCard(finCard(p, id), {
+    cls: 'mini' + finCls(p, id) + (i === sel ? ' sel' : ''), style: `--r:${(k * 3).toFixed(2)}deg;--y:${(k * k * 5).toFixed(1)}px`, attrs: pick('me', 'hand', i),
+  }); }).join('')}</div>`;
 }
 
 // s = game state, me = my player index. o: { glow: [my field indexes], sel: hand index, superReady: show the SUPER button on your Captain }

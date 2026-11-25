@@ -43,6 +43,7 @@ s.players[0].hand = ['c_vc_goblin', 'c_night_owl', 'b_ping', 'e_slowmode'];
 throws(() => apply(s, 1, { type: 'play', i: 0 }), 'cannot play on opponent turn');
 s = apply(s, 0, { type: 'play', i: 0 });
 assert(s.players[0].field[0].id === 'c_vc_goblin' && s.actions === 1 && s.players[0].goof === 1, 'VC Goblin onPlay: +1 Goofiness');
+assert(JSON.stringify(s.events.find(e => e.k === 'meter')) === JSON.stringify({ k: 'meter', p: 0, key: 'goof', n: 1, src: { p: 0, zone: 'field', i: 0, id: 'c_vc_goblin' }, when: 'play' }) && !s.events.find(e => e.k === 'play').src, 'effect events name their card (src) and trigger (when)');
 throws(() => apply(s, 0, { type: 'attack', i: 0, m: 1 }), 'Unmute Scream costs 2');
 throws(() => apply(s, 0, { type: 'attack', i: 0, m: 7 }), 'no such move');
 s = apply(s, 0, { type: 'attack', i: 0, m: 0 }); // Mic Spam, power 1, nobody to block
@@ -93,6 +94,8 @@ assert(s.events.some(e => e.k === 'attack' && e.move === 'Ratio' && e.target), '
 s.players[1].effects.push({ id: 'e_read' });
 s = apply(s, 1, { type: 'end' });
 assert(s.players[0].bore === 2, 'Left on Read: A +1 Boredom at the start of their turn');
+{ const m = s.events.find(e => e.k === 'meter' && e.key === 'bore'), t = s.events.find(e => e.k === 'meter' && e.key === 'goof');
+  assert(m.when === 'oppTurn' && m.src.p === 1 && m.src.zone === 'effects' && m.src.id === 'e_read' && s.players[1].effects[m.src.i].id === 'e_read' && !t.src && !s.events.find(e => e.k === 'draw').src, 'start-of-turn effects name their card; the turn draw and +1 Creativity do not'); }
 
 // ---- turn 3 (A): Tough armour, self damage, defeat Boredom, coin flips ----
 s.actions = 9; s.players[1].goof = 1; // B has Creativity, so Larry's Lurker is off
@@ -195,6 +198,20 @@ sp.players[sa].field = [{ id: 't_big', hp: 5, t: 0 }]; sp.players[sd].field = [{
 const boreD = sp.players[sd].bore;
 sp = apply(sp, sa, { type: 'attack', i: 0, m: 0 }); sp = apply(sp, sd, { type: 'defend', i: 0 });
 assert(sp.players[sd].field.length === 0 && sp.players[sd].bore === boreD + 2, 'damage spills to the next Character (armour applies) and the rest becomes Boredom');
+// defend order: the defender picks who takes the spill. 5 power into a 2-HP blocker leaves 3: field order sends it to B (armour 1: 2 damage),
+// order [2] sends it to the second A (2 HP: defeated) and the last 1 stops at B's armour.
+CARD.t_mid = { id: 't_mid', type: 'character', name: 'Mid', def: 8, hp: 5, moves: [{ name: 'Swing', cost: 1, power: 5 }] };
+const ord = () => { let g = newGame([STARTER, STARTER], ['A', 'B'], fixed(0.1)); const x = g.turn; g.actions = 3;
+  g.players[x].field = [{ id: 't_mid', hp: 5, t: 0 }]; g.players[1 - x].field = [{ id: 't_a', hp: 2, t: 0 }, { id: 't_b', hp: 4, t: 0 }, { id: 't_a', hp: 2, t: 0 }]; g.players[1 - x].goof = 3;
+  return [apply(g, x, { type: 'attack', i: 0, m: 0 }), 1 - x]; };
+{ const [g, d] = ord(), def = apply(g, d, { type: 'defend', i: 0 }), dn = apply(g, d, { type: 'defend', i: 0, order: null });
+  assert(JSON.stringify(def.players[d].field.map(f => [f.id, f.hp])) === '[["t_b",2],["t_a",2]]' && JSON.stringify(dn.players[d].field) === JSON.stringify(def.players[d].field), 'no order: spill in field order, as before');
+  const o = apply(g, d, { type: 'defend', i: 0, order: [2, 1] });
+  assert(JSON.stringify(o.players[d].field.map(f => [f.id, f.hp])) === '[["t_b",4]]' && o.players[d].bore === g.players[d].bore, 'order [2, 1]: the chosen Character takes the spill first');
+  assert(JSON.stringify(o.events.find(e => e.k === 'attack').roll.hits.map(h => [h.i, h.taken])) === '[[0,2],[2,2],[1,0]]', 'attack event lists the hits in the chosen order');
+  assert(JSON.stringify(apply(g, d, { type: 'defend', i: 0, order: [2] }).players[d].field) === JSON.stringify(o.players[d].field), 'a shorter order is fine; the rest goes in field order');
+  for (const bad of [[0], [5], [-1], [1, 1], [1.5], ['1'], '1', 1, {}, [1, 2, 0], [1, 2, 1, 2]]) throws(() => apply(g, d, { type: 'defend', i: 0, order: bad }), 'bad order rejected: ' + JSON.stringify(bad));
+  const dead = structuredClone(g); dead.players[d].field[2].hp = 0; throws(() => apply(dead, d, { type: 'defend', i: 0, order: [2] }), 'order cannot name a defeated Character'); }
 // deck-out: drawing from an empty deck gives escalating Boredom
 let fo = newGame([STARTER, STARTER], ['A', 'B'], fixed(0.1)); const fa = fo.turn, fb = 1 - fa; fo.players[fb].deck = []; fo.players[fa].deck = [];
 const b0 = fo.players[fb].bore; fo = apply(fo, fa, { type: 'end' });
