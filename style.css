@@ -1261,19 +1261,19 @@ body:has(#app[data-view="game"]) .vol-slider { display: none; }
 
 /* volume: pill on desktop; on phones a round speaker button with the slider as a popover under it */
 .vol-slider { top: calc(20px + env(safe-area-inset-top)); } /* centre lines up with .acct (50px tall, top 10px) */
-.vol-btn { display: none; position: fixed; top: calc(15px + env(safe-area-inset-top)); right: 12px; z-index: 201; width: 40px; height: 40px; place-items: center; border-radius: 50%; color: var(--ink); }
+.vol-btn { display: grid; position: fixed; top: calc(15px + env(safe-area-inset-top)); right: 144px; z-index: 201; width: 40px; height: 40px; place-items: center; border-radius: 50%; color: var(--ink); }
 .vol-btn.off .wave { display: none; }
 @media (max-width: 519.98px) {
-  .vol-btn { display: grid; }
+  .vol-btn { right: 12px; }
   .vol-slider { display: none !important; z-index: 201; }
   body.vol-open .vol-slider { display: block !important; top: calc(62px + env(safe-area-inset-top)); box-shadow: var(--raise-sm), inset 0 1px 3px rgba(0, 0, 0, .18) !important; }
 }
 /* dark mode toggle (js/audio.js): same size and centre line as the speaker button, just left of the volume control */
-.theme-btn { position: fixed; top: calc(15px + env(safe-area-inset-top)); right: 144px; z-index: 201; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50%; color: var(--ink); }
+.theme-btn { position: fixed; top: calc(15px + env(safe-area-inset-top)); right: 192px; z-index: 201; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50%; color: var(--ink); }
 .theme-btn .i { width: 22px; height: 22px; }
 @media (max-width: 519.98px) { .theme-btn { right: 60px; } }
 /* a long name gives way (ellipsis) before the account pill reaches the toggle: 12px left + 8px gap + toggle and volume on the right */
-.acct { max-width: calc(100% - 204px); } .acct .profile { min-width: 0; } .acct .coin-bar { flex: none; }
+.acct { max-width: calc(100% - 252px); } .acct .profile { min-width: 0; } .acct .coin-bar { flex: none; }
 @media (max-width: 519.98px) { .acct { max-width: calc(100% - 120px); } }
 body:has(#app[data-view="game"]) :is(.vol-btn, .vol-slider, .theme-btn) { display: none !important; }
 
