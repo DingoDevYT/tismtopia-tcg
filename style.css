@@ -542,7 +542,7 @@ img[data-asset] { visibility: hidden; } /* still being decrypted (js/assets.js):
   .field { gap: 18px; }
   .field .card { --cw: clamp(100px, 16vh, 160px); }
   .slot { width: clamp(100px, 16vh, 160px); border-radius: 14px; }
-  .hud { flex-direction: column; gap: 10px; width: min(100%, clamp(210px, 33vh, 310px)); }
+  .hud { flex-direction: column; gap: 10px; width: min(100%, clamp(185px, 28vh, 265px)); } /* Captain card about 15% smaller than before */
   .hud .card.cap { --cw: 100%; }
   .hud .cap .text { display: block; }
   .hud .cap .tag, .hud .cap .foot { display: flex; }
