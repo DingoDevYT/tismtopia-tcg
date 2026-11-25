@@ -1723,3 +1723,13 @@ body:has(#app[data-view="game"]) :is(.vol-btn, .vol-slider, .theme-btn) { displa
 .pk.used::after { content: 'On show'; position: absolute; top: 38px; left: 50%; transform: translateX(-50%); z-index: 6; padding: 1px 7px; border-radius: 99px; font-size: 10px; font-weight: 800; color: #fff; background: var(--pill); white-space: nowrap; }
 .so-dim { z-index: 210; } .so-sheet { z-index: 211; } /* above the account corner */
 .app:is([data-view="social"], [data-view="player"], [data-view="showcase"]) .tabbar { z-index: 8; } /* over the pins on Wall stands */
+
+/* ---------- Battle HUD (owner's pick, 2026-11-26, mockup review/battle-mock.html): Actions dead centre, opponent's Captain on the right,
+   meters as icon + long bar + number (no words), taller bars ---------- */
+.mid { display: grid; grid-template-columns: 1fr auto 1fr; padding: 8px 10px; }
+.mid .deckn { justify-self: start; } .mid .btn.end { justify-self: end; }
+@container app (max-width: 899.98px) { .side:nth-child(2) > .hud { flex-direction: row-reverse; } } /* phones: the opponent mirrors you; the desktop side column stays as it is */
+.meter { grid-template-columns: auto 1fr auto; gap: 3px 8px; }
+.meter > span { gap: 0; } .meter > span .i { width: 18px; height: 18px; }
+.meter .mbar { height: 14px; }
+@container app (min-width: 900px) { .meter .mbar { height: 16px; } .meter > span .i { width: 20px; height: 20px; } }
