@@ -9,6 +9,11 @@ const src = load(['test/fixture-cards.js', 'js/cards.js', 'js/game.js']).replace
 vm.runInNewContext(load(['js/cards-data.js', 'js/cards.js', 'js/game.js']) + `
 if (STARTERS.length < 2 || STARTERS.some(d => deckProblems(d).length)) throw new Error('FAIL: real starters: ' + JSON.stringify(STARTERS.map(deckProblems)));
 if (!CARDS.filter(c => c.type === 'character').every(c => c.moves?.length)) throw new Error('FAIL: a real Character has no moves');
+// replaced cards: the old id is gone, the new one exists, and an owner's copies and finishes carry over
+for (const [old, id] of Object.entries(REPLACED)) if (CARD[old] || !CARD[id]) throw new Error('FAIL: REPLACED ' + old + ' -> ' + id);
+{ const [old, id] = Object.entries(REPLACED)[0], c = swapColl({ [old]: { n: 3, f: { normal: 1, holo: 2 } }, [id]: { n: 1, f: { normal: 1 } } });
+  if (c[old] || c[id].n !== 4 || c[id].f.holo !== 2 || c[id].f.normal !== 2) throw new Error('FAIL: swapColl ' + JSON.stringify(c));
+  const d = swapDeck({ [old]: 2, [id]: 2 }); if (d[old] || d[id] !== 3) throw new Error('FAIL: swapDeck ' + JSON.stringify(d)); }
 `);
 
 vm.runInNewContext(src + `

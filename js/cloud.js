@@ -229,21 +229,23 @@ function cleanSave(d) {
     else if (k === 'coins') { if (!int(v, 1e9)) bad(k); out.coins = v; }
     else if (k === 'volume') { if (typeof v !== 'number' || !(v >= 0 && v <= 1)) bad(k); out.volume = v; }
     else if (k === 'deck') { if (!str(v, 40)) bad(k); out.deck = v; }
-    else if (k === 'favs') { if (!Array.isArray(v) || v.length > 1000 || !v.every(x => str(x, 64))) bad(k); out.favs = v.filter(id => CARD[id]); }
+    else if (k === 'favs') { if (!Array.isArray(v) || v.length > 1000 || !v.every(x => str(x, 64))) bad(k); out.favs = v.map(id => REPLACED[id] || id).filter(id => CARD[id]); }
     else if (k === 'stats') { if (!plain(v) || !Object.entries(v).every(([s, n]) => STAT_KEYS.includes(s) && int(n, 1e7))) bad(k); out.stats = { ...v }; }
     else if (k === 'collection') {
       if (!plain(v) || Object.keys(v).length > 2000) bad(k);
       out.collection = {};
       for (const [id, e] of Object.entries(v)) {
         if (!plain(e) || !int(e.n, 1e5) || !plain(e.f) || !Object.entries(e.f).every(([f, n]) => FORDER.includes(f) && int(n, 1e5))) bad(k);
-        if (CARD[id]) out.collection[id] = { n: e.n, f: { ...e.f } }; // cards that no longer exist are dropped
+        out.collection[id] = { n: e.n, f: { ...e.f } };
       }
+      swapColl(out.collection); // replaced cards carry over (js/cards.js); anything else that no longer exists is dropped
+      for (const id of Object.keys(out.collection)) if (!CARD[id]) delete out.collection[id];
     } else if (k === 'decks') {
       if (!Array.isArray(v) || v.length > 100) bad(k);
       out.decks = v.map(x => {
         if (!plain(x) || !str(x.id, 40) || !str(x.name, 30) || !(x.captain === null || str(x.captain, 64)) || !plain(x.cards) || Object.keys(x.cards).length > 200
           || !Object.values(x.cards).every(n => Number.isInteger(n) && n >= 1 && n <= 3)) bad(k);
-        return { id: x.id, name: x.name, captain: x.captain, cards: { ...x.cards } };
+        return { id: x.id, name: x.name, captain: x.captain, cards: swapDeck({ ...x.cards }) };
       });
     } else if (k === 'onboard') { // starter packs progress (js/onboard.js)
       const ok = { done: x => typeof x === 'boolean', legacy: x => typeof x === 'boolean', starter: x => str(x, 40), opened: x => int(x, 8) };

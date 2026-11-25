@@ -68,6 +68,13 @@ CAPTAINS.forEach((c, i) => { c.no = letters(i); });
 CARDS.forEach((c, i) => { c.no = String(i + 1).padStart(3, '0'); });
 // Null prototype so ids like "__proto__" from a pasted code or the network look up as missing.
 const CARD = Object.assign(Object.create(null), Object.fromEntries([...CAPTAINS, ...CARDS].map(c => [c.id, c])));
+// Replaced cards, old id -> new id. RULE: a card is never just removed. Whoever owned it keeps every copy and finish as the replacement,
+// and decks swap it in. Saves are migrated wherever they are read (packs.js, app.js, cloud.js cleanSave).
+const REPLACED = { scrunge_sage: 'scrunge_june', scrunge_moonchild: 'scrunge_dusk', scrunge_calytrix_and_noli_v2: 'scrunge_calytrix_and_noli' };
+const swapReplaced = (o, add) => { for (const [old, id] of Object.entries(REPLACED)) if (o && Object.hasOwn(o, old)) { o[id] = add(o[id], o[old]); delete o[old]; } return o; };
+const swapColl = c => swapReplaced(c, (a = { n: 0, f: {} }, b) => ({ n: (a.n || 0) + (b?.n || 0),
+  f: Object.fromEntries([...new Set([...Object.keys(a.f || {}), ...Object.keys(b?.f || {})])].map(f => [f, (a.f?.[f] || 0) + (b.f?.[f] || 0)])) })); // a collection: { id: { n, f: { finish: n } } }
+const swapDeck = cards => swapReplaced(cards, (a = 0, b) => Math.min(3, a + b)); // a deck's cards: { id: copies }, 3 at most
 
 // An Item is instant when it only does something as it's played (nothing that lasts).
 const isInstant = c => c.type === 'bit' && !Object.keys(c).some(k => k !== 'onPlay' && /^on|^mod$/.test(k));

@@ -17,6 +17,7 @@ const FINISH_CLS = { normal: '', rev: 'v-rev', holo: 'v-holo', full: 'v-full v-h
 // reach them. Everyone else owns only what they opened (js/onboard.js deals their first deck as 8 free packs).
 let coll = store.get('collection', null);
 if (!coll || typeof coll !== 'object') coll = {};
+if (Object.keys(REPLACED).some(id => coll[id])) store.set('collection', swapColl(coll)); // replaced cards carry over (js/cards.js)
 if (onb.legacy) {
   for (const s of STARTERS) for (const [id, n] of Object.entries(s.cards)) {
     const have = coll[id]?.n || 0;
@@ -202,7 +203,7 @@ document.addEventListener('pointerup', e => {
 });
 
 // ---------------- collection: every card, what you own, favourites, search / filter / sort ----------------
-let favs = new Set(store.get('favs', []));
+let favs = new Set(store.get('favs', []).map(id => REPLACED[id] || id));
 const RANK = { C: 0, U: 1, R: 2, UR: 3 };
 const bestFinish = id => { if (CARD[id]?.type !== 'character') return 'normal'; const f = coll[id]?.f || {}; return f.rainbow ? 'rainbow' : f.full ? 'full' : f.rev ? 'rev' : f.holo ? 'holo' : 'normal'; };
 function viewCollection() {
