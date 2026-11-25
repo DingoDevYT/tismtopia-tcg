@@ -53,7 +53,7 @@ function copy(text, what) {
 }
 
 // ---------------- views ----------------
-const tabbar = on => `<nav class="tabbar">${[['home', 'home'], ['search', 'collection'], ['cards', 'deck'], ['battle', 'lobby'], ['rules', 'rules']].map(([icon, view]) =>
+const tabbar = on => `<nav class="tabbar">${[['home', 'home'], ['search', 'collection'], ['cards', 'deck'], ['battle', 'lobby'], ['people', 'social'], ['rules', 'rules']].map(([icon, view]) =>
   `<button class="${view === on ? 'on' : ''}" data-act="go" data-to="${view}" aria-label="${view}">${ICON[icon]}</button>`).join('')}</nav>`;
 
 const deckSelect = withNew => `<label class="deckname neu-in"><select data-change="pick-deck" aria-label="Deck">${decks.map(d =>
@@ -194,6 +194,7 @@ function startBot(tutorial) {
     g.turn = 0; g.actions = 2; g.log = ['Tutorial battle: you go first.']; // 2 Actions so you can play and attack in the first turn
     g.players[0].hand[0] = TC.id;
   }
+  g.players[0].pfp = myPfp(); g.players[1].pfp = g.players[1].captain; // profile pictures (js/social.js); the bot's is its Captain
   ui.tut = tutorial ? 0 : null;
   state = game = null; setGame(g); botSoon();
 }
@@ -232,7 +233,7 @@ function botMove() {
 
 function viewOver() {
   const g = game, mine = g.players[me], opp = g.players[1 - me];
-  return `<div class="victory">${renderAvatar(CARD[mine.captain], ' xl')}<small>vs. ${esc(opp.name)} (${CARD[opp.captain].name})</small>
+  return `<div class="victory">${pfpAvatar(mine.pfp || mine.captain, ' xl')}<small>vs. ${esc(opp.name)} (${CARD[opp.captain].name})</small>
     <h1 class="big">${g.winner === me ? 'Victory!' : 'Defeat'}</h1><div class="rainbow"></div>
     <div class="stats-list neu-in">
       <div><span>Your Boredom</span><b>${mine.bore}/${BORE_MAX}</b></div>
@@ -335,7 +336,7 @@ function render() {
   const scrolls = [...$app.querySelectorAll('.grid, .scroll, .sheet')].map(el => el.scrollTop);
   const appTop = $app.dataset.view === ui.view ? $app.scrollTop : 0; // collection / deck / add-cards scroll as a whole screen
   const focus = document.activeElement?.id;
-  const views = { home: viewHome, deck: viewDeck, build: viewBuild, lobby: viewLobby, rules: viewRules, game: viewGame, packs: () => viewPacks(), open: () => (ui.open ? viewOpen() : viewPacks()), collection: () => viewCollection(), shop: () => viewShop(), profile: () => viewProfile(), submit: () => viewSubmit(), review: () => viewReview(), welcome: () => viewWelcome() };
+  const views = { home: viewHome, deck: viewDeck, build: viewBuild, lobby: viewLobby, rules: viewRules, game: viewGame, packs: () => viewPacks(), open: () => (ui.open ? viewOpen() : viewPacks()), collection: () => viewCollection(), shop: () => viewShop(), profile: () => viewProfile(), submit: () => viewSubmit(), review: () => viewReview(), welcome: () => viewWelcome(), social: () => viewSocial(), player: () => viewPlayer(), showcase: () => viewShowcase() };
   if (ui.view === 'game' && !game) ui.view = 'home';
   $app.dataset.view = ui.view;
   $app.innerHTML = views[ui.view]() + (ui.toast && ui.view !== 'game' ? `<div class="toast neu">${esc(ui.toast)}</div>` : '');
@@ -616,7 +617,7 @@ function peerError(err) {
 function wire(c) {
   conn = c;
   c.on('open', () => {
-    if (!isHost) c.send({ t: 'hello', name: myName, deck: { captain: deck().captain, cards: deck().cards, finishes: finishesFor(deck()) } });
+    if (!isHost) c.send({ t: 'hello', name: myName, pfp: myPfp(), deck: { captain: deck().captain, cards: deck().cards, finishes: finishesFor(deck()) } });
     ui.status = 'Connected, dealing…'; render();
   });
   c.on('data', onMsg);
@@ -635,7 +636,7 @@ function onMsg(m) {
     if (m.t === 'hello' && !state) {
       const probs = deckProblems(m.deck);
       if (probs.length) { conn.send({ t: 'error', msg: `Your deck isn't legal: ${probs[0]}` }); return; }
-      guest = { name: String(m.name || 'Guest').slice(0, 20), deck: { captain: m.deck.captain, cards: m.deck.cards, finishes: cleanFin(m.deck.finishes) } };
+      guest = { name: String(m.name || 'Guest').slice(0, 20), pfp: pfpOk(m.pfp) && CARD[m.pfp] ? m.pfp : m.deck.captain, deck: { captain: m.deck.captain, cards: m.deck.cards, finishes: cleanFin(m.deck.finishes) } };
       startGame();
     } else if (m.t === 'act' && state && m.a && typeof m.a === 'object') act(1, m.a);
     else if (m.t === 'rematch' && state?.phase === 'over') startGame();
@@ -645,7 +646,9 @@ function onMsg(m) {
 
 function startGame() {
   const d = deck();
-  setGame(newGame([{ captain: d.captain, cards: d.cards, finishes: finishesFor(d) }, guest.deck], [myName, guest.name]));
+  const g = newGame([{ captain: d.captain, cards: d.cards, finishes: finishesFor(d) }, guest.deck], [myName, guest.name]);
+  g.players[0].pfp = myPfp(); g.players[1].pfp = guest.pfp; // profile pictures travel with the state, so the guest sees both
+  setGame(g);
   conn?.send({ t: 'state', s: state });
 }
 

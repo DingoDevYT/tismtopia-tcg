@@ -235,3 +235,63 @@ drop policy if exists "submission art: members only" on storage.objects;
 create policy "submission art: members only" on storage.objects as restrictive for all to authenticated
   using (bucket_id <> 'submissions' or (select public.is_member()) or (select public.is_admin()) or public.is_approved_art(name))
   with check (bucket_id <> 'submissions' or (select public.is_member()) or (select public.is_admin()));
+
+-- ---------- Social tab: public profiles, display stands, reactions (live migration: social_profiles_showcase_reactions) ----------
+-- Members read every profile; each player writes only their own row (profiles: insert own / update own above). The game publishes
+-- pfp (a Captain or card id), showcase (up to 4 stands) and summary (stats, Captain plays, collection counts) there (js/social.js).
+-- shortcut: whether a player really owns the cards on their stands / picture is checked by the client only (friends' server).
+alter table public.profiles add column if not exists pfp text;
+alter table public.profiles add column if not exists showcase jsonb;
+alter table public.profiles add column if not exists summary jsonb;
+alter table public.profiles add column if not exists updated_at timestamptz not null default now();
+alter table public.profiles drop constraint if exists profiles_pfp_check;
+alter table public.profiles add constraint profiles_pfp_check check (pfp is null or pfp ~ '^[a-z0-9_]{1,64}$');
+alter table public.profiles drop constraint if exists profiles_showcase_check;
+alter table public.profiles add constraint profiles_showcase_check check (showcase is null or (jsonb_typeof(showcase) = 'array' and jsonb_array_length(showcase) <= 4 and pg_column_size(showcase) <= 4096));
+alter table public.profiles drop constraint if exists profiles_summary_check;
+alter table public.profiles add constraint profiles_summary_check check (summary is null or (jsonb_typeof(summary) = 'object' and pg_column_size(summary) <= 4096));
+
+drop policy if exists "profiles: read own" on public.profiles;
+drop policy if exists "profiles: read all" on public.profiles;
+create policy "profiles: read all" on public.profiles for select to authenticated using (true); -- the restrictive "members only" policy still applies
+
+create or replace function public.profiles_touch() returns trigger language plpgsql set search_path = '' as $$
+begin
+  new.updated_at := now();
+  return new;
+end $$;
+drop trigger if exists profiles_touch on public.profiles;
+create trigger profiles_touch before insert or update on public.profiles for each row execute function public.profiles_touch();
+
+-- One emoji per visitor per display stand. stand = the stand's id inside the owner's profiles.showcase. Nobody reacts to themselves.
+create table if not exists public.reactions (
+  owner uuid not null references public.profiles (id) on delete cascade,
+  stand text not null check (stand ~ '^[a-z0-9]{1,12}$'),
+  reactor uuid not null default auth.uid() references auth.users on delete cascade,
+  emoji text not null check (emoji in ('🔥', '😍', '😂', '🤯', '👏', '🥺')),
+  created_at timestamptz not null default now(),
+  primary key (owner, stand, reactor),
+  constraint reactions_not_self check (owner <> reactor)
+);
+create index if not exists reactions_reactor_idx on public.reactions (reactor);
+alter table public.reactions enable row level security;
+revoke all on public.reactions from anon, authenticated;
+grant select, insert, delete on public.reactions to authenticated;
+grant update (emoji) on public.reactions to authenticated;
+
+drop policy if exists "reactions: read all" on public.reactions;
+drop policy if exists "reactions: insert own" on public.reactions;
+drop policy if exists "reactions: update own" on public.reactions;
+drop policy if exists "reactions: delete own or on my stands" on public.reactions;
+drop policy if exists "members only" on public.reactions;
+create policy "reactions: read all" on public.reactions for select to authenticated using (true);
+-- Only on a stand that exists in the owner's showcase, so nobody can pile up rows under made-up stand ids.
+create policy "reactions: insert own" on public.reactions for insert to authenticated
+  with check ((select auth.uid()) = reactor and exists (select 1 from public.profiles p where p.id = owner and p.showcase @> jsonb_build_array(jsonb_build_object('id', stand))));
+create policy "reactions: update own" on public.reactions for update to authenticated
+  using ((select auth.uid()) = reactor) with check ((select auth.uid()) = reactor);
+-- The owner may clear reactions too (the game tidies them away when a stand is removed).
+create policy "reactions: delete own or on my stands" on public.reactions for delete to authenticated
+  using ((select auth.uid()) = reactor or (select auth.uid()) = owner);
+create policy "members only" on public.reactions as restrictive for all to authenticated
+  using ((select public.is_member()) or (select public.is_admin())) with check ((select public.is_member()) or (select public.is_admin()));

@@ -1,7 +1,7 @@
 // Self-check for the rules engine. Run: node test/game.test.js
 const fs = require('fs'), vm = require('vm'), path = require('path');
 // syntax-check every browser script too, so a broken app.js can't ship (the rules tests don't load it)
-for (const f of ['js/app.js', 'js/packs.js', 'js/audio.js', 'js/assets.js', 'js/render.js', 'js/rainbow.js', 'js/cards.js', 'js/cards-data.js', 'js/game.js', 'js/cardfile.js', 'js/art-tools.js', 'js/cloud.js', 'js/profile.js', 'js/submit.js', 'js/community.js', 'js/review.js', 'js/onboard.js', 'js/tour.js']) new vm.Script(fs.readFileSync(path.join(__dirname, '..', f), 'utf8'), { filename: f });
+for (const f of ['js/app.js', 'js/packs.js', 'js/audio.js', 'js/assets.js', 'js/render.js', 'js/rainbow.js', 'js/cards.js', 'js/cards-data.js', 'js/game.js', 'js/cardfile.js', 'js/art-tools.js', 'js/cloud.js', 'js/profile.js', 'js/social.js', 'js/submit.js', 'js/community.js', 'js/review.js', 'js/onboard.js', 'js/tour.js']) new vm.Script(fs.readFileSync(path.join(__dirname, '..', f), 'utf8'), { filename: f });
 const load = files => files.map(f => fs.readFileSync(path.join(__dirname, '..', f), 'utf8')).join('\n');
 const src = load(['test/fixture-cards.js', 'js/cards.js', 'js/game.js']).replace('const BORE_MAX = 15;', 'const BORE_MAX = 99;').replace('const DECK_SIZE = 40;', 'const DECK_SIZE = 20;').replace('const HP_SCALE = 1.2;', 'const HP_SCALE = 2;');
 
@@ -9,12 +9,14 @@ const src = load(['test/fixture-cards.js', 'js/cards.js', 'js/game.js']).replace
 vm.runInNewContext(load(['js/cards-data.js', 'js/cards.js', 'js/game.js']) + `
 if (STARTERS.length < 2 || STARTERS.some(d => deckProblems(d).length)) throw new Error('FAIL: real starters: ' + JSON.stringify(STARTERS.map(deckProblems)));
 if (!CARDS.filter(c => c.type === 'character').every(c => c.moves?.length)) throw new Error('FAIL: a real Character has no moves');
+{ let g = newGame([STARTERS[0], STARTERS[1]], ['A', 'B'], () => 0.1); const cap = CARD[g.players[0].captain].goof; g.players[0].goof = cap - 1; for (let k = 0; k < 3; k++) g = apply(g, 1, { type: 'adjust', who: 0, key: 'goof', d: 1 });
+  if (g.players[0].goof !== cap) throw new Error('FAIL: Creativity should stop at the Super cost ' + cap + ', got ' + g.players[0].goof); }
 // replaced cards: the old id is gone, the new one exists, and an owner's copies and finishes carry over
 for (const [old, id] of Object.entries(REPLACED)) if (CARD[old] || !CARD[id]) throw new Error('FAIL: REPLACED ' + old + ' -> ' + id);
 { const [old, id] = Object.entries(REPLACED)[0], c = swapColl({ [old]: { n: 3, f: { normal: 1, holo: 2 } }, [id]: { n: 1, f: { normal: 1 } } });
   if (c[old] || c[id].n !== 4 || c[id].f.holo !== 2 || c[id].f.normal !== 2) throw new Error('FAIL: swapColl ' + JSON.stringify(c));
   const d = swapDeck({ [old]: 2, [id]: 2 }); if (d[old] || d[id] !== 3) throw new Error('FAIL: swapDeck ' + JSON.stringify(d)); }
-`);
+`, { structuredClone });
 
 vm.runInNewContext(src + `
 const assert = (ok, msg) => { if (!ok) throw new Error('FAIL: ' + msg); };
@@ -215,7 +217,7 @@ throws(() => apply(m, 0, { type: 'end' }), 'no actions after game over');
 { const x = {}; require('vm').runInNewContext(fs.readFileSync(__dirname + '/../js/cards-data.js', 'utf8') + fs.readFileSync(__dirname + '/../js/card-overrides.js', 'utf8') + ';this.A=[...CAPTAINS,...CARDS]', x);
   for (const c of x.A) if (c.name.length > 22) throw new Error('FAIL: name too long (max 22): ' + c.name); }
 // The browser loads these as one shared scope: two files declaring the same name breaks everything after it.
-new Function(['cards-data', 'card-overrides', 'cards', 'assets', 'render', 'rainbow', 'game', 'app', 'pack-sets', 'packs', 'economy', 'audio', 'cardfile', 'art-tools', 'cloud', 'profile', 'submit', 'community', 'review', 'onboard', 'tour'].map(f => fs.readFileSync(__dirname + '/../js/' + f + '.js', 'utf8')).join('\n;\n'));
+new Function(['cards-data', 'card-overrides', 'cards', 'assets', 'render', 'rainbow', 'game', 'app', 'pack-sets', 'packs', 'economy', 'audio', 'cardfile', 'art-tools', 'cloud', 'profile', 'social', 'submit', 'community', 'review', 'onboard', 'tour'].map(f => fs.readFileSync(__dirname + '/../js/' + f + '.js', 'utf8')).join('\n;\n'));
 // New players (js/onboard.js): each starter dealt as 8 packs of 5 holding exactly its 40 cards, no pack with two of a card, strongest
 // card last in each pack, the deck those packs make is legal; and only the public site (github.io) or ?gate=1 forces the sign-in gate.
 { const x = { structuredClone }, ob = fs.readFileSync(__dirname + '/../js/onboard.js', 'utf8').split('// ---------------- browser only')[0];
@@ -319,6 +321,25 @@ new Function(['cards-data', 'card-overrides', 'cards', 'assets', 'render', 'rain
   cmRegister([pr('a6000000-0000-0000-0000-000000000006', 'Comm One', 'community')], CARDS, CARD); cmPacks(CARDS, ps, pk);
   ok(ps.community.join() === 'community_a6000000' && pk.at(-1) === CM_PACK && pk.length === 3 && ps.empirical.join() === 'e1', 'one card makes the Community Pack; a refresh drops cards no longer listed');
 `, x); }
+// Social (js/social.js): profile picture ids, display stands and Captain plays from saves or the server are validated; collection counts.
+{ const x = {}, so = fs.readFileSync(__dirname + '/../js/social.js', 'utf8').split('// ---------------- browser only')[0];
+  vm.runInNewContext(['cards-data', 'card-overrides', 'cards'].map(f => fs.readFileSync(__dirname + '/../js/' + f + '.js', 'utf8')).join('\n;\n') + '\n;\n' + so + `;
+  const ok = (c, m) => { if (!c) throw new Error('FAIL: social: ' + m); };
+  const cap = CAPTAINS[0].id, ch = CARDS.find(c => c.type === 'character').id, item = CARDS.find(c => c.type !== 'character').id;
+  ok(pfpOk(cap) && pfpOk(ch) && pfpOk('community_0a1b2c3d'), 'Captains, Characters and not-yet-loaded community cards are valid pictures');
+  ok(!pfpOk(item) && !pfpOk('nope_not_a_card') && !pfpOk('__proto__') && !pfpOk('<img>') && !pfpOk(5) && !pfpOk('community_xyz'), 'Items, unknown ids and junk are not');
+  const st = cleanStands([{ id: 'a1', kind: 'shelf', cards: [ch, null, 'gone_card'] }, { id: 'b2', kind: 'ped', cards: [cap], fins: ['rainbow'] }]);
+  ok(st && st[0].cards.join() === ch + ',,' && st[1].cards[0] === null && st[1].fins[0] === 'rainbow', 'unknown cards and Captains become empty slots');
+  const old = Object.keys(REPLACED)[0]; ok(cleanStands([{ id: 'r', kind: 'ped', cards: [old] }])[0].cards[0] === REPLACED[old], 'replaced cards carry over');
+  const bad = [null, {}, [{ id: 'a', kind: 'wall', cards: [ch] }], [{ id: 'a', kind: 'shrine', cards: [ch] }], [{ id: 'A!', kind: 'ped', cards: [ch] }],
+    [{ id: 'a', kind: 'ped', cards: [ch] }, { id: 'a', kind: 'ped', cards: [ch] }], Array(5).fill(0).map((_, i) => ({ id: 's' + i, kind: 'ped', cards: [null] })),
+    [{ id: 'a', kind: 'ped', cards: [{}] }], [{ id: 'a', kind: 'ped', cards: [ch], fins: [] }], [{ id: '__proto__', kind: '__proto__', cards: [] }]];
+  ok(bad.every(b => cleanStands(b) === null), 'wrong slot counts, kinds, ids, duplicates, more than 4 stands and junk are refused');
+  ok(JSON.stringify(cleanCapPlays({ [cap]: 3, [ch]: 2 })) === JSON.stringify({ [cap]: 3 }) && cleanCapPlays({ [cap]: -1 }) === null && cleanCapPlays([]) === null, 'Captain plays');
+  ok(favCap({ [CAPTAINS[1].id]: 2, [CAPTAINS[2].id]: 5 })[0] === CAPTAINS[2].id && favCap({}) === null, 'favourite Captain = most played');
+  const cs = collStats({ [ch]: { n: 3, f: { normal: 1, full: 1, rainbow: 1 } }, [item]: { n: 1, f: { holo: 1 } }, x_unknown: { n: 9, f: { full: 9 } }, [CARDS[2].id]: { n: 0, f: {} } });
+  ok(cs.own === 2 && cs.total === CARDS.length && cs.full === 1 && cs.rb === 1 && cs.holo === 1, 'collection counts: ' + JSON.stringify(cs));
+  `, x); }
 // Encrypted art and audio: tools/encrypt-assets.js writes what js/assets.js decrypts with WebCrypto (same names, same format); a changed byte
 // or a file moved to another path is refused. The plaintext and the key are never tracked.
 (async () => {

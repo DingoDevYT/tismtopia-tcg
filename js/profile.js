@@ -19,7 +19,7 @@ function viewProfile() {
   <div class="pf-wrap">
   <div class="pf-back"><button class="btn sm" data-act="pf-back">‹ Back</button></div>
   <section class="panel neu pf-head">
-    ${u?.avatar ? `<span class="avatar xl"><img src="${esc(u.avatar)}" alt="" referrerpolicy="no-referrer"></span>` : renderAvatar(CARD[deck().captain] || CAPTAINS[0], ' xl')}
+    <button class="pf-pfp" data-act="pfp-open" aria-label="Change your profile picture">${pfpAvatar(myPfp(), ' xl')}<span class="pf-pfp-tag">Change</span></button>
     <div class="pf-name"><label class="lbl" for="pf-name">Display name</label>
       <div class="row2"><input id="pf-name" class="pf-input" maxlength="22" autocomplete="off" value="${esc(myName)}"><button class="btn sm" data-act="pf-rename">Save</button></div></div>
   </section>
@@ -32,6 +32,8 @@ function viewProfile() {
       <div><span>Battles vs the bot</span><b>${rec('botWon', 'botPlayed')}</b></div>
       <div><span>Battles vs players</span><b>${rec('pvpWon', 'pvpPlayed')}</b></div>
     </div></section>
+  <section class="panel neu pf-social"><small class="lbl">Social</small><p class="muted">Your profile picture, stats and display stands are what other players see on the Social tab.</p>
+    <div class="row2"><button class="btn" data-act="so-open" data-id="me">My public profile</button><button class="btn primary" data-act="so-edit">Edit showcase</button></div></section>
   <section class="panel neu pf-acct"><small class="lbl">Account</small>${account}</section>
   <section class="panel neu pf-save"><small class="lbl">Save on this device</small><p class="muted">Download your progress as a file, or load one (from a backup or another device). Loading replaces what's here.</p>
     <div class="row2"><button class="btn" data-act="pf-export">Export save</button><label class="btn" tabindex="0" role="button">Import save<input type="file" id="pf-import" accept=".json,application/json" hidden></label></div></section>
