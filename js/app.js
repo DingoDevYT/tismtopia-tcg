@@ -343,7 +343,7 @@ function defendSheet() {
     const k = ordering ? v.shown.findIndex(h => h.i === i) : -1, h = v?.shown[k];
     return k < 0 ? '' : `<span class="ord${k ? '' : ' blk'}">${k + 1}</span><span class="dmgc${h.taken ? '' : ' safe'}">−${h.taken}${h.ko ? '<em>KO</em>' : ''}</span>`;
   };
-  const cls = i => (i === pickI && !ordering ? ' picked' : '') + (ordering && v.shown.some(h => h.i === i && h.ko) ? ' ko-will' : '')
+  const cls = i => (i === pickI && !ordering ? ' picked' : '') + (!ordering && !canBlock(g, me, i) ? ' no-block' : '') + (ordering && v.shown.some(h => h.i === i && h.ko) ? ' ko-will' : '')
     + (ordering && !v.done && i !== pickI && !order.includes(i) && mine[i].hp > 0 ? ' next-pick' : '');
   const cards = mine.map((f, i) => renderCard(finCard(g.players[me], f.id), { cls: 'mini' + finCls(g.players[me], f.id) + cls(i), hp: f.hp, ...statsOf(g, me, f),
     attrs: tappable('defpick', `data-i="${i}" data-nth="${nth}"`) }).replace(/<\/div>$/, `${marks(i)}</div>`)).join('');
@@ -900,7 +900,7 @@ const ACTS = {
     if (i === ui.defPick) { ui.defPick = null; ui.defOrder = []; return; }
     const k = ui.defOrder.indexOf(i);
     if (k >= 0) ui.defOrder = ui.defOrder.slice(0, k);
-    else if (!v?.multi) { ui.defPick = i; ui.defOrder = []; }
+    else if (!v?.multi) { if (!canBlock(game, me, i)) return toast(`${CARD[game.players[me].field[i].id].name} is Scaredy: it can't block while you have another Character.`); ui.defPick = i; ui.defOrder = []; }
     else if (!v.done && game.players[me].field[i]?.hp > 0) ui.defOrder = [...ui.defOrder, i];
   },
   defreset() { if (ui.defOrder.length) ui.defOrder = []; else ui.defPick = null; },
