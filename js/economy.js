@@ -205,7 +205,7 @@ function preHtml() {
     <div class="row2"><button class="btn" data-act="pre-cancel">Cancel</button><button class="btn primary" data-act="pre-go"${deckProblems(d).length ? ' disabled' : ''}>Battle</button></div></div></div>`;
 }
 const openPre = act => { const d = deck(); ui.pre = { act, deckId: d.id, cap: d.captain || CAPTAINS[0].id }; };
-const actBot = ACTS.bot, actHost = ACTS.host, actJoin = ACTS.join, actGo = ACTS.go;
+const actHost = ACTS.host, actJoin = ACTS.join, actGo = ACTS.go;
 Object.assign(ACTS, {
   bot() { openPre('bot'); },
   host() { openPre('host'); },
@@ -217,7 +217,7 @@ Object.assign(ACTS, {
   'pre-go'() {
     const p = ui.pre; ui.pre = null; ui.deckId = p.deckId; store.set('deck', p.deckId);
     const d = deck(); if (p.cap !== d.captain) { capRestore = [d, d.captain]; d.captain = p.cap; } // this battle only
-    return { bot: actBot, host: actHost, join: actJoin }[p.act](ui.preJoin);
+    return { bot: () => startBot(false), host: actHost, join: actJoin }[p.act](ui.preJoin);
   },
 });
 const renderNoPre = render;
