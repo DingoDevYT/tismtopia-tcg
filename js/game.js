@@ -323,7 +323,7 @@ function apply(s0, p, a, rng = Math.random) {
       const saved = opp.bank || 0;
       s.actions = Math.min(MAX_ACTIONS, saved + 2) + modSum(s, 1 - p, 'actions');
       opp.bank = 0;
-      if (opp.deck.length) draw(1 - p);
+      if (opp.deck.length) { const n = opp.hand.length ? 1 : Math.min(HAND_REFILL, opp.deck.length); for (let k = 0; k < n; k++) draw(1 - p); if (n > 1) say(`${opp.name} had no cards in hand and draws ${n}.`); }
       else { opp.fatigue = (opp.fatigue || 0) + 1; gain(1 - p, 'bore', opp.fatigue); say(`${opp.name} has no cards left to draw: +${opp.fatigue} Boredom.`); ev({ k: 'fatigue', p: 1 - p, n: opp.fatigue }); } // deck-out: escalating Boredom
       say(`${opp.name}'s turn${saved ? ` (${saved} Action${saved > 1 ? 's' : ''} saved, starts with ${s.actions})` : ''}.`);
       ev({ k: 'turn', p: 1 - p, actions: s.actions, saved });

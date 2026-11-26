@@ -122,6 +122,12 @@ function mechanics() {
   g = hit(g, 0, 1); ok(g.players[1].bore === 2 && g.players[1].effects[0].uses === 2, 'Nicer Mondays: direct 6 halves to 3, then 1 less = 2');
   g = fresh(); g.players[0].field = [F('t_wall'), F('t_wall'), F('t_wall')]; g.players[0].hand = ['t_wall'];
   ok((() => { try { apply(g, 0, { type: 'play', i: 0 }); return false; } catch { return true; } })() &&g.players[0].field.length === 3,'a 4th Character cannot be played');
+  g = fresh(); g.players[1].hand = []; g.players[1].deck = Array(8).fill('t_wall'); g = apply(g, 0, { type: 'end' });
+  ok(g.players[1].hand.length === 5 && g.players[1].deck.length === 3, 'empty hand at turn start: draw 5');
+  g = fresh(); g.players[1].hand = ['t_wall']; g.players[1].deck = Array(8).fill('t_wall'); g = apply(g, 0, { type: 'end' });
+  ok(g.players[1].hand.length === 2, 'a card in hand: the usual 1 draw');
+  g = fresh(); g.players[1].hand = []; g.players[1].deck = ['t_wall', 't_wall']; g = apply(g, 0, { type: 'end' });
+  ok(g.players[1].hand.length === 2 && !g.players[1].deck.length, 'empty hand, 2 cards left: draws both');
   g = fresh(); g.players[0].field = [F('scrunge_calytrix_and_noli'), F('t_wall'), F('t_wall'), F('t_wall'), F('t_wall')];
   ok(movePower(g, 0, g.players[0].field[0], CARD.scrunge_calytrix_and_noli.moves[1]) === 4, 'Calytrix: the ally bonus stops at +2');
   g = fresh(); g.players[0].hand = ['item_entity_form_v2']; g.players[0].field = [F('t_hit')]; g.players[1].field = [F('t_wall')];
