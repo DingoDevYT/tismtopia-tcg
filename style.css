@@ -781,6 +781,7 @@ img[data-asset] { visibility: hidden; } /* still being decrypted (js/assets.js):
 .coll-meta { display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 100%; font-size: 12px; font-weight: 800; color: var(--muted); }
 .rar { padding: 1px 7px; border-radius: 99px; font-size: 11px; font-weight: 900; color: #fff; background: #8a93ab; }
 .rar.r-U { background: #2f9e6e; } .rar.r-R { background: #d4a017; } .rar.r-UR { background: linear-gradient(90deg, #ff3c8e, #7b4dff, #3dc7ff); }
+.rar.s1 { background: #2f9e6e; } .rar.s2 { background: #3d8fd8; } .rar.s3 { background: #7b4dff; } .rar.s4 { background: #d4a017; } .rar.s5 { background: linear-gradient(90deg, #ff3c8e, #7b4dff, #3dc7ff); } /* by stars, like the filter chips */
 .fav { border: 0; background: none; font-size: 20px; line-height: 1; color: rgba(40, 50, 80, .25); cursor: pointer; padding: 2px 4px; }
 .fav.on { color: #ffb400; text-shadow: 0 0 6px rgba(255, 180, 0, .6); }
 .coll-cell.locked .card { filter: grayscale(1) brightness(.35) contrast(.8); opacity: .65; }

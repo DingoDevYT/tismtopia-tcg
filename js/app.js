@@ -103,7 +103,7 @@ function viewDeck() {
 function viewBuild() {
   const d = deck(), n = count(d), list = CARDS.filter(c => ui.filter === 'all' || c.type === ui.filter);
   return `${header('Add Cards')}
-  <div class="panel neu filter-panel${ui.fopen ? ' open' : ''}">${filtersToggle()}<div class="fbody"><div class="chips">${['all', 'character', 'bit', 'evil'].map(f =>
+  <div class="panel neu filter-panel${ui.fopen ? ' open' : ''}">${filtersToggle()}<div class="fbody"><div class="chips">${['all', 'character', 'bit', 'evil'].filter(f => f !== 'evil' || CARDS.some(c => c.type === 'evil')).map(f =>
     `<button class="chip${ui.filter === f ? ' on' : ''}" data-act="filter" data-f="${f}">${f === 'all' ? 'All' : LABEL[f]}</button>`).join('')}</div></div></div>
   <div class="grid">${list.map(c => `<div class="cell${own(c.id) ? '' : ' locked'}">${typeof pile === 'function' ? pile(c.id, Math.min(3, own(c.id)), '', tappable('zoom', `data-id="${c.id}"`)) : renderCard(c, { attrs: tappable('zoom', `data-id="${c.id}"`) })}
     <div class="stepper neu"><button data-act="step" data-id="${c.id}" data-d="-1" aria-label="Remove ${esc(c.name)}">−</button><span>${d.cards[c.id] || 0}/${Math.min(c.main ? 1 : MAX_COPIES, own(c.id))}</span><button data-act="step" data-id="${c.id}" data-d="1" aria-label="Add ${esc(c.name)}">+</button></div></div>`).join('')}</div>

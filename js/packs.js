@@ -202,7 +202,7 @@ function viewCollection() {
   let list = CARDS.filter(c => (s.own === 'all' || (s.own === 'owned' ? owned(c.id) : s.own === 'missing' ? !owned(c.id) : favs.has(c.id)))
     && (s.type === 'all' || c.type === s.type) && (s.rar === 'all' || String(starN(c.id, owned(c.id) ? bestFinish(c.id) : 'normal')) === s.rar)
     && (!q || [c.name, c.text, c.role, c.artist, ...(c.moves || []).flatMap(m => [m.name, m.text])].some(t => t && t.toLowerCase().includes(q))));
-  const by = { no: (a, b) => a.no.localeCompare(b.no), rarity: (a, b) => RANK[b.rarity || 'C'] - RANK[a.rarity || 'C'] || a.no.localeCompare(b.no), name: (a, b) => a.name.localeCompare(b.name), copies: (a, b) => owned(b.id) - owned(a.id) || a.no.localeCompare(b.no) };
+  const by = { no: (a, b) => a.no.localeCompare(b.no), rarity: (a, b) => starN(b.id, owned(b.id) ? bestFinish(b.id) : 'normal') - starN(a.id, owned(a.id) ? bestFinish(a.id) : 'normal') || a.no.localeCompare(b.no), name: (a, b) => a.name.localeCompare(b.name), copies: (a, b) => owned(b.id) - owned(a.id) || a.no.localeCompare(b.no) };
   list = [...list].sort(by[s.sort]);
   const chip = (key, val, label) => `<button class="chip${s[key] === val ? ' on' : ''}" data-act="coll-set" data-k="${key}" data-v="${val}">${label}</button>`;
   return `${header('Collection')}
@@ -212,14 +212,14 @@ function viewCollection() {
     <div class="fbody">
     <input id="coll-search" class="coll-search" type="search" placeholder="Search name, moves, text or artist…" value="${esc(s.q)}" autocomplete="off">
     <div class="chips">${chip('own', 'all', 'All')}${chip('own', 'owned', 'Owned')}${chip('own', 'missing', 'Missing')}${chip('own', 'favs', '★ Favourites')}</div>
-    <div class="chips">${chip('type', 'all', 'Any type')}${chip('type', 'character', 'Characters')}${chip('type', 'bit', 'Items')}${chip('type', 'evil', 'Evils')}</div>
+    <div class="chips">${chip('type', 'all', 'Any type')}${chip('type', 'character', 'Characters')}${chip('type', 'bit', 'Items')}${CARDS.some(c => c.type === 'evil') ? chip('type', 'evil', 'Evils') : ''}</div>
     <div class="chips">${chip('rar', 'all', 'Any')}${[0, 1, 2, 3, 4, 5].map(n => chip('rar', String(n), n ? n + '★' : '☆')).join('')}</div>
     <div class="chips">${chip('sort', 'no', 'Number')}${chip('sort', 'rarity', 'Rarity')}${chip('sort', 'name', 'Name')}${chip('sort', 'copies', 'Copies')}</div>
     </div>
   </div>
   <div class="grid coll-grid">${list.map(c => { const n = owned(c.id), f = bestFinish(c.id);
     return `<div class="cell coll-cell${n ? '' : ' locked'}">${renderCard(n && (f === 'full' || f === 'rainbow') ? { ...c, crop: null } : c, { cls: n ? FINISH_CLS[f] : '', attrs: tappable('view-card', `data-id="${c.id}"`) })}
-      <div class="coll-meta"><span class="rar r-${c.rarity || 'C'}">${c.rarity || 'C'}</span><span>${n ? '×' + n : 'Not owned'}</span>
+      <div class="coll-meta"><span class="rar s${starN(c.id, n ? f : 'normal')}">${starsOf(c.id, n ? f : 'normal')}</span><span>${n ? '×' + n : 'Not owned'}</span>
       <button class="fav${favs.has(c.id) ? ' on' : ''}" data-act="fav" data-id="${c.id}" aria-label="${favs.has(c.id) ? 'Unfavourite' : 'Favourite'} ${esc(c.name)}">★</button></div></div>`; }).join('') || '<p class="muted center empty">No cards match.</p>'}</div>
   ${tabbar('collection')}${overlay()}${viewer()}`;
 }
@@ -236,7 +236,7 @@ function viewer() {
   return `<div class="viewer"><div class="viewer-bg" data-act="close-viewer"></div>
     <div class="viewer-card">${renderCard((f === 'full' || f === 'rainbow') ? { ...c, crop: null } : c, { cls: `zoom view sway ${n ? FINISH_CLS[f] : ''}` })}</div>
     <div class="viewer-info neu">
-      <div class="viewer-top"><b>${esc(c.name)}</b><span class="rar r-${c.rarity || 'C'}">${starsOf(v.id, n ? f : 'normal')}</span>
+      <div class="viewer-top"><b>${esc(c.name)}</b><span class="rar s${starN(v.id, n ? f : 'normal')}">${starsOf(v.id, n ? f : 'normal')}</span>
         <button class="fav${favs.has(v.id) ? ' on' : ''}" data-act="fav" data-id="${v.id}" aria-label="Favourite">★</button></div>
       <small class="muted">${n ? `You own ${n}` : 'Not owned yet'} · drag the card to tilt it</small>
       ${n ? `<div class="chips">${have.map(k => `<button class="chip${k === f ? ' on' : ''}" data-act="viewer-finish" data-f="${k}">${k === 'normal' ? 'Normal' : FINISH_NAME[k]}${coll[v.id]?.f?.[k] ? ` ×${coll[v.id].f[k]}` : ''}</button>`).join('')}</div>` : ''}
