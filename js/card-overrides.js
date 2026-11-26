@@ -1168,8 +1168,8 @@ const OVERRIDES = {
   ]
  },
  "captain_rotgrease": {
-  "goof": 4,
-  "text": "Super, 4 Creativity: Grind. Opponent +2 Boredom.",
+  "goof": 5,
+  "text": "Super, 5 Creativity: Grind. Opponent +2 Boredom.",
   "ability": [
    [
     "bore",
@@ -1179,8 +1179,8 @@ const OVERRIDES = {
   ]
  },
  "captain_anonagon": {
-  "goof": 4,
-  "text": "Super, 4 Creativity: Crunch Time. +4 Actions this turn.",
+  "goof": 5,
+  "text": "Super, 5 Creativity: Crunch Time. +4 Actions this turn.",
   "ability": [
    [
     "actions",
@@ -1206,7 +1206,7 @@ const OVERRIDES = {
   "goof": 5
  },
  "captain_wawa": {
-  "text": "Super, 3 Creativity: Random Button. Flip a coin. Heads: opponent +3 Boredom. Tails: nothing happens.",
+  "text": "Super, 5 Creativity: Random Button. Flip a coin. Heads: opponent +3 Boredom. Tails: nothing happens.",
   "ability": [
    [
     "flip",
@@ -1220,7 +1220,11 @@ const OVERRIDES = {
     []
    ]
   ],
-  "goof": 3
+  "goof": 5
+ },
+ "captain_abby": {
+  "goof": 5,
+  "text": "Super, 5 Creativity: Roll Out. +2 Actions and clear 2 of your Boredom."
  }
 };
 for (const c of [...CAPTAINS, ...CARDS]) Object.assign(c, OVERRIDES[c.id] || {});
