@@ -1,5 +1,5 @@
 // Ranked: an Elo rating (start 1000) that moves in ranked games only. Real players (matchmaking, below) count fully, K = 32;
-// ranked bots count half, K = 16. Practice (Battle vs bot) and casual online battles never change it.
+// ranked bots count half, K = 16. Casual online battles and the tutorial never change it.
 // Save key 'rank' = { r: rating, g: ranked games, w: ranked wins, pk: peak rating }, checked by cleanSave (js/cloud.js); the rating
 // is published in your profiles row's summary (js/social.js) so Social and profiles show your badge.
 // shortcut: ratings are self-reported by each client (both players update their own at game end); fine for a friends' server.
@@ -179,7 +179,7 @@ function viewRanked() {
   return `${header('Ranked')}<div class="rk-wrap">
     <section class="neu me-rank tcol-${k}"><div class="r1">${rkBadge(R.r, 'lg')}<div><b class="tier">${name}</b><span class="rt">${R.r} <small>rating</small></span></div>${pfpAvatar(myPfp(), ' md')}</div>
       <div class="prog"><div class="progress"><i style="width:${rkPct(R.r, s).toFixed(1)}%"></i></div><span>${s.hi ? `${s.hi - R.r} to ${s.next} (${s.hi})` : 'Top tier'} · ${R.g} ranked game${R.g === 1 ? '' : 's'}${R.g ? ` · best ${R.pk}` : ''}</span></div>
-      <div class="rk-note">${ICON.bot}<span><b>Bot games count half.</b> Games against real players count fully. Practice and casual battles never change your rating.</span></div></section>
+      <div class="rk-note">${ICON.bot}<span><b>Bot games count half.</b> Games against real players count fully. Friend battles never change your rating.</span></div></section>
     <section class="neu rk-pvp"><div class="r1"><span class="ico">${soIc('pawns')}</span><div><b>Ranked match</b><small>A real player near your rating</small></div></div>${pvp}</section>
     <div class="lbl2">${ICON.bot}Ranked bots · counts half</div>
     <div class="rk-tiers">${RK_BOTS.map((b, i) => { const [tk, tn, lo] = RK_TIERS[i];

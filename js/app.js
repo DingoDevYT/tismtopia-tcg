@@ -77,8 +77,7 @@ function viewHome() {
   </section>
   <div class="tiles">
     <button class="tile neu" data-act="tutorial">${ICON.school}<b>Tutorial</b><small>Learn by playing</small></button>
-    <button class="tile neu" data-act="bot">${ICON.bot}<b>Practice</b><small>Play vs the bot</small></button>
-    <button class="tile neu" data-act="go" data-to="lobby">${ICON.battle}<b>Battle</b><small>Play a friend</small></button>
+    <button class="tile neu" data-act="go" data-to="lobby">${ICON.battle}<b>Battle</b><small>Ranked or a friend</small></button>
     <button class="tile neu" data-act="go" data-to="packs">${ICON.main}<b>Open Packs</b><small>${typeof ownedCount === 'function' ? ownedCount() : 0} of ${CARDS.length} owned</small></button>
     <button class="tile neu" data-act="go" data-to="collection">${ICON.search}<b>Collection</b><small>Your cards</small></button>
     <button class="tile neu" data-act="go" data-to="deck">${ICON.cards}<b>Deck Builder</b><small>${decks.length} deck${decks.length > 1 ? 's' : ''}</small></button>
@@ -243,7 +242,7 @@ function viewOver() {
       <div><span>Boredom inflicted</span><b><span class="bore-i">${ICON.bore}</span>${mine.stats.bore}</b></div>
       <div><span>Creativity built</span><b><span class="goof-i">${ICON.goof}</span>${mine.stats.goof}</b></div>
     </div>
-    <div class="row2"><button class="btn primary" data-act="rematch"${conn || bot ? '' : ' disabled'}>Rematch</button><button class="btn" data-act="leave">Home</button></div></div>
+    <div class="row2"><button class="btn primary" data-act="rematch"${conn || (bot && game.rk) ? '' : ' disabled'}>Rematch</button><button class="btn" data-act="leave">Home</button></div></div>
     ${ui.toast ? `<div class="toast neu">${esc(ui.toast)}</div>` : ''}`;
 }
 
@@ -908,7 +907,6 @@ const ACTS = {
   rematch() { if (bot) startBot(false); else if (isHost) startGame(); else conn?.send({ t: 'rematch' }); },
   leave() { leave(); },
   'leave-battle'() { if (confirm('Leave this battle?')) leave(); },
-  bot() { startBot(false); },
   tutorial() { startBot(true); },
   'tut-next'() { ui.tut = TUT[ui.tut].next === true ? ui.tut + 1 : null; },
   'tut-skip'() { ui.tut = null; },
