@@ -77,7 +77,7 @@ const rkResolve = (n, p) => (n && n.phase === 'defend' ? rkTry(n, 1 - p, { type:
 // Silver: the practice bot's plan (js/app.js botMove): free boosts, Super when ready, a Character, then the strongest attack per Action.
 function rkGold(g, p) {
   const B = g.players[p], n = g.actions, all = B.field.map((_, i) => i);
-  const hc = B.hand.findIndex(id => CARD[id].type === 'character'), canPlay = hc >= 0 && B.field.length < 3;
+  const hc = B.hand.findIndex(id => CARD[id].type === 'character'), canPlay = hc >= 0 && B.field.length < FIELD_MAX;
   const moves = all.flatMap(i => CARD[B.field[i].id].moves.map((mv, m) => ({ i, m, mv, c: moveCost(g, p, mv) }))).filter(x => !moveBlock(g, p, B.field[x.i], x.m));
   const boost = moves.find(x => x.mv.ability && x.c === 0), attacks = moves.filter(x => !x.mv.ability), abil = moves.find(x => x.mv.ability);
   const spell = B.hand.findIndex(id => CARD[id].type !== 'character' && playCost(g, p, CARD[id]) <= n), cap = CARD[B.captain];
@@ -98,7 +98,7 @@ function rkPlat(g, p, timed) {
   if (boost) return boost;
   const sup = o.find(a => a.type === 'ability'); if (sup && (!timed || rkVal(rkResolve(rkTry(g, p, sup), p), p) > rkVal(g, p))) return sup;
   const chars = o.filter(a => k(a) === 'character');
-  if (chars.length && B.field.length < 3) return rkBest(chars, a => { const c = CARD[B.hand[a.i]]; return maxHp(c) + baseArmor(c) * 3; });
+  if (chars.length && B.field.length < FIELD_MAX) return rkBest(chars, a => { const c = CARD[B.hand[a.i]]; return maxHp(c) + baseArmor(c) * 3; });
   const spell = o.find(a => k(a) === 'bit' || k(a) === 'evil'); if (spell) return spell;
   // expected damage after the weakest blocker's armour (a blocker is picked by the defender, so assume their best armour)
   const arm = O.field.length ? Math.max(...O.field.map(f => statsOf(g, 1 - p, f).def)) : 0;

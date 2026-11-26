@@ -120,6 +120,8 @@ function mechanics() {
   ok(g.players[1].field.length === 2 && g.players[1].field[0].hp === 1 && g.players[1].field[1].hp === maxHp(CARD.t_wall) && g.players[1].effects.length === 0, 'Deity Form: pawn stays on 1 HP, no spill, Item gone');
   g = fresh(); g.players[1].effects = [{ id: 'item_nicer_mondays_v2', uses: 3 }]; g.players[0].field = [F('t_hit')];
   g = hit(g, 0, 1); ok(g.players[1].bore === 1 && g.players[1].effects[0].uses === 2, 'Nicer Mondays: direct 6 halves to 3, then 2 less = 1');
+  g = fresh(); g.players[0].field = [F('t_wall'), F('t_wall'), F('t_wall')]; g.players[0].hand = ['t_wall'];
+  ok((() => { try { apply(g, 0, { type: 'play', i: 0 }); return false; } catch { return true; } })() &&g.players[0].field.length === 3,'a 4th Character cannot be played');
   g = fresh(); g.players[0].field = [F('scrunge_calytrix_and_noli'), F('t_wall'), F('t_wall'), F('t_wall'), F('t_wall')];
   ok(movePower(g, 0, g.players[0].field[0], CARD.scrunge_calytrix_and_noli.moves[1]) === 4, 'Calytrix: the ally bonus stops at +2');
   g = fresh(); g.players[0].hand = ['item_entity_form_v2']; g.players[0].field = [F('t_hit')]; g.players[1].field = [F('t_wall')];

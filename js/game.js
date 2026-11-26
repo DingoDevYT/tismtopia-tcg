@@ -201,6 +201,7 @@ function apply(s0, p, a, rng = Math.random) {
   switch (a.type) {
     case 'play': {
       const id = at(me.hand, a.i), c = CARD[id];
+      if (c.type === 'character' && me.field.length >= FIELD_MAX) throw new Error(`Your field is full (${FIELD_MAX} Characters).`);
       spend(playCost(s, p, c));
       me.hand.splice(a.i, 1);
       let src;
