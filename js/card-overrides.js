@@ -164,13 +164,13 @@ const OVERRIDES = {
   "moves": [
    {
     "name": "Dad Hug",
-    "cost": 1,
+    "cost": 2,
     "ability": true,
-    "text": "Your other Characters heal 2 HP.",
+    "text": "Your other Characters heal 3 HP.",
     "ops": [
      [
       "healAll",
-      2
+      3
      ]
     ]
    },
@@ -220,7 +220,7 @@ const OVERRIDES = {
   },
   "role": "Tank",
   "unkillable": true,
-  "text": "Tough. Can’t be killed: once per game, an attack that would defeat Arhakoth leaves it on 1 HP.",
+  "text": "Can’t be killed: once per game, an attack that would defeat Arhakoth leaves it on 1 HP.",
   "moves": [
    {
     "name": "Squish",
@@ -232,7 +232,8 @@ const OVERRIDES = {
     "cost": 3,
     "power": 5
    }
-  ]
+  ],
+  "disadv": false
  },
  "jegg_abigaia_v2": {
   "name": "Abigaia",
@@ -608,7 +609,9 @@ const OVERRIDES = {
      ]
     ]
    }
-  ]
+  ],
+  "disadv": false,
+  "text": ""
  },
  "jegg_brulee": {
   "cropFull": {
@@ -836,7 +839,7 @@ const OVERRIDES = {
    "zoom": 1.57
   },
   "role": "Striker",
-  "def": 10,
+  "def": 12,
   "hp": 3,
   "shy": true,
   "text": "Scaredy: can’t block while you have another Character.",

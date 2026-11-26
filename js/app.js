@@ -337,7 +337,7 @@ const NTH = n => ['1st', '2nd', '3rd', '4th', '5th'][n] || `${n + 1}th`;
 
 function defendSheet() {
   const g = game, af = g.players[g.turn].field[g.pending.i], ac = CARD[af.id], A = statsOf(g, g.turn, af), mine = g.players[me].field, pickI = ui.defPick, order = ui.defOrder || [];
-  const mv = ac.moves[g.pending.m], power = mv.power + A.bonus, dmg = f => Math.max(0, power - statsOf(g, me, f).def), pick = mine[pickI];
+  const mv = ac.moves[g.pending.m], power = mv.power + A.bonus, dmg = f => Math.max(CHIP_MIN, power - statsOf(g, me, f).def), pick = mine[pickI];
   const v = pick ? defView() : null, ordering = !!v?.multi, nth = NTH(order.length + 1); // the blocker is 1st
   const marks = i => { // badge + damage chip on each Character already placed in the order
     const k = ordering ? v.shown.findIndex(h => h.i === i) : -1, h = v?.shown[k];
@@ -494,7 +494,7 @@ async function attackAnim(e, ev) {
   floatText(atkEl, `${e.move} ${r.atk}`, 'atk', 0, ICON.atk);
   await jump(atkEl, defEl);
   if (r.hit) { shield.classList.add('shatter'); flash(defEl, 'hurt', 600); floatText(defEl, `−${hits[0]?.taken ?? r.dmg}`, 'dmg', absorbed ? 30 : 0, ICON.hp); }
-  else { shield.classList.add('block'); flash(defEl, 'bump', 500); floatText(defEl, 'Blocked!', 'blocked', 30, ICON.block); if (typeof sfx === 'function') sfx('colorlessAttackSmall'); }
+  else { shield.classList.add('block'); flash(defEl, hits[0]?.taken ? 'hurt' : 'bump', 500); floatText(defEl, hits[0]?.taken ? `Blocked · −${hits[0].taken}` : 'Blocked!', 'blocked', 30, ICON.block); if (typeof sfx === 'function') sfx('colorlessAttackSmall'); }
   if (absorbed) floatText(defEl, `${absorbed} blocked`, 'blocked', 0, ICON.def);
   setTimeout(() => shield.remove(), 450);
   let t = 0, from = defEl;

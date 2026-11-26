@@ -258,7 +258,7 @@ function apply(s0, p, a, rng = Math.random) {
       while (left > 0) {
         const tf = me.field[ti];
         if (!tf) { bore = guardBore(p, left); gain(p, 'bore', bore); break; }
-        const through = Math.max(0, left - arm(tf));
+        const through = Math.max(ti === a.i ? CHIP_MIN : 0, left - arm(tf)); // the blocker always takes at least CHIP_MIN; spill-over doesn't
         let taken = Math.min(through, tf.hp);
         // Survive on 1 HP and stop the rest: the Character's own once-per-game `unkillable`, else a lastStand Item.
         const own = taken >= tf.hp && CARD[tf.id].unkillable && !tf.saved, save = taken >= tf.hp && !own && fxWith(p, 'lastStand');

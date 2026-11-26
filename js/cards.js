@@ -40,6 +40,7 @@ const BORE_MAX = 15;
 const HP_SCALE = 1.2;
 const maxHp = c => Math.round(c.hp * HP_SCALE);
 const baseArmor = c => Math.max(0, Math.round((c.def - 10) / 3)) + (c.disadv ? 1 : 0); // Boredom that knocks you out; tools/sim.js tries other values
+const CHIP_MIN = 1; // a blocked hit still does at least this much to the blocker (its extra effect needs real damage)
 const FIELD_MAX = 3; // Characters on one side of the field
 const DECK_SIZE = 40; // shortcut: the rules don't set a deck size yet, change once decided
 
@@ -57,8 +58,8 @@ const EVIL_SWAP = {
     text: 'Enoch and Son overthink everything. On your opponent’s next turn, their attacks cost 1 more Action.' },
   item_pollen_season: { id: 'item_pollen_season_v2', type: 'bit', name: 'Pollen Season', cost: 0, dur: 2, mod: { oppNoSuper: 1 }, onPlay: [['goof', 'opp', -1]],
     text: 'Wiffle can’t stop sneezing. Opponent -1 Creativity, and they can’t use their Super on their next turn.' },
-  item_nicer_mondays: { id: 'item_nicer_mondays_v2', type: 'bit', name: 'Nicer Mondays', cost: 1, uses: 3, boreGuard: 2,
-    text: 'The day we all hate, a little softer. 3 uses: when an attack would give you Boredom, you get 2 less.' },
+  item_nicer_mondays: { id: 'item_nicer_mondays_v2', type: 'bit', name: 'Nicer Mondays', cost: 1, uses: 3, boreGuard: 1,
+    text: 'The day we all hate, a little softer. 3 uses: when an attack would give you Boredom, you get 1 less.' },
   item_entity_form: { id: 'item_entity_form_v2', type: 'bit', name: 'Entity Form', cost: 0, dur: 2, next: true, mod: { atk: 2 },
     text: 'Orpheus drops the human form. Your next turn: your attacks get +2 power.' },
 };
@@ -81,8 +82,8 @@ const RULES = [
   ['Draw', 'You draw at the start of your turn. There is no hand limit. With an empty deck you gain Boredom instead: 1, then 2, then 3, and so on.', 'draw', 'Third turn with an empty deck: +3 Boredom.'],
   ['Characters', `Characters stay on the field and attack with moves. You can have at most ${FIELD_MAX} on your field. Each Character can use one move per turn. Some cannot attack the turn they are played.`, 'character', 'A Character with two moves still only uses one each turn.'],
   ['Attacking', 'Pick a move, then your opponent picks which of their Characters blocks it. No Characters on their side? The full damage goes to their Boredom, except on each player’s first turn, when an empty field can’t be attacked.', 'atk', 'Power 3 into an empty field: they gain 3 Boredom.'],
-  ['Armour', 'The blocker takes the move’s power minus its armour (the shield number). Armour comes from the card, Tough, and some card effects.', 'def', 'Power 3 against armour 1: the blocker takes 2.'],
-  ['Blocked', 'If armour is as big as the power, nothing gets through: the hit is fully blocked, and the move’s extra effect does not happen.', 'block', 'Power 2 against armour 2: Blocked!'],
+  ['Armour', `The blocker takes the move’s power minus its armour (the shield number), but always at least ${CHIP_MIN}. Armour comes from the card, Tough, and some card effects.`, 'def', 'Power 3 against armour 1: the blocker takes 2.'],
+  ['Blocked', `If armour is as big as the power, the hit is blocked: the blocker still takes ${CHIP_MIN}, but the move’s extra effect does not happen and nothing spills over.`, 'block', `Power 2 against armour 2: Blocked, the blocker takes ${CHIP_MIN}.`],
   ['Overkill', 'A Character at 0 HP leaves the field. Leftover damage spills to their next Character (its armour counts too), and what is left after the whole field goes to Boredom.', 'spill', 'Power 5 hits a 2 HP Character with armour 1: it takes 2, and 2 more spills to the next one.'],
   ['Boredom', 'Boredom is your health. It rises from spill-over, direct hits and card effects. The meter turns to warning colours at 7.', 'bore', 'At 7 or more, be careful.'],
   ['Creativity', 'You gain +1 every turn, up to your Captain’s Super cost, so a full bar means the Super is ready. Cards can add or remove it. Landing hits does not change it.', 'goof', 'Start of your turn: 3 becomes 4.'],

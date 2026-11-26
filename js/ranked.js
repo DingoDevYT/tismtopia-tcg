@@ -62,7 +62,7 @@ function rkVal(s, p) {
 const rkBlockers = (s, p) => s.players[p].field.map((_, i) => i).filter(i => canBlock(s, p, i));
 function rkBlock(s, p) {
   const af = s.players[1 - p].field[s.pending.i], pw = CARD[af.id].moves[s.pending.m].power + statsOf(s, 1 - p, af).bonus, F = s.players[p].field;
-  return rkBest(rkBlockers(s, p), i => { const d = Math.max(0, pw - statsOf(s, p, F[i]).def); return (d < F[i].hp ? 100 : 0) - d * 10 + F[i].hp; });
+  return rkBest(rkBlockers(s, p), i => { const d = Math.max(CHIP_MIN, pw - statsOf(s, p, F[i]).def); return (d < F[i].hp ? 100 : 0) - d * 10 + F[i].hp; });
 }
 // Defender p's spill order once blocker b is picked: every order of its other Characters is played out on a copy (same coin each time)
 // and the one that leaves p's board best (least lost) wins; ties keep field order.
@@ -102,7 +102,7 @@ function rkPlat(g, p, timed) {
   const spell = o.find(a => k(a) === 'bit' || k(a) === 'evil'); if (spell) return spell;
   // expected damage after the weakest blocker's armour (a blocker is picked by the defender, so assume their best armour)
   const arm = O.field.length ? Math.max(...O.field.map(f => statsOf(g, 1 - p, f).def)) : 0;
-  const dmg = a => { const mv = CARD[B.field[a.i].id].moves[a.m]; return mv.power + statsOf(g, p, B.field[a.i]).bonus - arm; };
+  const dmg = a => { const mv = CARD[B.field[a.i].id].moves[a.m]; return Math.max(CHIP_MIN, mv.power + statsOf(g, p, B.field[a.i]).bonus - arm); };
   const atk = o.filter(a => k(a) === 'attack' && dmg(a) > 0);
   if (atk.length) return rkBest(atk, a => dmg(a) * 10 - moveCost(g, p, CARD[B.field[a.i].id].moves[a.m]));
   const cl = o.find(a => a.type === 'cleanse'); if (cl) return cl;

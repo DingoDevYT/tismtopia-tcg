@@ -119,7 +119,7 @@ function mechanics() {
   g = hit(g, 0, 1); // power 6 into a 2-HP pawn: would die and spill 4
   ok(g.players[1].field.length === 2 && g.players[1].field[0].hp === 1 && g.players[1].field[1].hp === maxHp(CARD.t_wall) && g.players[1].effects.length === 0, 'Deity Form: pawn stays on 1 HP, no spill, Item gone');
   g = fresh(); g.players[1].effects = [{ id: 'item_nicer_mondays_v2', uses: 3 }]; g.players[0].field = [F('t_hit')];
-  g = hit(g, 0, 1); ok(g.players[1].bore === 1 && g.players[1].effects[0].uses === 2, 'Nicer Mondays: direct 6 halves to 3, then 2 less = 1');
+  g = hit(g, 0, 1); ok(g.players[1].bore === 2 && g.players[1].effects[0].uses === 2, 'Nicer Mondays: direct 6 halves to 3, then 1 less = 2');
   g = fresh(); g.players[0].field = [F('t_wall'), F('t_wall'), F('t_wall')]; g.players[0].hand = ['t_wall'];
   ok((() => { try { apply(g, 0, { type: 'play', i: 0 }); return false; } catch { return true; } })() &&g.players[0].field.length === 3,'a 4th Character cannot be played');
   g = fresh(); g.players[0].field = [F('scrunge_calytrix_and_noli'), F('t_wall'), F('t_wall'), F('t_wall'), F('t_wall')];
@@ -164,7 +164,9 @@ function mechanics() {
   g = fresh(); g.players[0].field = [F('jegg_lyra')]; ok(movePower(g, 0, g.players[0].field[0], CARD.jegg_lyra.moves[1]) === 4, 'Lyra: 4 normally'); g.players[1].bore = 10; ok(movePower(g, 0, g.players[0].field[0], CARD.jegg_lyra.moves[1]) === 7, 'Lyra: 7 at 10 Boredom');
   g = fresh(); g.players[0].field = [F('scrunge_calytrix_and_noli'), F('t_wall'), F('t_wall')]; ok(movePower(g, 0, g.players[0].field[0], CARD.scrunge_calytrix_and_noli.moves[1]) === 4, 'Calytrix: +1 per other Character');
   g = fresh(); g.players[1].field = [F('scrunge_maxi'), F('t_wall')]; ok(!canBlock(g, 1, 0) && canBlock(g, 1, 1), 'Maxi cannot block beside another Character'); g.players[1].field.pop(); ok(canBlock(g, 1, 0), 'Maxi alone can block');
-  g = fresh(); g.players[0].field = [F('scrunge_noxx_darmen'), F('t_wall', 3)]; g = apply(g, 0, { type: 'attack', i: 0, m: 0 }); ok(g.players[0].field[1].hp === 5, 'Noxx and D’Armen: Dad Hug heals the others 2');
+  g = fresh(); g.players[0].field = [F('scrunge_noxx_darmen'), F('t_wall', 3)]; g = apply(g, 0, { type: 'attack', i: 0, m: 0 }); ok(g.players[0].field[1].hp === 6 && g.actions === 7, 'Noxx and D’Armen: Dad Hug costs 2 and heals the others 3');
+  g = fresh(); g.players[0].field = [F('t_wall')]; g.players[1].field = [F('t_tank'), F('t_pawn')]; g = apply(apply(g, 0, { type: 'attack', i: 0, m: 0 }), 1, { type: 'defend', i: 0 });
+  ok(g.players[1].field[0].hp === maxHp(CARD.t_tank) - 1 && g.players[1].field[1].hp === 2 && !g.roll.hit, 'power 1 into armour 1: blocked, the blocker still takes 1, nothing spills');
   g = fresh(); g.players[1].field = [F('scrunge_alek')]; g.players[0].hand = ['t_hit']; g = apply(g, 0, { type: 'play', i: 0 });
   ok(moveBlock(g, 0, g.players[0].field[0], 0) === 'Can attack next turn', 'Alek: new enemy Characters cannot attack that turn');
   g = fresh(); g.players[0].field = [F('t_hit')]; g.players[1].field = [F('jimmy_arhakoth', 2)];
