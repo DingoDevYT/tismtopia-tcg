@@ -162,7 +162,7 @@ const TUT = [
   { text: "Their Boredom went up by the attack's damage. You're out of Actions, so tap End Turn.", sel: '[data-act=end]', done: g => g.turn === 1 },
   { text: "The bot's turn. When it attacks, you pick which of your Characters blocks: tap one, then tap Block. The blocker takes the attack's power minus its armour (the shield number).",
     sel: () => (game.phase !== 'defend' ? null : ui.defPick != null ? '.sheet [data-a*=\'"defend"\']' : '.sheet .field .card'), done: g => !!g.roll || (g.turn === 0 && g.turnNo > 2) },
-  { text: 'The blue shield number is armour: it soaks up that much of every hit. If armour covers the whole hit, you see "Blocked!" and nothing gets through.', next: true },
+  { text: `The blue shield number is armour: it soaks up that much of every hit. If armour covers the whole hit, it is Blocked: the blocker still takes ${CHIP_MIN}, but the move's extra effect doesn't happen.`, next: true },
   { text: 'Overkill: damage past a Character’s HP spills to your next Character (its armour counts too), and only what is left after the whole field becomes Boredom. Watch for the streak between cards.', next: true },
   { text: 'At the start of each of your turns you draw a card, get 2 Actions and gain 1 Creativity. A banner tells you, and a +1 pops up on the meter.', sel: `${MY} .meter.goof`, next: true },
   { text: "Creativity is spent on your Captain's Super (once per turn, no Actions needed). The notch on the bar is its cost, and it lights up when you can afford it. Then a glowing SUPER button appears on your Captain: tap it to see what it does, then tap Use Super.", sel: `${MY} .hud .card.cap`, next: true },
